@@ -1,0 +1,8 @@
+{
+  "name": "Ceflot 0.0.3",
+  "description": "Construction Easy Flow Lifecycle Operations Tool - A full-lifecycle construction delivery platform with hardened multi-tenancy and robust Excel handling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
