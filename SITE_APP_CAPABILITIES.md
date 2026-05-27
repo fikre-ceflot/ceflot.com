@@ -6,21 +6,25 @@ This specification compiles all current functional capabilities, UI hierarchies,
 
 ## 1. Architectural Philosophy, Graphics Layout & Decluttered Design System
 
-The Site App is designed as a focused, high-performance, and high-density mobile interface. It prioritizes low visual friction, extreme typographic legibility, and modern minimalist layouts that eliminate screen-noise for field workers operating under harsh conditions.
+The Site App is designed as a focused, high-performance, and high-density mobile interface. It prioritizes low visual friction, extreme typographic legibility, and modern minimalist layouts that eliminate screen-noise for field workers operating under variable daylight and harsh onsite conditions.
 
 ### A. Minimalist Graphics Layout Principles (Decluttered UI)
-* **Zero-Value Suppression**: To keep the layout pristine, column indicators such as Contract Quantity and Progress Percent are suppressed (rendered completely blank/empty) if they are equal to `0`, `0.0`, or if they represent parent/system group headers. 
-* **Redundant Status Removal**: Read-only warning lock logos, padlocks, or status badges (such as static "0.0" and locked rows) are hidden under parent rows. Only editable leave cards show inputs, preventing the screen from looking cluttered with lock signals or zeros.
-* **Typographic Hierarchy**: High-contrast pairing of **Inter** (sans-serif) for clean labels, functional controls, and display headers, alongside **JetBrains Mono** (monospace) for technical codes, numeric logs, and timestamps.
-* **Negative Space and Balance**: Utilizes generous, intentional negative space padding to distinguish card elements instead of hard-borders, using smooth translucent surface fills (`bg-surface-2/40`, charcoal sub-surfaces) on a clean dark backdrop (`bg-surface-base`), leaving outer boundaries sleek and uncluttered.
+* **Visual Quietness & Zero-Value Suppression**: To keep the layout highly readable under variable outdoor glare, numeric columns such as Contract Quantity and Progress Percentage are completely suppressed (rendered empty/blank) if they are equal to `0`, `0.0`, or represent top-level structural containers. No secondary zeros flood the ledger grid.
+* **Redundant Status & Noise Removal**: Read-only warning signals, redundant padlock SVGs, or system logging logs are hidden under parent rows, showing only active interactive fields depending on the operator's current workflow scope.
+* **Typographic Hierarchy & Eye-Safe Contrast**: Elegant pairing of high-contrast **Inter** (sans-serif) for general labels, display headers, and functional controls alongside **JetBrains Mono** (monospace) for technical material codes, numeric logs, work items, and timestamps.
+* **Negative Space and Balance**: Uses generous negative space padding to distinguish cards instead of heavy physical borders. Includes subtle translucent overlay fills (`bg-surface-2/40` on charcoal sub-surfaces) against an eye-safe dark backdrop (`bg-surface-base`), leaving outer boundaries elegant, clean, and completely uncluttered.
+* **Color Psychology Constraints**: Focuses strictly on a cohesive slate/charcoal color theme. Status colors are applied with high clinical discretion:
+  - `Emerald` for completed milestones or verified receipts.
+  - `Amber` for active progress or outstanding issues.
+  - `Rose` for critical project-stopper alerts or material shortages.
 
 ### B. Shell & Layout Contexts
-1. **Office Access Mode (Embedded)**: Rendered inside a web dashboard segment (`relative w-full h-[750px] max-w-md mx-auto rounded-[3rem] border border-border-subtle shadow-2xl overflow-hidden`).
+1. **Office Access Mode (Embedded)**: Rendered inside a web dashboard segment with an immersive responsive chassis container (`relative w-full h-[750px] max-w-md mx-auto rounded-[3rem] border border-border-subtle shadow-2xl overflow-hidden`).
 2. **Field Operator Mode (Stand-alone)**: Rendered in a simulated high-fidelity mobile smartphone wrapper with a top navigation pill (notch simulation), a scrollable main canvas, and a sticking bottom navigation action bar.
 
 ### C. Android Equivalent Design Guidance
-* **Activity Architecture**: Single-Activity Architecture (`MainActivity`) using **Jetpack Compose Navigation**.
-* **Base Layout Framework**: Scaffold with a coordinate bottom sheet handle, custom status-bar colors matching the ambient container, and full system inset paddings (`Modifier.windowInsetsPadding(WindowInsets.safeDrawing)`).
+* **Activity Design**: Single-Activity Architecture (`MainActivity`) using **Jetpack Compose Navigation**.
+* **Base Layout Framework**: Scaffold with a coordinated bottom sheet handle, custom status-bar colors matching the ambient container, and full system inset paddings (`Modifier.windowInsetsPadding(WindowInsets.safeDrawing)`).
 
 ---
 
@@ -29,11 +33,12 @@ The Site App is designed as a focused, high-performance, and high-density mobile
 The application connects directly to the Supabase Auth system to manage operator credentials, secure data boundaries, and determine interface layouts.
 
 ### A. Supabase Authentication & Login Flow
-1. **User Sign-In Screen**: A distraction-free, elegant log-in form requiring e-mail credentials and an encrypted user password. Off-focus elements are masked to prevent input clutter.
-2. **Profile Mapping & RBAC**: Upon a successful validation hand-shake, the client retrieves the authenticated user's profile from the custom `user_profiles` database table corresponding to `auth.users.id`.
-3. **Tenant & Project Scoping**: The profile assigns a specific `tenant_id` and a scoped `role`, restricting all query operations via Row-Level Security (RLS) and client database filters so operators only see database entities matching their domain.
+1. **User Sign-In Screen**: A distraction-free, elegant log-in form requiring e-mail credentials and an encrypted user password. Other unrelated sidebar elements or settings panels are masked out completely while the user authenticates.
+2. **Profile & RBAC Resolution**: Upon a successful database validation handshake, the client retrieves the authenticated user's profile from the `user_profiles` database table corresponding to `auth.users.id`.
+3. **Tenant & Project Scoping**: The profile resolves a specific `tenant_id` and a scoped `role`, restricting all query operations via Row-Level Security (RLS) and client database filters so operators only see database entities matching their domain.
 
-### B. Role Access Control Metrics
+### B. Persona Emulation & Admin Console
+A dynamic administrative role select dropdown `<select>` is provided at the header of the app for `tenant_admin` accounts, allowing real-time switching/emulation of any of the following site roles for testing and debugging:
 
 | Role Persona | Role Code | Primary Contextual Focus | Available Actions & Wizards |
 | :--- | :--- | :--- | :--- |
@@ -41,8 +46,6 @@ The application connects directly to the Supabase Auth system to manage operator
 | **Storeman** | `storeman` | Materials verification, warehouse inventory ins/outs, stock auditing. | GRN Received notes, Material Issue notes, Active Material Inventory ledger. |
 | **Procurement Specialist** | `procurement` | Materials requests, verifying items supply chains, matching purchase bills. | Supply chain tracking, Purchase Order receipts, Direct materials receipts. |
 | **Project Superintendent / Admin**| `tenant_admin` | Global override authority, auditing records, approval workflows. | Multi-view switching dropdown, full history details, alert override, delete logs. |
-
-*In the web application, a dynamic `<select>` overlay appears in the dashboard for admin accounts allowing live switching/emulation of any site role.*
 
 ---
 

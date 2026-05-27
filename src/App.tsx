@@ -380,30 +380,64 @@ export default function App() {
 
   if (!isSupabaseConfigured) {
     return (
-      <div className="h-screen bg-surface-base flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-surface-1 border border-warning/20 rounded-2xl p-8 text-center shadow-2xl">
+      <div className="h-screen bg-surface-base flex items-center justify-center p-6 overflow-y-auto">
+        <div className="max-w-xl w-full bg-surface-1 border border-warning/20 rounded-2xl p-8 text-center my-8 shadow-2xl">
           <div className="w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-8 h-8 text-warning" />
           </div>
           <h1 className="text-xl font-bold text-main mb-3">Supabase Not Configured</h1>
-          <p className="text-sm text-ghost mb-8 leading-relaxed">
-            Please set <code className="text-primary font-bold">VITE_SUPABASE_URL</code> and <code className="text-primary font-bold">VITE_SUPABASE_ANON_KEY</code> in the <b>Environment Variables</b> section of the <b>Settings</b> menu to connect to your database.
+          <p className="text-sm text-ghost mb-6 leading-relaxed max-w-md mx-auto">
+            Please set <code className="text-primary font-bold">VITE_SUPABASE_URL</code> and <code className="text-primary font-bold">VITE_SUPABASE_ANON_KEY</code> in the <b>Environment Variables</b> section of the <b>Settings</b> menu to securely connect to your database.
           </p>
+
           <div className="bg-surface-2 rounded-xl p-4 text-left border border-border-subtle flex flex-col gap-3">
              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-mono text-ghost uppercase">URL Source</span>
-                <span className="text-xs font-mono break-all">{import.meta.env.VITE_SUPABASE_URL || 'Missing'}</span>
+                <span className="text-[10px] font-mono text-ghost uppercase">Detected URL</span>
+                <span className="text-xs font-mono break-all text-main">{import.meta.env.VITE_SUPABASE_URL || 'Missing'}</span>
              </div>
              <div className="flex flex-col gap-1 pt-2 border-t border-border-subtle">
-                <span className="text-[10px] font-mono text-ghost uppercase">Key Source</span>
-                <span className="text-xs font-mono truncate">{import.meta.env.VITE_SUPABASE_ANON_KEY ? '••••••••' : 'Missing'}</span>
+                <span className="text-[10px] font-mono text-ghost uppercase">Detected Anon Key</span>
+                <span className="text-xs font-mono truncate text-main">{import.meta.env.VITE_SUPABASE_ANON_KEY ? '••••••••' : 'Missing'}</span>
              </div>
           </div>
+
+          {/* Interactive Live Production Security & Deployment Helper */}
+          <details className="mt-5 text-left border border-border-subtle hover:border-border-active rounded-xl bg-surface-2/40 overflow-hidden transition-all group">
+            <summary className="flex items-center justify-between p-4 cursor-pointer text-xs font-bold text-main select-none list-none uppercase tracking-wider">
+              <span className="flex items-center gap-2">
+                <HelpCircle className="w-4 h-4 text-primary" />
+                Is this secure? (Production Security Guide)
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-ghost transition-transform duration-200 group-open:rotate-90" />
+            </summary>
+            
+            <div className="px-4 pb-4 border-t border-border-subtle/40 pt-3 text-xs text-ghost space-y-4 leading-relaxed">
+              <div className="p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg">
+                <strong className="text-emerald-300">✓ Public Keys by Design:</strong> In client-side React/Vite SPAs, your <strong>Anon/Public Key</strong> and <strong>Database URL</strong> are made public in the browser bundle. This is completely secure <em>provided</em> that you have Row Level Security (RLS) enabled on your database tables in the Supabase dashboard.
+              </div>
+
+              <div className="p-3 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg">
+                <strong className="text-red-300">⚠ CRITICAL CRITERIA:</strong> Never expose your Supabase <code className="font-bold">service_role</code> key (sometimes called secret key) to client-side code under any circumstances, as that key bypasses all RLS checks entirely. Keep it secret!
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-bold text-main">🚀 Troubleshooting & Going Live Checklist:</h4>
+                <ol className="list-decimal pl-4 space-y-1.5 font-sans font-medium">
+                  <li>Go to <strong>Settings</strong> menu in AI Studio (top right).</li>
+                  <li>Click <strong>Environment Variables</strong> and enter your public URL andAnon Key.</li>
+                  <li>
+                    <strong className="text-main">Compile-Time Binding:</strong> Because Vite is an ahead-of-time client-side compiler, changes in environment variables require a <strong>new build / rebuild</strong> to bake those keys into code. Under the Settings menu, trigger a production deploy to ensure the keys are compiled.
+                  </li>
+                </ol>
+              </div>
+            </div>
+          </details>
+
           <button 
             onClick={() => window.location.reload()}
-            className="mt-8 w-full py-3 bg-primary hover:bg-primary-hover text-surface-base rounded-xl font-bold transition-all shadow-lg shadow-primary/20"
+            className="mt-6 w-full py-3 bg-primary hover:bg-primary-hover text-surface-base rounded-xl font-bold transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
           >
-            Check Configuration Again
+            Check Configuration & Reload
           </button>
         </div>
       </div>
