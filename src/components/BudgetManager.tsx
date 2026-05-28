@@ -1679,6 +1679,16 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                   </div>
                 )}
 
+                {summary?.status === 'pending_approval' && (
+                  <button 
+                    onClick={() => onSelectModule?.('approvals')}
+                    className="flex items-center gap-1.5 h-10 px-4 bg-accent/10 border border-accent/20 hover:bg-accent/20 rounded-xl text-accent transition-all text-xs font-bold leading-none shrink-0"
+                    title="Review active workflow pipelines in Approvals module"
+                  >
+                    <span>Track In Approvals Panel ↗</span>
+                  </button>
+                )}
+
                 <button 
                   onClick={startSyncAll}
                   disabled={isSyncing}

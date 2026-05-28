@@ -44,6 +44,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
+  const [tenantUsers, setTenantUsers] = useState<any[]>([]);
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState('home');
   const [panelHistory, setPanelHistory] = useState<string[]>(['home']);
@@ -95,6 +96,28 @@ export default function App() {
       console.error('Error loading counts:', e);
     }
   };
+
+  const loadTenantUsers = async (tenantId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name, role, is_active')
+        .eq('tenant_id', tenantId);
+      if (!error && data) {
+        setTenantUsers(data);
+      }
+    } catch (e) {
+      console.warn('Error loading tenant users:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (profile?.tenant_id) {
+      loadTenantUsers(profile.tenant_id);
+    } else {
+      setTenantUsers([]);
+    }
+  }, [profile?.tenant_id]);
 
   useEffect(() => {
     const handleAuthReset = async () => {
@@ -650,8 +673,10 @@ export default function App() {
         user={profile}
         tenant={tenant}
         projects={projects}
+        counts={counts}
+        tenantUsers={tenantUsers}
         activeProject={activeProject}
-        setActiveProject={setActiveProject}
+        setActiveProject={handleProjectSelect}
         activePanel={activePanel}
         pendingPanel={pendingPanel}
         setActivePanel={handleModuleSelect}
@@ -660,7 +685,7 @@ export default function App() {
         theme={theme}
         setTheme={setTheme}
       >
-      {activePanel === 'home' && (
+       {activePanel === 'home' && (
         <Home 
           onSelectModule={handleModuleSelect} 
           onLogout={handleLogout}
@@ -671,6 +696,13 @@ export default function App() {
           userRole={profile.role}
           tenantId={profile.tenant_id}
           companyName={tenant?.name || 'Your Company'}
+          projects={projects}
+          tenant={tenant}
+          counts={counts}
+          tenantUsers={tenantUsers}
+          setActiveProject={handleProjectSelect}
+          theme={theme}
+          setTheme={setTheme}
         />
       )}
 
@@ -849,7 +881,7 @@ export default function App() {
       )}
 
       {activePanel === 'users' && (
-        <UserManagement tenantId={profile.tenant_id} />
+        <UserManagement tenantId={profile.tenant_id} currentUserRole={profile.role} />
       )}
       {activePanel === 'profile' && (
         <Profile 

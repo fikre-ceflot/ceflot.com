@@ -28,7 +28,11 @@ import {
   ArrowLeft,
   User,
   Search,
-  Shapes
+  Shapes,
+  Globe,
+  DollarSign,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
@@ -40,6 +44,8 @@ interface LayoutProps {
   user: UserProfile;
   tenant: Tenant | null;
   projects: Project[];
+  counts?: any;
+  tenantUsers?: any[];
   activeProject: string | null;
   setActiveProject: (id: string) => void;
   activePanel: string;
@@ -85,6 +91,8 @@ export function Layout({
   user, 
   tenant,
   projects, 
+  counts = {},
+  tenantUsers = [],
   activeProject, 
   setActiveProject, 
   activePanel, 
@@ -211,14 +219,79 @@ export function Layout({
     });
   }, [user.is_platform_god, hasCapability]);
 
-  const filteredSpotlightTools = React.useMemo(() => {
-    if (!spotlightQuery.trim()) return authorizedTools;
-    const q = spotlightQuery.toLowerCase();
-    return authorizedTools.filter(item => 
+  const unifiedSpotlightResults = React.useMemo(() => {
+    if (!spotlightQuery.trim()) return null;
+    const q = spotlightQuery.toLowerCase().trim();
+
+    // 1. Search Modules / Tools
+    const matchedModules = authorizedTools.filter(item => 
       item.label.toLowerCase().includes(q) || 
       item.section.toLowerCase().includes(q)
     );
-  }, [authorizedTools, spotlightQuery]);
+
+    // 2. Search Projects & Details (Project names & main details outside BOQ)
+    const matchedProjects = (projects || []).filter(p => {
+      const matchName = p.name?.toLowerCase().includes(q);
+      const matchCode = p.project_code?.toLowerCase().includes(q);
+      const matchType = p.project_type?.toLowerCase().includes(q);
+      const matchLoc = p.location?.toLowerCase().includes(q);
+      const matchNotes = p.notes?.toLowerCase().includes(q);
+      const matchStatus = p.status?.toLowerCase().includes(q);
+      return matchName || matchCode || matchType || matchLoc || matchNotes || matchStatus;
+    });
+
+    // 3. Search Tenant & Company-level values
+    let matchedTenantInfo = null;
+    if (tenant) {
+      const isCompanyMatch = 
+        tenant.name?.toLowerCase().includes(q) ||
+        tenant.id?.toLowerCase().includes(q) ||
+        "company".includes(q) ||
+        "tenant".includes(q) ||
+        "enterprise".includes(q);
+      
+      if (isCompanyMatch) {
+        matchedTenantInfo = {
+          tenant,
+          counts: counts || {},
+        };
+      }
+    }
+
+    // 4. Search Users & Team Members (under current user's role access/visibility policy)
+    const matchedUsers = (tenantUsers || []).filter(u => {
+      return (
+        u.full_name?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q) ||
+        u.role?.toLowerCase().includes(q)
+      );
+    });
+
+    // 5. Search User Permissions & Overrides (Self capabilities or details)
+    const matchedPermissions = [
+      { id: 'role', label: 'My Corporate Role', value: user.role === 'tenant_admin' ? 'Company Master Administrator' : user.role.replace(/_/g, ' '), isMatch: user.role.toLowerCase().includes(q) },
+      { id: 'email', label: 'My Registered Email', value: user.email, isMatch: user.email.toLowerCase().includes(q) },
+      { id: 'name', label: 'My Account Name', value: user.full_name || '', isMatch: (user.full_name || '').toLowerCase().includes(q) },
+      { id: 'tenant', label: 'My Company Workspace', value: tenant?.name || 'Your Company', isMatch: (tenant?.name || '').toLowerCase().includes(q) },
+      { id: 'cap_boq_view', label: 'BOQ Build Capacity', value: 'boq:view_recipes (Authorized)', isMatch: 'boq'.includes(q) && hasCapability('boq:view_recipes') },
+      { id: 'cap_budget_view', label: 'Budget Allocation Access', value: 'fin:view_budget (Authorized)', isMatch: ('budget'.includes(q) || 'finance'.includes(q)) && hasCapability('fin:view_budget') },
+      { id: 'cap_permissions_view', label: 'Security Configuration Control', value: 'admin:view_roles (Authorized)', isMatch: ('permissions'.includes(q) || 'security'.includes(q)) && hasCapability('admin:view_roles') },
+      { id: 'cap_users_view', label: 'Staff Management Credentials', value: 'admin:view_users (Authorized)', isMatch: ('users'.includes(q) || 'staff'.includes(q)) && hasCapability('admin:view_users') }
+    ].filter(item => item.isMatch);
+
+    return {
+      modules: matchedModules,
+      projects: matchedProjects,
+      tenantDetails: matchedTenantInfo,
+      users: matchedUsers,
+      permissions: matchedPermissions,
+      totalCount: matchedModules.length + matchedProjects.length + (matchedTenantInfo ? 1 : 0) + matchedUsers.length + matchedPermissions.length
+    };
+  }, [spotlightQuery, authorizedTools, projects, tenant, counts, tenantUsers, user, hasCapability]);
+
+  const filteredSpotlightTools = React.useMemo(() => {
+    return unifiedSpotlightResults?.modules || [];
+  }, [unifiedSpotlightResults]);
 
   const [notification, setNotification] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -416,8 +489,37 @@ export function Layout({
                 </div>
               </div>
             </div>
-
             <div className="flex items-center gap-4">
+              {/* Distinctive, highly visible Dark/Light Toggle with Labels */}
+              <div className="flex items-center bg-surface-2/60 border border-border-subtle rounded-xl p-1 gap-1 select-none">
+                <button
+                  onClick={() => setTheme('light')}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] uppercase font-bold tracking-wider transition-all cursor-pointer",
+                    theme === 'light' 
+                      ? "bg-surface-base text-amber-500 shadow-sm border border-border-subtle/45" 
+                      : "text-ghost hover:text-dim"
+                  )}
+                  title="Switch to light mode"
+                >
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="opacity-90">Light</span>
+                </button>
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] uppercase font-bold tracking-wider transition-all cursor-pointer",
+                    theme === 'dark' 
+                      ? "bg-surface-base text-primary shadow-sm border border-border-subtle/45" 
+                      : "text-ghost hover:text-dim"
+                  )}
+                  title="Switch to dark mode"
+                >
+                  <Moon className="w-3.5 h-3.5 text-primary" />
+                  <span className="opacity-90">Dark</span>
+                </button>
+              </div>
+
               <button className="relative p-2 text-dim hover:text-main transition-colors hidden sm:block">
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-2 right-2.5 w-1.5 h-1.5 bg-danger rounded-full ring-2 ring-surface-1" />
@@ -425,18 +527,21 @@ export function Layout({
 
               <div className="w-px h-6 bg-border-subtle mx-1 hidden sm:block" />
 
-              <button 
-                onClick={() => setShowProfileModal(true)}
-                className="flex items-center gap-3 pl-1.5 pr-1.5 py-1 rounded-xl border border-border-subtle bg-surface-2/50 hover:border-primary transition-all group mr-[-8px] sm:mr-0"
+              <div 
+                className="flex items-center gap-3 pl-1.5 pr-1.5 py-1 rounded-xl border border-border-subtle/50 bg-surface-2/30 mr-[-8px] sm:mr-0"
               >
-                <div className="w-8 h-8 rounded-lg bg-surface-base border border-border-subtle flex items-center justify-center text-xs font-black text-primary overflow-hidden group-hover:bg-primary group-hover:text-surface-1 transition-all">
+                <button 
+                  onClick={() => setShowProfileModal(true)}
+                  className="w-8 h-8 rounded-lg bg-surface-base border border-border-subtle flex items-center justify-center text-xs font-black text-primary overflow-hidden hover:bg-primary hover:text-surface-1 hover:border-primary transition-all cursor-pointer shadow-sm"
+                  title="Modify User Profile Settings"
+                >
                   {(user.full_name || user.email).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
-                </div>
-                <div className="hidden md:flex flex-col items-start leading-tight pr-2">
+                </button>
+                <div className="hidden md:flex flex-col items-start leading-tight pr-2 select-none">
                   <span className="text-xs font-black text-main uppercase tracking-tight">{user.full_name || 'My Profile'}</span>
-                  <div className="font-mono text-[10px] text-ghost uppercase tracking-widest leading-none mt-0.5">{user.role === 'tenant_admin' ? 'Company Admin' : user.role.replace(/_/g, ' ')}</div>
+                  <div className="font-mono text-[9px] text-ghost uppercase tracking-widest leading-none mt-0.5">{user.role === 'tenant_admin' ? 'Company Admin' : user.role.replace(/_/g, ' ')}</div>
                 </div>
-              </button>
+              </div>
             </div>
           </header>
         )}
@@ -611,46 +716,221 @@ export function Layout({
               >
                 ESC
               </button>
-            </div>
-
-            <div className="max-h-[350px] overflow-y-auto p-2 space-y-1 custom-scrollbar">
-              {filteredSpotlightTools.length === 0 ? (
-                <div className="p-8 text-center text-dim text-xs italic">
-                  No matching tools found for "{spotlightQuery}"
+            </div>            <div className="max-h-[450px] overflow-y-auto p-3 space-y-4 custom-scrollbar">
+              {!unifiedSpotlightResults ? (
+                /* Clear default search helper */
+                <div className="space-y-1">
+                  <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-ghost mb-2 px-1">
+                    🚀 Standard Capabilities & Shortcuts
+                  </div>
+                  {authorizedTools.map((item) => {
+                    const isActive = activePanel === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActivePanel(item.id);
+                          setIsSpotlightOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between p-2 rounded-xl border text-left transition-all group",
+                          isActive 
+                            ? "bg-primary/5 border-primary/20" 
+                            : "bg-transparent border-transparent hover:bg-surface-2 hover:border-border-subtle/40"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={cn(
+                            "w-7.5 h-7.5 rounded-lg flex items-center justify-center border transition-colors",
+                            isActive ? "bg-primary/10 border-primary/20 text-primary" : "bg-surface-2 border-border-subtle text-dim group-hover:bg-primary/5 group-hover:border-primary/20 group-hover:text-primary"
+                          )}>
+                            <item.icon className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className={cn("text-xs font-bold", isActive ? "text-primary" : "text-main")}>{item.label}</span>
+                            <span className="text-[9px] text-ghost font-mono uppercase tracking-wider">{item.section}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono text-ghost/40 group-hover:text-primary transition-colors pr-1">Launch ↗</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : unifiedSpotlightResults.totalCount === 0 ? (
+                <div className="p-10 text-center flex flex-col items-center justify-center gap-2">
+                  <span className="text-xl">🔍</span>
+                  <div className="text-sm font-bold text-main">No global query matches found</div>
+                  <div className="text-xs text-ghost max-w-xs leading-normal">
+                    We scanned platform systems, commercial locations, users, and your role permissions, but found no matches.
+                  </div>
                 </div>
               ) : (
-                filteredSpotlightTools.map((item) => {
-                  const isActive = activePanel === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActivePanel(item.id);
-                        setIsSpotlightOpen(false);
-                      }}
-                      className={cn(
-                        "w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all group",
-                        isActive 
-                          ? "bg-primary/5 border-primary/20" 
-                          : "bg-transparent border-transparent hover:bg-surface-2 hover:border-border-subtle/40"
-                      )}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center border transition-colors",
-                          isActive ? "bg-primary/10 border-primary/20 text-primary" : "bg-surface-2 border-border-subtle text-dim group-hover:bg-primary/5 group-hover:border-primary/20 group-hover:text-primary"
-                        )}>
-                          <item.icon className="w-4 h-4" />
+                <div className="space-y-4">
+                  {/* 1. Modules Matched */}
+                  {unifiedSpotlightResults.modules.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-[9px] font-mono font-bold uppercase tracking-wider text-primary border-l-2 border-primary pl-2 mb-2 select-none">
+                        ⚙️ Systems & Modules ({unifiedSpotlightResults.modules.length})
+                      </div>
+                      {unifiedSpotlightResults.modules.map((item) => {
+                        const isActive = activePanel === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setActivePanel(item.id);
+                              setIsSpotlightOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between p-2 rounded-xl border text-left transition-all group",
+                              isActive 
+                                ? "bg-primary/5 border-primary/20" 
+                                : "bg-transparent border-transparent hover:bg-surface-2 hover:border-border-subtle/40"
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={cn(
+                                "w-7.5 h-7.5 rounded-lg flex items-center justify-center border transition-colors",
+                                isActive ? "bg-primary/10 border-primary/20 text-primary" : "bg-surface-2 border-border-subtle text-dim group-hover:bg-primary/5 group-hover:border-primary/20 group-hover:text-primary"
+                              )}>
+                                <item.icon className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className={cn("text-xs font-bold", isActive ? "text-primary" : "text-main")}>{item.label}</span>
+                                <span className="text-[9px] text-ghost font-mono uppercase tracking-wider">{item.section}</span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-ghost/40 group-hover:text-primary transition-colors pr-1">Launch ↗</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* 2. Projects Matched */}
+                  {unifiedSpotlightResults.projects.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-mono font-bold uppercase tracking-wider text-accent border-l-2 border-accent pl-2 mb-2 select-none">
+                        🏗️ Commercial Projects & Sites ({unifiedSpotlightResults.projects.length})
+                      </div>
+                      {unifiedSpotlightResults.projects.map((p) => {
+                        const isCurrent = activeProject === p.id;
+                        return (
+                          <button
+                            key={`spot-proj-${p.id}`}
+                            onClick={() => {
+                              setActiveProject(p.id);
+                              setActivePanel('dashboard'); // Switch views automatically to dashboard when selected
+                              setIsSpotlightOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex flex-col p-2.5 rounded-xl border text-left transition-all group relative",
+                              isCurrent 
+                                ? "bg-accent/5 border-accent/25" 
+                                : "bg-transparent border-transparent hover:bg-surface-2 hover:border-border-subtle/40"
+                            )}
+                          >
+                            <div className="flex items-start justify-between w-full">
+                              <div className="min-w-0">
+                                <span className="text-[8px] font-mono font-bold text-accent bg-accent/5 border border-accent/20 px-1 py-0.5 rounded uppercase tracking-wide leading-none">{p.project_code || 'CODE'}</span>
+                                <span className={cn("text-xs font-bold block mt-1", isCurrent ? "text-accent" : "text-main")}>{p.name}</span>
+                              </div>
+                              <span className="text-[8px] bg-ghost/10 border border-border-subtle/40 text-ghost font-black uppercase px-1.5 py-0.5 rounded leading-none">
+                                {p.status}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-2 mt-1.5 text-[10px] text-ghost font-medium">
+                              <span className="flex items-center gap-0.5"><Globe className="w-3 h-3 shrink-0" />{p.location || 'Unknown'}</span>
+                              <span className="text-border-subtle">•</span>
+                              {p.contract_value !== null && (
+                                <span className="flex items-center gap-0.5 font-bold text-main"><DollarSign className="w-3 h-3 shrink-0" />${p.contract_value.toLocaleString()}</span>
+                              )}
+                            </div>
+                            <div className="text-[8px] font-mono font-bold absolute bottom-2 right-2 text-accent opacity-0 group-hover:opacity-100 transition-all">
+                              ACTIVATE CONTEXT ↗
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* 3. Company & Tenant Matched */}
+                  {unifiedSpotlightResults.tenantDetails && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-mono font-bold uppercase tracking-wider text-warning border-l-2 border-warning pl-2 mb-2 select-none">
+                        🏢 Corporate Workspace
+                      </div>
+                      <div className="bg-surface-2 border border-border-subtle rounded-xl p-3 flex flex-col gap-2 animate-in fade-in-50 duration-200">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
+                            <Building2 className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-black text-main">{unifiedSpotlightResults.tenantDetails.tenant.name}</div>
+                            <span className="text-[8px] font-mono font-bold text-ghost uppercase tracking-wider">ID: {unifiedSpotlightResults.tenantDetails.tenant.id}</span>
+                          </div>
                         </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className={cn("text-xs font-bold", isActive ? "text-primary" : "text-main")}>{item.label}</span>
-                          <span className="text-[10px] text-ghost font-mono uppercase tracking-wider">{item.section}</span>
+                        <div className="grid grid-cols-2 gap-2 text-center bg-surface-base py-1.5 rounded-lg border border-border-subtle/40 text-[9px]">
+                          <div>
+                            <span className="font-bold text-main block">{counts.projects || 0}</span>
+                            <span className="text-[8px] text-ghost uppercase">Projects</span>
+                          </div>
+                          <div className="border-l border-border-subtle/50">
+                            <span className="font-bold text-main block">{counts.users || 0}</span>
+                            <span className="text-[8px] text-ghost uppercase">Active Users</span>
+                          </div>
                         </div>
                       </div>
-                      <span className="text-[11px] font-mono text-ghost/40 group-hover:text-primary transition-colors pr-2">Launch ↗</span>
-                    </button>
-                  );
-                })
+                    </div>
+                  )}
+
+                  {/* 4. Users Matched */}
+                  {unifiedSpotlightResults.users.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-mono font-bold uppercase tracking-wider text-ghost border-l-2 border-ghost pl-2 mb-2 select-none">
+                        👥 Corporate Directory ({unifiedSpotlightResults.users.length})
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 animate-in fade-in-50 duration-200">
+                        {unifiedSpotlightResults.users.map((u) => (
+                          <div
+                            key={`spot-user-${u.id}`}
+                            className="bg-surface-2 border border-border-subtle/70 rounded-xl p-2.5 flex items-center justify-between gap-2.5"
+                          >
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-bold text-main truncate leading-tight">{u.full_name || 'Anonymous QS'}</h4>
+                              <p className="text-[9px] text-ghost truncate font-mono">{u.email}</p>
+                            </div>
+                            <span className="text-[8px] font-mono font-black uppercase text-ghost bg-surface-base px-1.5 py-0.5 rounded border border-border-subtle">
+                              {u.role === 'tenant_admin' ? 'Admin' : u.role?.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 5. Clearances Matched */}
+                  {unifiedSpotlightResults.permissions.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-mono font-bold uppercase tracking-wider text-red-500 border-l-2 border-red-500 pl-2 mb-2 select-none">
+                        🛡️ Credentials & Active Access Policies ({unifiedSpotlightResults.permissions.length})
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 animate-in fade-in-50 duration-200">
+                        {unifiedSpotlightResults.permissions.map((p) => (
+                          <div
+                            key={`spot-perm-${p.id}`}
+                            className="bg-surface-2 border border-border-subtle/70 rounded-xl p-2 flex flex-col border-dashed text-left"
+                          >
+                            <span className="text-[8px] font-black text-ghost uppercase leading-none">{p.label}</span>
+                            <span className="text-[10px] font-mono font-bold text-main truncate mt-1">{p.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
               )}
             </div>
           </div>

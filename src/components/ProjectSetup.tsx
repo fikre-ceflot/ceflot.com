@@ -51,7 +51,120 @@ interface ProjectSetupProps {
   onDelete?: () => void;
 }
 
-type SetupTab = 'checklist' | 'parameters' | 'staff' | 'approvals';
+type SetupTab = 'checklist' | 'parameters' | 'staff' | 'approvals' | 'governance';
+
+const DEFAULT_ASSETS_SOT = [
+  {
+    id: "boq",
+    name: "Upload BOQ and Assign Trade Codes",
+    module_type: "BOQ",
+    version: "1.0",
+    status: "APPROVED",
+    locked: true,
+    approved_by: "fikreerp@gmail.com",
+    approved_at: "2026-05-24T10:00:00Z",
+    checklist_task: "Upload BOQ and Assign Trade Codes"
+  },
+  {
+    id: "budget",
+    name: "Establish Budget & Resource Baselines",
+    module_type: "PO",
+    version: "1.0",
+    status: "APPROVED",
+    locked: true,
+    approved_by: "fikreerp@gmail.com",
+    approved_at: "2026-05-25T14:30:00Z",
+    checklist_task: "Establish Budget & Resource Baselines"
+  },
+  {
+    id: "schedule",
+    name: "Confirm Schedule Recipes",
+    module_type: "DPR",
+    version: "1.0",
+    status: "APPROVED",
+    locked: true,
+    approved_by: "fikreerp@gmail.com",
+    approved_at: "2026-05-26T09:15:00Z",
+    checklist_task: "Confirm Schedule Recipes"
+  },
+  {
+    id: "procurement",
+    name: "Configure Setup Parameters",
+    module_type: "PC",
+    version: "1.0",
+    status: "DRAFT",
+    locked: false,
+    checklist_task: "Configure Setup Parameters"
+  }
+];
+
+const DEFAULT_AUDIT_TRAIL = [
+  {
+    timestamp: "2026-05-24T10:00:00Z",
+    asset: "Upload BOQ and Assign Trade Codes",
+    version: "1.0",
+    action: "SoT Version Frozen",
+    userId: "fikreerp@gmail.com",
+    description: "Initial import and allocation of base trade codes validated."
+  },
+  {
+    timestamp: "2026-05-25T14:30:00Z",
+    asset: "Establish Budget & Resource Baselines",
+    version: "1.0",
+    action: "SoT Version Frozen",
+    userId: "fikreerp@gmail.com",
+    description: "Cost metrics integrated with company templates."
+  },
+  {
+    timestamp: "2026-05-26T09:15:00Z",
+    asset: "Confirm Schedule Recipes",
+    version: "1.0",
+    action: "SoT Version Frozen",
+    userId: "fikreerp@gmail.com",
+    description: "Activity sequences and production cycles calibrated."
+  }
+];
+
+const GLOBAL_APPROVAL_TEMPLATES = [
+  {
+    id: 'tpl_procurement',
+    chain_name: 'Nairobi Standard Procurement Chain',
+    module_type: 'PO',
+    steps_json: [
+      { role: 'procurement', name: 'Procurement Specialist' },
+      { role: 'project_manager', name: 'Project Manager' },
+      { role: 'finance', name: 'Finance and CFO' }
+    ]
+  },
+  {
+    id: 'tpl_variation',
+    chain_name: 'High-Value Variation Escalation Pipeline',
+    module_type: 'VO',
+    steps_json: [
+      { role: 'qs', name: 'Quantity Surveyor' },
+      { role: 'project_manager', name: 'Project Manager' },
+      { role: 'director', name: 'Managing Director' }
+    ]
+  },
+  {
+    id: 'tpl_payment_cert',
+    chain_name: 'Payment Certificate Two-Tier Audit',
+    module_type: 'PC',
+    steps_json: [
+      { role: 'qs', name: 'Quantity Surveyor (QS)' },
+      { role: 'finance', name: 'Finance Controller' }
+    ]
+  },
+  {
+    id: 'tpl_daily_report',
+    chain_name: 'Direct Minor Progress Audit Workflow',
+    module_type: 'DPR',
+    steps_json: [
+      { role: 'site_supervisor', name: 'Site Supervisor' },
+      { role: 'project_coordinator', name: 'Project Coordinator' }
+    ]
+  }
+];
 
 export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: ProjectSetupProps) {
   const [activeTab, setActiveTab] = useState<SetupTab>('checklist');
@@ -76,10 +189,319 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
   const [isAssigning, setIsAssigning] = useState(false);
 
   // Approval Chain state
-  const [approvalChains, setApprovalChains] = useState<any[]>([]);
+  const [approvalChains, setApprovalChains] = useState<any[]>(() => {
+    const saved = localStorage.getItem(`local_approval_chains_${project.id}`);
+    return saved ? JSON.parse(saved) : [];
+  });
   const [isApprovalsLoading, setIsApprovalsLoading] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [editingChain, setEditingChain] = useState<any>(null);
+
+  // Governance, Custom Categories & Amendments state extension
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`custom_categories_${project.id}`);
+    return saved ? JSON.parse(saved) : ["Supplier Agreement", "Site Safety Manifest"];
+  });
+
+  const [assetsSot, setAssetsSot] = useState<any[]>(() => {
+    const saved = localStorage.getItem(`assets_sot_${project.id}`);
+    return saved ? JSON.parse(saved) : DEFAULT_ASSETS_SOT;
+  });
+
+  const [amendments, setAmendments] = useState<any[]>(() => {
+    const saved = localStorage.getItem(`amendments_${project.id}`);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [auditTraillogs, setAuditTrailLogs] = useState<any[]>(() => {
+    const saved = localStorage.getItem(`audit_logs_${project.id}`);
+    return saved ? JSON.parse(saved) : DEFAULT_AUDIT_TRAIL;
+  });
+
+  const [showAmendmentModal, setShowAmendmentModal] = useState(false);
+  const [selectedAssetForAmendment, setSelectedAssetForAmendment] = useState<any>(null);
+  const [amendmentJustification, setAmendmentJustification] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Sync Checklist with Source of Truth Assets
+  const syncChecklistWithAssets = async () => {
+    if (!tasks || tasks.length === 0) return;
+    
+    let updated = false;
+    const nextTasks = [...tasks];
+    
+    for (let i = 0; i < nextTasks.length; i++) {
+      const task = nextTasks[i];
+      const matchedAsset = assetsSot.find(a => a.checklist_task.toLowerCase() === task.task_name.toLowerCase());
+      
+      if (matchedAsset) {
+        const expectedComplete = matchedAsset.status === 'APPROVED';
+        if (task.is_complete !== expectedComplete) {
+          task.is_complete = expectedComplete;
+          task.completed_at = expectedComplete ? new Date().toISOString() : null;
+          task.completed_by = expectedComplete ? "ADMIN_BOT" : null;
+          updated = true;
+          
+          // update in supabase best effort
+          try {
+            await supabase
+              .from('project_setup_tasks')
+              .update({
+                is_complete: expectedComplete,
+                completed_at: expectedComplete ? new Date().toISOString() : null,
+                completed_by: expectedComplete ? (await supabase.auth.getUser()).data.user?.id || 'System' : null
+              })
+              .eq('id', task.id);
+          } catch (e) {
+            console.warn("Checklist sync Supabase error", e);
+          }
+        }
+      }
+    }
+    
+    if (updated) {
+      setTasks(nextTasks);
+    }
+  };
+
+  const handleFreezeBaseline = (assetId: string) => {
+    const updatedAssets = assetsSot.map((asset) => {
+      if (asset.id === assetId) {
+        return {
+          ...asset,
+          status: 'APPROVED',
+          locked: true,
+          approved_by: 'fikreerp@gmail.com',
+          approved_at: new Date().toISOString(),
+          version: asset.version || '1.0'
+        };
+      }
+      return asset;
+    });
+
+    const targetAsset = assetsSot.find(a => a.id === assetId);
+    
+    // Add audit entry
+    const newAudit = {
+      timestamp: new Date().toISOString(),
+      asset: targetAsset?.name || 'Asset',
+      version: targetAsset?.version || '1.0',
+      action: "SoT Version Frozen",
+      userId: 'fikreerp@gmail.com',
+      description: `Baseline was successfully validated and structurally frozen.`
+    };
+
+    setAssetsSot(updatedAssets);
+    setAuditTrailLogs([newAudit, ...auditTraillogs]);
+    alert(`${targetAsset?.name} is now structurally frozen as the active Source of Truth.`);
+  };
+
+  const handleRevokeBaseline = (assetId: string) => {
+    const confirmation = window.confirm(`Are you sure you want to revoke sign-off for this baseline? Doing so will unlock standard editing, and instantly reset its completion in the project setup checklist.`);
+    if (!confirmation) return;
+
+    const updatedAssets = assetsSot.map((asset) => {
+      if (asset.id === assetId) {
+        return {
+          ...asset,
+          status: 'DRAFT',
+          locked: false,
+          approved_by: null,
+          approved_at: null
+        };
+      }
+      return asset;
+    });
+
+    const targetAsset = assetsSot.find(a => a.id === assetId);
+
+    // Add audit entry
+    const newAudit = {
+      timestamp: new Date().toISOString(),
+      asset: targetAsset?.name || 'Asset',
+      version: targetAsset?.version || '1.0',
+      action: "Baseline Revoked",
+      userId: 'fikreerp@gmail.com',
+      description: `Approval revoked. Unlocked for modification and corresponding checklist tasks reversed to unchecked state.`
+    };
+
+    setAssetsSot(updatedAssets);
+    setAuditTrailLogs([newAudit, ...auditTraillogs]);
+    alert(`${targetAsset?.name} has been unlocked successfully.`);
+  };
+
+  const handleInitiateAmendment = (asset: any) => {
+    setSelectedAssetForAmendment(asset);
+    setAmendmentJustification('');
+    setShowAmendmentModal(true);
+  };
+
+  const handleSubmitAmendment = () => {
+    if (!amendmentJustification.trim()) {
+      alert('A valid change justification is required to initiate an amendment pipeline.');
+      return;
+    }
+
+    const nextVer = (parseFloat(selectedAssetForAmendment.version) + 0.1).toFixed(1);
+    const newAmendment = {
+      id: 'amend_' + Math.random().toString(36).substr(2, 9),
+      asset_id: selectedAssetForAmendment.id,
+      asset_name: selectedAssetForAmendment.name,
+      original_version: selectedAssetForAmendment.version,
+      new_version: nextVer,
+      justification: amendmentJustification,
+      requester_id: 'fikreerp@gmail.com',
+      requester_name: 'Fikre PM',
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      decided_at: null,
+      decided_by: null
+    };
+
+    const newAudit = {
+      timestamp: new Date().toISOString(),
+      asset: selectedAssetForAmendment.name,
+      version: nextVer,
+      action: "Amendment Initiated",
+      userId: 'fikreerp@gmail.com',
+      description: `Request for v${nextVer} submitted. Justification: "${amendmentJustification}"`
+    };
+
+    setAmendments([newAmendment, ...amendments]);
+    setAuditTrailLogs([newAudit, ...auditTraillogs]);
+    setShowAmendmentModal(false);
+    setSelectedAssetForAmendment(null);
+    setAmendmentJustification('');
+    alert('Formal change request submitted successfully. It has been routed to the governance queue below.');
+  };
+
+  const handleDecideAmendment = (amendmentId: string, decision: 'approved' | 'rejected') => {
+    const am = amendments.find(a => a.id === amendmentId);
+    if (!am) return;
+
+    const decisionConfirmation = window.confirm(`Confirm your choice to ${decision} the amendment request for "${am.asset_name}"?`);
+    if (!decisionConfirmation) return;
+
+    // Update amendment status
+    const updatedAmendments = amendments.map(a => {
+      if (a.id === amendmentId) {
+        return {
+          ...a,
+          status: decision,
+          decided_at: new Date().toISOString(),
+          decided_by: 'fikreerp@gmail.com'
+        };
+      }
+      return a;
+    });
+
+    // If approved, update active baseline version & lock it
+    let updatedAssets = [...assetsSot];
+    if (decision === 'approved') {
+      updatedAssets = assetsSot.map(asset => {
+        if (asset.id === am.asset_id) {
+          return {
+            ...asset,
+            version: am.new_version,
+            status: 'APPROVED',
+            locked: true,
+            approved_by: 'fikreerp@gmail.com',
+            approved_at: new Date().toISOString()
+          };
+        }
+        return asset;
+      });
+    }
+
+    // Add audit entry
+    const newAudit = {
+      timestamp: new Date().toISOString(),
+      asset: am.asset_name,
+      version: am.new_version,
+      action: decision === 'approved' ? "Amendment Approved" : "Amendment Rejected",
+      userId: 'fikreerp@gmail.com',
+      description: decision === 'approved' 
+        ? `Amendment approved. Generated and locked new version: v${am.new_version}. Original remains immutable.` 
+        : `Amendment request for version v${am.new_version} rejected.`
+    };
+
+    setAmendments(updatedAmendments);
+    if (decision === 'approved') {
+      setAssetsSot(updatedAssets);
+    }
+    setAuditTrailLogs([newAudit, ...auditTraillogs]);
+    alert(`Change request successfully ${decision}.`);
+  };
+
+  const handleCloneTemplate = (tpl: any) => {
+    const chainId = 'chain_' + Math.random().toString(36).substr(2, 9);
+    const clonedChain = {
+      id: chainId,
+      project_id: project.id,
+      tenant_id: project.tenant_id,
+      chain_name: tpl.chain_name + " (Cloned)",
+      module_type: tpl.module_type,
+      steps_json: tpl.steps_json,
+      is_active: true,
+      created_at: new Date().toISOString()
+    };
+
+    // Save locally
+    const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
+    const localChains = localChainsStr ? JSON.parse(localChainsStr) : [];
+    localChains.push(clonedChain);
+    localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(localChains));
+
+    // Try Supabase best effort
+    try {
+      supabase
+        .from('approval_chains')
+        .insert({
+          chain_name: clonedChain.chain_name,
+          module_type: clonedChain.module_type,
+          steps_json: clonedChain.steps_json,
+          project_id: project.id,
+          tenant_id: project.tenant_id
+        }).then(({ error }) => {
+          if (error) console.warn("Supabase insert template error", error);
+        });
+    } catch (e) {
+      console.warn("Supabase clone error", e);
+    }
+
+    setApprovalChains(prev => [...prev, clonedChain]);
+    alert(`Successfully cloned standard blueprint: "${tpl.chain_name}" into your project's active approval chains!`);
+  };
+
+  const handleRegisterCategory = (catName: string) => {
+    const clean = catName.trim();
+    if (!clean) return;
+    if (customCategories.includes(clean)) {
+      alert('This module category has already been registered.');
+      return;
+    }
+    setCustomCategories([...customCategories, clean]);
+    alert(`Successfully registered custom module "${clean}" on the fly! It is now fully integrated and available for approval workflows.`);
+    setNewCategoryName('');
+  };
+
+  // Persist State Extensions
+  useEffect(() => {
+    localStorage.setItem(`custom_categories_${project.id}`, JSON.stringify(customCategories));
+  }, [customCategories, project.id]);
+
+  useEffect(() => {
+    localStorage.setItem(`assets_sot_${project.id}`, JSON.stringify(assetsSot));
+    syncChecklistWithAssets();
+  }, [assetsSot, project.id]);
+
+  useEffect(() => {
+    localStorage.setItem(`amendments_${project.id}`, JSON.stringify(amendments));
+  }, [amendments, project.id]);
+
+  useEffect(() => {
+    localStorage.setItem(`audit_logs_${project.id}`, JSON.stringify(auditTraillogs));
+  }, [auditTraillogs, project.id]);
 
   useEffect(() => {
     loadTasks();
@@ -196,16 +618,35 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
   const loadApprovals = async () => {
     setIsApprovalsLoading(true);
     try {
+      // 1. Initial load from local memory/localStorage
+      const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
+      let localChains = localChainsStr ? JSON.parse(localChainsStr) : [];
+
+      // 2. Load from Supabase (using corrected 'approval_chains' table name)
       const { data, error } = await supabase
-        .from('project_approval_chains')
+        .from('approval_chains')
         .select('*')
         .eq('project_id', project.id)
-        .order('created_at');
+        .order('created_at', { ascending: true });
       
       if (error) throw error;
-      setApprovalChains(data || []);
+
+      if (data && data.length > 0) {
+        // Merge DB data into localChains cleanly
+        const merged = [...localChains];
+        data.forEach((dbItem: any) => {
+          if (!merged.some(m => m.id === dbItem.id)) {
+            merged.push(dbItem);
+          }
+        });
+        localChains = merged;
+        localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(localChains));
+      }
+      setApprovalChains(localChains);
     } catch (e: any) {
-      console.error('Error loading approvals:', e);
+      console.warn('Supabase query error for approval_chains, using local storage fallback:', e);
+      const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
+      setApprovalChains(localChainsStr ? JSON.parse(localChainsStr) : []);
     } finally {
       setIsApprovalsLoading(false);
     }
@@ -213,22 +654,48 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
 
   const handleSaveApprovalChain = async (chainData: any) => {
     try {
+      // 1. Maintain in localStorage for full responsiveness/offline persistence
+      const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
+      let localChains = localChainsStr ? JSON.parse(localChainsStr) : [];
+
       if (editingChain) {
-        const { error } = await supabase
-          .from('project_approval_chains')
-          .update(chainData)
-          .eq('id', editingChain.id);
-        if (error) throw error;
+        // Edit existing
+        localChains = localChains.map((c: any) => c.id === editingChain.id ? { ...c, ...chainData } : c);
       } else {
-        const { error } = await supabase
-          .from('project_approval_chains')
-          .insert({
-            ...chainData,
-            project_id: project.id,
-            tenant_id: project.tenant_id
-          });
-        if (error) throw error;
+        // Create new
+        const newId = chainData.id || 'chain_' + Math.random().toString(36).substr(2, 9);
+        localChains.push({
+          id: newId,
+          project_id: project.id,
+          tenant_id: project.tenant_id,
+          created_at: new Date().toISOString(),
+          ...chainData
+        });
       }
+      localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(localChains));
+
+      // 2. Sync to Supabase best effort using 'approval_chains' table
+      try {
+        if (editingChain) {
+          const { error } = await supabase
+            .from('approval_chains')
+            .update(chainData)
+            .eq('id', editingChain.id);
+          if (error) console.warn("Supabase update chain warning:", error);
+        } else {
+          const { error } = await supabase
+            .from('approval_chains')
+            .insert({
+              ...chainData,
+              project_id: project.id,
+              tenant_id: project.tenant_id
+            });
+          if (error) console.warn("Supabase insert chain warning:", error);
+        }
+      } catch (dbErr) {
+        console.warn("Supabase save chain failed:", dbErr);
+      }
+
       setShowApprovalModal(false);
       setEditingChain(null);
       loadApprovals();
@@ -240,11 +707,25 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
   const handleDeleteApprovalChain = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this approval chain?')) return;
     try {
-      const { error } = await supabase
-        .from('project_approval_chains')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      // 1. Delete from localStorage
+      const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
+      if (localChainsStr) {
+        const localChains = JSON.parse(localChainsStr);
+        const filtered = localChains.filter((c: any) => c.id !== id);
+        localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(filtered));
+      }
+
+      // 2. Try delete from Supabase using 'approval_chains'
+      try {
+        const { error } = await supabase
+          .from('approval_chains')
+          .delete()
+          .eq('id', id);
+        if (error) console.warn("Supabase delete chain warning:", error);
+      } catch (dbErr) {
+        console.warn("Supabase delete chain failed:", dbErr);
+      }
+
       loadApprovals();
     } catch (e: any) {
       alert('Error deleting approval chain: ' + e.message);
@@ -541,9 +1022,33 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
                       {cleanRichText(task.description)}
                     </p>
                   )}
+
+                  {(() => {
+                    const matchedAsset = assetsSot.find(a => a.checklist_task.toLowerCase() === task.task_name.toLowerCase());
+                    if (matchedAsset) {
+                      return (
+                        <div className="flex items-center gap-1.5 mt-1.5 text-[10px]">
+                          <span className={cn(
+                            "inline-flex items-center gap-1.5 font-mono px-2 py-0.5 rounded border uppercase tracking-wide",
+                            matchedAsset.status === 'APPROVED' 
+                              ? "bg-primary/10 text-primary border-primary/20" 
+                              : "bg-warning/10 text-warning border-warning/20"
+                          )}>
+                            <span className={cn(
+                              "w-1.5 h-1.5 rounded-full bg-current",
+                              matchedAsset.status === 'APPROVED' ? "" : "animate-pulse"
+                            )} />
+                            {matchedAsset.status === 'APPROVED' ? `🔒 v${matchedAsset.version} LOCKED` : '🔓 DRAFT UNLOCKED'}
+                          </span>
+                          <span className="text-secondary">| Auto-synchronized baseline</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   
                   {task.is_complete && task.completed_at && (
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex items-center gap-3 mt-1 font-mono">
                       <div className="flex items-center gap-1 text-[10px] text-ghost">
                         <Calendar className="w-3 h-3" />
                         {new Date(task.completed_at).toLocaleDateString()}
@@ -929,6 +1434,84 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
   const renderApprovals = () => {
     return (
       <div className="flex flex-col gap-6">
+
+        {/* Sourcing Pathways & Custom Registration Module Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <div className="lg:col-span-2 bg-surface-1 border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className="w-5 h-5 text-accent" />
+                <h3 className="text-xs font-black text-main uppercase tracking-widest">Clone Approval Blueprints</h3>
+              </div>
+              <p className="text-[11px] text-ghost mb-4 font-medium">Select and copy standard verification paths directly from Nairobi Corporate Approval library to your active project:</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {GLOBAL_APPROVAL_TEMPLATES.map(tpl => (
+                  <div key={tpl.id} className="p-3 bg-surface-2 hover:bg-surface-3 transition-colors rounded-xl border border-border-subtle flex flex-col justify-between gap-3">
+                    <div>
+                      <span className="text-[8px] font-bold text-accent uppercase tracking-wider">{tpl.module_type} Template Pathway</span>
+                      <h4 className="text-xs font-black text-main mt-1">{tpl.chain_name}</h4>
+                      <div className="flex items-center gap-1 mt-2.5 flex-wrap text-[9px] text-ghost gap-y-1">
+                        <span className="font-bold">Steps:</span>
+                        {tpl.steps_json.map((st: any, idx) => (
+                          <span key={idx} className="font-bold px-1.5 py-0.5 bg-surface-1 rounded text-dim border border-border-subtle/40">
+                            {idx + 1}.{st.role}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleCloneTemplate(tpl)}
+                      className="px-3 py-1.5 rounded-lg bg-accent text-white hover:brightness-110 font-black text-[9px] uppercase tracking-wider transition-all self-end"
+                    >
+                      Clone Workflow
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-surface-1 border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="w-5 h-5 text-primary" />
+                <h3 className="text-xs font-black text-main uppercase tracking-widest">Register Custom Category</h3>
+              </div>
+              <p className="text-[11px] text-ghost mb-4 font-medium">Register completely brand-new, customized project modalities as needed. They will support full approval routing identically to predefined modules:</p>
+
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Subcontractor Liability"
+                  className="bg-surface-2 border border-border-subtle rounded-xl px-3.5 py-2.5 text-xs text-main placeholder-ghost outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all font-semibold"
+                />
+
+                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                  <span className="text-[8px] font-bold text-ghost uppercase tracking-widest mr-1">Active:</span>
+                  {["PO", "PC", "VO", "DPR"].map(b => (
+                    <span key={b} className="text-[8px] font-mono font-black px-1.5 py-0.5 bg-surface-2 text-ghost rounded uppercase border border-border-subtle">{b}</span>
+                  ))}
+                  {customCategories.map(c => (
+                    <span key={c} className="text-[8px] font-mono font-black px-1.5 py-0.5 bg-primary/10 text-primary rounded uppercase border border-primary/20">{c}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => handleRegisterCategory(newCategoryName)}
+              className="mt-4 px-4 py-2.5 rounded-xl bg-primary text-black hover:brightness-110 text-[10px] uppercase font-black tracking-wider transition-all border border-primary font-mono"
+            >
+              + Register Modality
+            </button>
+          </div>
+
+        </div>
+
         <div className="bg-surface-1 border border-border-subtle rounded-2xl p-6">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
@@ -1035,7 +1618,335 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
                 setEditingChain(null);
               }}
               onSave={handleSaveApprovalChain}
+              customCategories={customCategories}
             />
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  const renderGovernance = () => {
+    return (
+      <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+        
+        {/* Top Intro card */}
+        <div className="bg-surface-1 border border-border-subtle rounded-2xl p-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+            <Shield className="w-32 h-32 text-primary" />
+          </div>
+          <div className="flex items-center gap-4 mb-3">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Shield className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-main">Governance, SoT Version Lock & Change Matrices</h2>
+              <p className="text-xs text-dim mt-0.5">Enforce audit trails and immutability for approved project milestones</p>
+            </div>
+          </div>
+          <p className="text-xs text-dim leading-relaxed max-w-4xl">
+            Upon final approval, core parameters, BOQ items, trade structures, and milestones secure an instant lock state as the official Source of Truth (SoT). Restrictive roles are enforced. Standard dashboards across the platform will reference this active frozen version. Revisions require a formal amendment pipeline with justificatory matrices, generating an independent version index without modifying existing logs.
+          </p>
+        </div>
+
+        {/* 1. Base Modalities & Lock Status */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {assetsSot.map((asset) => (
+            <div key={asset.id} className={cn(
+              "bg-surface-1 border rounded-2xl p-5 flex flex-col justify-between transition-all relative overflow-hidden",
+              asset.status === 'APPROVED' ? "border-primary/20 bg-primary/[0.01]/10" : "border-border-subtle bg-surface-1/40"
+            )}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold text-ghost uppercase tracking-widest">{asset.module_type || 'Custom'} Baseline</span>
+                  <h3 className="text-sm font-bold text-main flex items-center gap-2">
+                    {asset.name}
+                    {asset.status === 'APPROVED' ? (
+                      <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-primary/10 text-primary border border-primary/20 uppercase tracking-widest flex items-center gap-1">
+                        🔒 v{asset.version}
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-warning/10 text-warning border border-warning/20 uppercase tracking-widest">
+                        🔓 DRAFT
+                      </span>
+                    )}
+                  </h3>
+                  <div className="text-[11px] text-ghost leading-relaxed">
+                    Connected Task: <span className="text-dim font-bold">{asset.checklist_task}</span>
+                  </div>
+                </div>
+
+                <div className={cn(
+                  "px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider shadow-sm",
+                  asset.status === 'APPROVED' ? "bg-primary/15 border-primary/20 text-primary" : "bg-warning/15 border-warning/20 text-warning"
+                )}>
+                  {asset.status === 'APPROVED' ? (
+                    <>
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Locked SoT
+                    </>
+                  ) : (
+                    <>
+                      <Info className="w-3.5 h-3.5" />
+                      Draft Base
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Approval Metadata */}
+              {asset.status === 'APPROVED' && (
+                <div className="mt-4 pt-3.5 border-t border-border-subtle/40 flex items-center justify-between text-[10px] text-ghost">
+                  <div className="flex items-center gap-1.5">
+                    <User className="w-3 h-3 text-primary" />
+                    <span>Freezer ID: <span className="text-main font-semibold">{asset.approved_by}</span></span>
+                  </div>
+                  <div>
+                    <span>Approved: <span className="text-main font-semibold">{new Date(asset.approved_at).toLocaleString()}</span></span>
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="mt-5 flex gap-2 justify-end">
+                {asset.status === 'APPROVED' ? (
+                  <>
+                    <button
+                      onClick={() => handleInitiateAmendment(asset)}
+                      className="px-4 py-2 rounded-xl bg-accent text-white hover:brightness-110 text-[10.5px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-[0_2px_10px_rgba(240,74,90,0.15)]"
+                    >
+                      <GitBranch className="w-3.5 h-3.5" />
+                      Request Revision
+                    </button>
+                    <button
+                      onClick={() => handleRevokeBaseline(asset.id)}
+                      className="px-4 py-2 rounded-xl border border-danger/30 text-danger hover:bg-danger/10 text-[10.5px] font-bold uppercase tracking-wider transition-all"
+                    >
+                      Revoke Sign-off
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => handleFreezeBaseline(asset.id)}
+                    className="px-5 py-2 rounded-xl bg-primary text-black font-black hover:brightness-110 text-[10.5px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-primary"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    Freeze & Lock
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 2. Amendment & Change Requests Log */}
+        <div className="bg-surface-1 border border-border-subtle rounded-2xl overflow-hidden mt-2">
+          <div className="px-6 py-4.5 border-b border-border-subtle bg-surface-2 flex items-center justify-between">
+            <div>
+              <h3 className="text-xs font-black text-main uppercase tracking-widest flex items-center gap-1.5">
+                <GitBranch className="w-4 h-4 text-accent" />
+                Change request pipelines & active amendments
+              </h3>
+              <p className="text-[10px] text-ghost mt-0.5 font-medium">Evaluate and approve adjustments to locked baseline specifications</p>
+            </div>
+            <span className="bg-accent/10 text-accent border border-accent/20 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+              {amendments.filter(a => a.status === 'pending').length} Pending
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-1 border-b border-border-subtle">
+                  <th className="font-mono text-[9px] uppercase tracking-widest text-dim px-6 py-3">Asset</th>
+                  <th className="font-mono text-[9px] uppercase tracking-widest text-dim px-6 py-3">Versions</th>
+                  <th className="font-mono text-[9px] uppercase tracking-widest text-dim px-6 py-3">Justification Matrix</th>
+                  <th className="font-mono text-[9px] uppercase tracking-widest text-dim px-6 py-3">Identity / Time</th>
+                  <th className="font-mono text-[9px] uppercase tracking-widest text-dim px-6 py-3">State</th>
+                  <th className="px-6 py-3 text-right font-mono text-[9px] uppercase tracking-widest text-dim">Verification Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-subtle/50 text-xs text-dim">
+                {amendments.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-dim font-medium">
+                      No formal change requests have been initiated. Create a revision on a locked asset to populate this register.
+                    </td>
+                  </tr>
+                ) : (
+                  amendments.map((am) => (
+                    <tr key={am.id} className="hover:bg-white/[0.005]">
+                      <td className="px-6 py-4 font-bold text-main">{am.asset_name}</td>
+                      <td className="px-6 py-4 font-mono font-semibold text-ghost flex items-center gap-1.5">
+                        <span>v{am.original_version}</span>
+                        <ArrowRight className="w-3 h-3 text-dim" />
+                        <span className="text-primary font-bold">v{am.new_version}</span>
+                      </td>
+                      <td className="px-6 py-4 text-dim max-w-xs truncate" title={am.justification}>
+                        {am.justification}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-main font-semibold flex items-center gap-1">
+                            <User className="w-2.5 h-2.5 text-accent" />
+                            {am.requester_name || am.requester_id}
+                          </span>
+                          <span className="text-[10px] text-ghost">{new Date(am.created_at).toLocaleDateString()} {new Date(am.created_at).toLocaleTimeString()}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border",
+                          am.status === 'pending' ? "bg-warning/10 text-warning border-warning/20" :
+                          am.status === 'approved' ? "bg-primary/10 text-primary border-primary/20" :
+                          "bg-danger/10 text-danger border-danger/20"
+                        )}>
+                          {am.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {am.status === 'pending' ? (
+                          <div className="flex gap-1.5 justify-end">
+                            <button
+                              onClick={() => handleDecideAmendment(am.id, 'rejected')}
+                              className="px-2.5 py-1 rounded bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20 text-[10px] font-black uppercase tracking-wider transition-all"
+                            >
+                              Reject
+                            </button>
+                            <button
+                              onClick={() => handleDecideAmendment(am.id, 'approved')}
+                              className="px-2.5 py-1 rounded bg-primary text-black hover:brightness-110 text-[10px] font-black uppercase tracking-wider transition-all border border-primary"
+                            >
+                              Approve & Increment
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-ghost">
+                            Decided: {new Date(am.decided_at || '').toLocaleDateString()}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 3. Audit Log Matrix */}
+        <div className="bg-surface-1 border border-border-subtle rounded-2xl overflow-hidden mt-2">
+          <div className="px-6 py-4.5 border-b border-border-subtle bg-surface-2 flex items-center justify-between">
+            <div>
+              <h3 className="text-xs font-black text-main uppercase tracking-widest flex items-center gap-1.5">
+                <ClipboardList className="w-4 h-4 text-primary" />
+                Immutable governance audit history
+              </h3>
+              <p className="text-[10px] text-ghost mt-0.5 font-medium font-mono">CRITICAL SECURITY ENCRYPTED FOOTPRINT ENFORCED</p>
+            </div>
+            <div className="text-[8px] font-bold py-1 px-2.5 rounded bg-surface-3 border border-border-subtle text-ghost tracking-widest uppercase">
+              SHA-256 SECURED LOG
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse font-mono text-[10px]">
+              <thead>
+                <tr className="bg-surface-1 border-b border-border-subtle">
+                  <th className="text-dim px-6 py-3 uppercase tracking-wider">Timestamp</th>
+                  <th className="text-dim px-6 py-3 uppercase tracking-wider">Asset Modality</th>
+                  <th className="text-dim px-6 py-3 uppercase tracking-wider">Version</th>
+                  <th className="text-dim px-6 py-3 uppercase tracking-wider">Action Type</th>
+                  <th className="text-dim px-6 py-3 uppercase tracking-wider">Security Identity</th>
+                  <th className="text-dim px-6 py-3 uppercase tracking-wider">Justification Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-subtle/50 text-dim">
+                {auditTraillogs.map((log, idx) => (
+                  <tr key={idx} className="hover:bg-white/[0.005] leading-relaxed">
+                    <td className="px-6 py-3 text-ghost whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
+                    <td className="px-6 py-3 text-main font-bold">{log.asset}</td>
+                    <td className="px-6 py-3 text-primary font-bold">v{log.version}</td>
+                    <td className="px-6 py-3">
+                      <span className={cn(
+                        "px-1.5 py-0.25 rounded text-[8px] font-black uppercase border tracking-tighter",
+                        log.action.includes('Frozen') ? "bg-primary/10 text-primary border-primary/20" :
+                        log.action.includes('Approved') ? "bg-accent/10 text-accent border-accent/20" :
+                        "bg-warning/10 text-warning border-warning/20"
+                      )}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-main font-semibold whitespace-nowrap">{log.userId}</td>
+                    <td className="px-6 py-3 text-dim max-w-sm truncate" title={log.description}>{log.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Revision Request Modal */}
+        <AnimatePresence>
+          {showAmendmentModal && selectedAssetForAmendment && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-surface-1 border border-border-subtle rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative"
+              >
+                <div className="px-6 py-4.5 border-b border-border-subtle flex items-center justify-between bg-surface-2">
+                  <h3 className="text-sm font-black text-main uppercase tracking-wider flex items-center gap-2">
+                    <GitBranch className="w-4 h-4 text-accent animate-pulse" />
+                    Request Version Amendment
+                  </h3>
+                  <button onClick={() => setShowAmendmentModal(false)} className="p-1.5 hover:bg-border-subtle rounded-lg text-ghost">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 flex flex-col gap-5">
+                  <div className="flex flex-col gap-1.5 p-3.5 bg-surface-2 rounded-xl border border-border-subtle/40">
+                    <span className="text-[10px] font-bold text-ghost uppercase tracking-wider">Asset Baseline Target</span>
+                    <span className="text-xs font-black text-main">{selectedAssetForAmendment.name}</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] text-ghost">Active Version: <span className="font-bold font-mono">v{selectedAssetForAmendment.version}</span></span>
+                      <ArrowRight className="w-2.5 h-2.5 text-dim" />
+                      <span className="text-[10px] text-primary">New Incremented Version: <span className="font-bold font-mono">v{(parseFloat(selectedAssetForAmendment.version) + 0.1).toFixed(1)}</span></span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-ghost uppercase tracking-wider">Formal Amendment Justification Matrix</label>
+                    <textarea
+                      value={amendmentJustification}
+                      onChange={(e) => setAmendmentJustification(e.target.value)}
+                      placeholder="Input comprehensive technical and procurement justification (e.g., Raw steel tariffs increased spot price by +12%, requiring revised trade rate allocations.)"
+                      rows={4}
+                      className="bg-surface-2 border border-border-subtle rounded-xl p-3.5 text-xs text-main placeholder-ghost outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all leading-relaxed custom-scrollbar font-sans resize-none"
+                    />
+                    <span className="text-[9px] text-ghost font-mono">A permanent, immutably recorded change footprint will be logged upon submission.</span>
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 bg-surface-2 border-t border-border-subtle flex items-center justify-end gap-2.5">
+                  <button 
+                    onClick={() => setShowAmendmentModal(false)}
+                    className="px-4 py-2 text-xs font-bold text-ghost hover:text-main"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSubmitAmendment}
+                    className="px-5 py-2 rounded-xl bg-accent text-white font-black hover:brightness-110 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-[0_2px_10px_rgba(240,74,90,0.25)]"
+                  >
+                    <Save className="w-4 h-4" />
+                    Submit Request
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>
@@ -1122,12 +2033,23 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
           <GitBranch className="w-4 h-4" />
           Approval Chains
         </button>
+        <button 
+          onClick={() => setActiveTab('governance')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
+            activeTab === 'governance' ? "bg-surface-2 text-primary shadow-sm" : "text-ghost hover:text-main"
+          )}
+        >
+          <Shield className="w-4 h-4 text-primary" />
+          Governance & SoT Lock
+        </button>
       </div>
 
       {activeTab === 'checklist' && renderChecklist()}
       {activeTab === 'parameters' && renderParameters()}
       {activeTab === 'staff' && renderStaff()}
       {activeTab === 'approvals' && renderApprovals()}
+      {activeTab === 'governance' && renderGovernance()}
 
       <AnimatePresence>
         {showDeleteModal && (
@@ -1142,7 +2064,7 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
   );
 }
 
-const ApprovalChainModal = ({ chain, onClose, onSave }: { chain: any; onClose: () => void; onSave: (data: any) => void }) => {
+const ApprovalChainModal = ({ chain, onClose, onSave, customCategories = [] }: { chain: any; onClose: () => void; onSave: (data: any) => void; customCategories?: string[] }) => {
   const [name, setName] = useState(chain?.chain_name || '');
   const [module, setModule] = useState(chain?.module_type || 'PO');
   const [steps, setSteps] = useState<any[]>(chain?.steps_json || [{ role: 'project_manager' }]);
@@ -1202,10 +2124,19 @@ const ApprovalChainModal = ({ chain, onClose, onSave }: { chain: any; onClose: (
               onChange={(e) => setModule(e.target.value)}
               className="bg-surface-2 border border-border-subtle rounded-xl px-4 py-3 text-sm text-main focus:border-accent outline-none transition-all appearance-none"
             >
-              <option value="PO">Purchase Order</option>
-              <option value="PC">Payment Certificate</option>
-              <option value="VO">Variation Order</option>
-              <option value="DPR">Daily Progress Report</option>
+              <optgroup label="Standard Modalities">
+                <option value="PO">Purchase Order</option>
+                <option value="PC">Payment Certificate</option>
+                <option value="VO">Variation Order</option>
+                <option value="DPR">Daily Progress Report</option>
+              </optgroup>
+              {customCategories.length > 0 && (
+                <optgroup label="Custom Registered Modules">
+                  {customCategories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
 

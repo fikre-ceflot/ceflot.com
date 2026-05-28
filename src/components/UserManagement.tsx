@@ -18,7 +18,17 @@ import {
   ShieldAlert,
   Save,
   ChevronDown,
-  Folder
+  Folder,
+  Lock,
+  Unlock,
+  Key,
+  Fingerprint,
+  Eye,
+  ShoppingCart,
+  Package,
+  LayoutGrid,
+  Calculator,
+  Ban
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Role, UserProfile } from '../types';
@@ -28,9 +38,10 @@ import { RoleManagement } from './RoleManagement';
 
 interface UserManagementProps {
   tenantId: string;
+  currentUserRole?: string;
 }
 
-export function UserManagement({ tenantId }: UserManagementProps) {
+export function UserManagement({ tenantId, currentUserRole }: UserManagementProps) {
   const { roles: allAvailableRoles } = useRoles(tenantId);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +62,10 @@ export function UserManagement({ tenantId }: UserManagementProps) {
   const [editingStrategy, setEditingStrategy] = useState<'role' | 'user'>('role');
 
   // Integration states for Tabs and project specific assignments
-  const [activeTab, setActiveTab] = useState<'directory' | 'roles' | 'approvals'>('directory');
+  const [activeTab, setActiveTab ] = useState<'directory' | 'roles' | 'approvals' | 'previewer'>('directory');
+  const [selectedPreviewRole, setSelectedPreviewRole] = useState<string>('project_manager');
+  const [selectedPreviewModule, setSelectedPreviewModule] = useState<string>('budget');
+  const [simulationActionFeedback, setSimulationActionFeedback] = useState<{ action: string; allowed: boolean; reason?: string } | null>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [userProjects, setUserProjects] = useState<{ all_projects: boolean; project_ids: string[] }>({
     all_projects: true,
@@ -417,10 +431,42 @@ export function UserManagement({ tenantId }: UserManagementProps) {
         </div>
         <button 
           onClick={() => setIsInviting(true)}
-          className="bg-primary text-surface-base px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 transition-all flex items-center gap-2"
+          className="bg-primary text-surface-base px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 transition-all flex items-center gap-2 cursor-pointer"
         >
           <UserPlus className="w-4 h-4" />
           Add Team Member
+        </button>
+      </div>
+
+      {/* Tabs Selector Bar */}
+      <div className="flex border-b border-border-subtle gap-2">
+        <button
+          onClick={() => setActiveTab('directory')}
+          className={cn(
+            "px-4 py-2 border-b-2 text-xs uppercase font-mono font-bold tracking-wider transition-all cursor-pointer",
+            activeTab === 'directory' ? "border-primary text-primary" : "border-transparent text-ghost hover:text-dim"
+          )}
+        >
+          Team Directory
+        </button>
+        <button
+          onClick={() => setActiveTab('roles')}
+          className={cn(
+            "px-4 py-2 border-b-2 text-xs uppercase font-mono font-bold tracking-wider transition-all cursor-pointer",
+            activeTab === 'roles' ? "border-primary text-primary" : "border-transparent text-ghost hover:text-dim"
+          )}
+        >
+          Custom Policy Roles
+        </button>
+        <button
+          onClick={() => setActiveTab('previewer')}
+          className={cn(
+            "px-4 py-2 border-b-2 text-xs uppercase font-mono font-bold tracking-wider transition-all cursor-pointer",
+            activeTab === 'previewer' ? "border-primary text-primary" : "border-transparent text-ghost hover:text-dim"
+          )}
+          title="Console Simulator"
+        >
+          Console Simulator
         </button>
       </div>
 
@@ -741,83 +787,444 @@ export function UserManagement({ tenantId }: UserManagementProps) {
         </div>
       )}
 
-      <div className="bg-surface-1 border border-border-subtle rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-2 border-b border-border-subtle">
-                <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Team Member</th>
-                <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Role</th>
-                <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Status</th>
-                <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Joined</th>
-                <th className="px-6 py-4 flex items-center justify-end font-mono text-[10px] uppercase tracking-widest text-dim pr-10">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-subtle">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-24 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto opacity-40" />
-                    <p className="mt-4 text-xs font-medium text-dim">Loading secure directory...</p>
-                  </td>
+      {activeTab === 'directory' && (
+        <div className="bg-surface-1 border border-border-subtle rounded-xl overflow-hidden shadow-sm animate-in fade-in duration-200">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-2 border-b border-border-subtle">
+                  <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Team Member</th>
+                  <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Role</th>
+                  <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Status</th>
+                  <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Joined</th>
+                  <th className="px-6 py-4 flex items-center justify-end font-mono text-[10px] uppercase tracking-widest text-dim pr-10">Actions</th>
                 </tr>
-              ) : users.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-24 text-center text-dim">
-                    <Mail className="w-8 h-8 opacity-20 mx-auto mb-2" />
-                    <div className="text-sm font-medium">No team members found</div>
-                  </td>
-                </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id} className="hover:bg-white/[0.01] transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="w-9 h-9 rounded-full bg-surface-2 border border-border-subtle flex items-center justify-center text-primary font-bold text-xs ring-4 ring-transparent group-hover:ring-primary/5 transition-all">
-                            {user.full_name?.split(' ').map(n => n[0]).join('') || '?'}
-                          </div>
-                          {user.is_active && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-primary border-2 border-surface-1 rounded-full" />}
-                        </div>
-                        <div className="flex flex-col flex-1 min-w-0">
-                          <div className="text-sm font-bold text-main truncate">{user.full_name}</div>
-                          <div className="text-[11px] text-dim truncate">{user.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/5 text-accent text-[10px] font-bold uppercase tracking-wider border border-accent/10">
-                        {user.role?.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className={cn(
-                        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border",
-                        user.is_active 
-                          ? "bg-primary/10 text-primary border-primary/20" 
-                          : "bg-danger/10 text-danger border-danger/20"
-                      )}>
-                        {user.is_active ? 'Active' : 'Inactive'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-mono text-[11px] text-dim whitespace-nowrap">
-                      {user.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pending'}
-                    </td>
-                    <td className="px-6 py-4 text-right pr-10">
-                      <button 
-                        onClick={() => setEditingUser(user)}
-                        className="p-1.5 text-dim hover:bg-surface-2 hover:text-primary rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                      >
-                        <Settings className="w-4 h-4" />
-                      </button>
+              </thead>
+              <tbody className="divide-y divide-border-subtle">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-24 text-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto opacity-40" />
+                      <p className="mt-4 text-xs font-medium text-dim">Loading secure directory...</p>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : users.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-24 text-center text-dim">
+                      <Mail className="w-8 h-8 opacity-20 mx-auto mb-2" />
+                      <div className="text-sm font-medium">No team members found</div>
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.id} className="hover:bg-white/[0.01] transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="w-9 h-9 rounded-full bg-surface-2 border border-border-subtle flex items-center justify-center text-primary font-bold text-xs ring-4 ring-transparent group-hover:ring-primary/5 transition-all">
+                              {user.full_name?.split(' ').map(n => n[0]).join('') || '?'}
+                            </div>
+                            {user.is_active && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-primary border-2 border-surface-1 rounded-full" />}
+                          </div>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <div className="text-sm font-bold text-main truncate">{user.full_name}</div>
+                            <div className="text-[11px] text-dim truncate">{user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/5 text-accent text-[10px] font-bold uppercase tracking-wider border border-accent/10">
+                          {user.role?.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className={cn(
+                          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border",
+                          user.is_active 
+                            ? "bg-primary/10 text-primary border-primary/20" 
+                            : "bg-danger/10 text-danger border-danger/20"
+                        )}>
+                          {user.is_active ? 'Active' : 'Inactive'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-[11px] text-dim whitespace-nowrap">
+                        {user.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pending'}
+                      </td>
+                      <td className="px-6 py-4 text-right pr-10">
+                        <button 
+                          onClick={() => setEditingUser(user)}
+                          className="p-1.5 text-dim hover:bg-surface-2 hover:text-primary rounded-lg transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                        >
+                          <Settings className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'roles' && (
+        <div className="animate-in fade-in duration-200">
+          <RoleManagement 
+            userRole={(currentUserRole || 'project_manager') as Role} 
+            isPlatformGod={currentUserRole === 'platform_god'} 
+          />
+        </div>
+      )}
+
+      {activeTab === 'previewer' && (currentUserRole !== 'tenant_admin' && currentUserRole !== 'platform_god') && (
+        <div className="bg-surface-1 border border-border-subtle rounded-2xl p-12 max-w-lg mx-auto text-center space-y-4 shadow-sm my-12 animate-in fade-in duration-300">
+          <ShieldAlert className="w-12 h-12 text-danger mx-auto animate-bounce" />
+          <h3 className="text-base font-bold text-main">Administrative Security Seal Active</h3>
+          <p className="text-xs text-dim leading-relaxed">
+            The Console Simulator matches live whitelists, allowed modules, and core restrictions of other users. Access to simulated environments is restricted exclusively to the <b>Tenant Administrator</b>.
+          </p>
+        </div>
+      )}
+
+      {activeTab === 'previewer' && (currentUserRole === 'tenant_admin' || currentUserRole === 'platform_god') && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 animate-in fade-in duration-300">
+          {/* Simulator Control Column */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <div className="bg-surface-1 border border-border-subtle rounded-xl p-5 space-y-4 shadow-xs">
+              <div className="flex items-center gap-2 border-b border-border-subtle/50 pb-3">
+                <Fingerprint className="w-5 h-5 text-primary" />
+                <div>
+                  <h3 className="text-sm font-bold text-main">Active Role Simulator</h3>
+                  <p className="text-[10px] text-ghost font-medium">Select a corporate role default state</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'project_manager', label: 'Project Manager' },
+                  { id: 'site_supervisor', label: 'Site Supervisor' },
+                  { id: 'finance', label: 'Finance Staff' },
+                  { id: 'client', label: 'External Client' }
+                ].map((roleOpt) => {
+                  const isCurSimulated = selectedPreviewRole === roleOpt.id;
+                  return (
+                    <button
+                      key={roleOpt.id}
+                      onClick={() => {
+                        setSelectedPreviewRole(roleOpt.id);
+                        setSimulationActionFeedback(null);
+                        // Reset mock sub-module preview if unauthorized for new simulated role
+                        const defaultSubModuleMapping: Record<string, string> = {
+                          project_manager: 'budget',
+                          site_supervisor: 'warehouse',
+                          finance: 'budget',
+                          client: 'dashboard'
+                        };
+                        setSelectedPreviewModule(defaultSubModuleMapping[roleOpt.id] || 'budget');
+                      }}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-center gap-2 cursor-pointer group",
+                        isCurSimulated 
+                          ? "bg-primary/5 border-primary text-primary" 
+                          : "bg-surface-2 border-border-subtle text-dim hover:text-main"
+                      )}
+                    >
+                      <div className={cn("p-1.5 rounded-lg transition-all", isCurSimulated ? "bg-primary/15" : "bg-surface-1 group-hover:bg-surface-3")}>
+                        <Fingerprint className="w-4 h-4" />
+                      </div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider truncate w-full">{roleOpt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* simulated role description */}
+              <div className="bg-surface-2 p-3.5 rounded-xl border border-border-subtle/50">
+                <span className="text-[9px] font-mono font-bold uppercase text-ghost tracking-widest block mb-1">Functional Description</span>
+                <p className="text-xs text-dim leading-relaxed">
+                  {selectedPreviewRole === 'project_manager' && "Authorized to plan cost boundaries, submit internal budgets, view surveys, and build BoQ recipe structures."}
+                  {selectedPreviewRole === 'site_supervisor' && "On-site executor focused on daily progress records, receiving warehouse stocks (GRNs), and requesting field materials."}
+                  {selectedPreviewRole === 'finance' && "Responsible for supplier invoices, general company overhead claims, budget margin audits, and release clearances."}
+                  {selectedPreviewRole === 'client' && "Read-only access limits. Stakeholders can only view schedule tracking calendars and performance audit metrics."}
+                </p>
+              </div>
+            </div>
+
+            {/* Simulated Whitelist Checkbench */}
+            <div className="bg-surface-1 border border-border-subtle rounded-xl p-5 space-y-4 shadow-xs">
+              <div className="flex items-center gap-2 border-b border-border-subtle/50 pb-3">
+                <Settings className="w-5 h-5 text-accent" />
+                <div>
+                  <h3 className="text-sm font-bold text-main">System Operations Testbed</h3>
+                  <p className="text-[10px] text-ghost font-medium">Verify actions permitted to this group</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {[
+                  { 
+                    action: 'Update BOQ Contract values', 
+                    rules: { project_manager: true, site_supervisor: false, finance: false, client: false }, 
+                    reason: 'QS boundary validation policy' 
+                  },
+                  { 
+                    action: 'Process GRN Materials Receipts', 
+                    rules: { project_manager: false, site_supervisor: true, finance: false, client: false }, 
+                    reason: 'Physical receipt on-site required' 
+                  },
+                  { 
+                    action: 'Approve Spends > $10,000 threshold', 
+                    rules: { project_manager: false, site_supervisor: false, finance: true, client: false }, 
+                    reason: 'Delegated spending guidelines restrict block' 
+                  },
+                  { 
+                    action: 'Alter System Security & Roles', 
+                    rules: { project_manager: false, site_supervisor: false, finance: false, client: false }, 
+                    reason: 'Requires full tenant_admin credentials' 
+                  }
+                ].map((actCheck) => {
+                  const simulatedRoleHasAccess = actCheck.rules[selectedPreviewRole as keyof typeof actCheck.rules];
+                  return (
+                    <button
+                      key={actCheck.action}
+                      onClick={() => {
+                        setSimulationActionFeedback({
+                          action: actCheck.action,
+                          allowed: simulatedRoleHasAccess,
+                          reason: simulatedRoleHasAccess ? undefined : actCheck.reason
+                        });
+                      }}
+                      className="w-full flex items-center justify-between p-2.5 bg-surface-2 border border-border-subtle/50 hover:bg-surface-3 rounded-lg text-left text-xs transition-colors cursor-pointer group"
+                    >
+                      <span className="font-medium text-dim group-hover:text-main truncate pr-2">{actCheck.action}</span>
+                      <div className={cn(
+                        "w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 text-[10px] font-bold",
+                        simulatedRoleHasAccess ? "bg-primary/15 text-primary" : "bg-danger/10 text-danger"
+                      )}>
+                        {simulatedRoleHasAccess ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {simulationActionFeedback && (
+                <div className={cn(
+                  "p-3.5 rounded-xl border animate-in slide-in-from-top-2 duration-200 mt-2",
+                  simulationActionFeedback.allowed 
+                    ? "bg-primary/5 border-primary/20 text-primary" 
+                    : "bg-danger/10 border-danger/20 text-danger"
+                )}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    {simulationActionFeedback.allowed ? <Check className="w-4 h-4 font-black" /> : <Ban className="w-4 h-4" />}
+                    <span className="text-[11px] font-mono font-bold uppercase tracking-wider">
+                      {simulationActionFeedback.allowed ? "ACCESS GRANTED" : "ACCESS BLOCKED"}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-main">
+                    {simulationActionFeedback.allowed 
+                      ? `Task "${simulationActionFeedback.action}" successfully bypassed system security policies for ${selectedPreviewRole.replace(/_/g, ' ')}.`
+                      : `Action restricted. Reason: ${simulationActionFeedback.reason}.`}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Interactive Console Mock View */}
+          <div className="lg:col-span-3 flex flex-col bg-surface-2 border border-border-subtle rounded-xl overflow-hidden shadow-xs h-full min-h-[500px]">
+            {/* Mock Header */}
+            <div className="bg-surface-3/80 border-b border-border-subtle p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-danger/55" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-warning/55" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-primary/55" />
+                </div>
+                <div className="w-px h-3 bg-border-subtle mx-1" />
+                <span className="text-[10px] font-mono font-bold tracking-tight text-ghost">CONSOLESANDBOX_PREVIEW_V.1.0</span>
+              </div>
+              <div className="flex items-center gap-2 bg-surface-1/50 border border-border-subtle px-2.5 py-1 rounded-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[9px] font-mono uppercase font-bold text-dim">Simulating {selectedPreviewRole}</span>
+              </div>
+            </div>
+
+            <div className="flex-1 flex min-h-0">
+              {/* Mock Left Navigation Bar */}
+              <div className="w-40 bg-surface-3/50 border-r border-border-subtle flex flex-col p-2 gap-1 select-none">
+                <span className="text-[8px] font-mono uppercase font-bold tracking-widest text-ghost mb-2 px-2">Simulated Panels</span>
+                {[
+                  { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, minRules: ['client', 'project_manager'] },
+                  { id: 'planning', label: 'BoQ Manager', icon: Folder, minRules: ['project_manager'] },
+                  { id: 'budget', label: 'Cost & Budget', icon: Calculator, minRules: ['finance', 'project_manager'] },
+                  { id: 'warehouse', label: 'Warehouse File', icon: Package, minRules: ['site_supervisor'] }
+                ].map((mockTab) => {
+                  const isSimAuthorised = mockTab.minRules.includes(selectedPreviewRole);
+                  const isSelect = selectedPreviewModule === mockTab.id;
+                  return (
+                    <button
+                      key={mockTab.id}
+                      onClick={() => {
+                        setSelectedPreviewModule(mockTab.id);
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-2 p-2 rounded-lg text-left text-[11px] font-bold tracking-tight border transition-all cursor-pointer",
+                        isSelect 
+                          ? "bg-surface-base border-border-subtle text-main" 
+                          : "bg-transparent border-transparent text-dim hover:text-main"
+                      )}
+                    >
+                      <mockTab.icon className={cn("w-3.5 h-3.5", isSelect ? "text-primary" : "text-ghost")} />
+                      <span className="truncate flex-1">{mockTab.label}</span>
+                      {!isSimAuthorised && <Lock className="w-2.5 h-2.5 text-danger shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mock Main Dashboard View */}
+              <div className="flex-1 bg-surface-base p-6 overflow-y-auto relative">
+                {(() => {
+                  const isCurrentModuleAuthorised = [
+                    { id: 'dashboard', minRules: ['client', 'project_manager'] },
+                    { id: 'planning', minRules: ['project_manager'] },
+                    { id: 'budget', minRules: ['finance', 'project_manager'] },
+                    { id: 'warehouse', minRules: ['site_supervisor'] }
+                  ].find(m => m.id === selectedPreviewModule)?.minRules.includes(selectedPreviewRole);
+
+                  if (!isCurrentModuleAuthorised) {
+                    return (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3 animate-in fade-in duration-300">
+                        <div className="w-12 h-12 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center text-danger mx-auto">
+                          <Lock className="w-5 h-5 animate-pulse" />
+                        </div>
+                        <h4 className="text-xs font-bold text-main whitespace-nowrap">Security Check: Module Restricted</h4>
+                        <p className="text-[11px] text-dim max-w-[210px] mx-auto leading-relaxed">
+                          Your active corporate policies deny access to this screen. In contrast to admins, this role requires specific capabilities whitelisted.
+                        </p>
+                        <div className="p-2 bg-surface-2 rounded-md border border-border-subtle">
+                          <span className="text-[8px] font-mono font-bold text-ghost uppercase tracking-wider">Required Clearance: {selectedPreviewModule === 'budget' ? 'fin:view_budget' : selectedPreviewModule === 'planning' ? 'boq:view_recipes' : 'stock:view'}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="h-full space-y-4 animate-in fade-in duration-300">
+                      <div className="flex items-center justify-between border-b border-border-subtle/50 pb-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <Unlock className="w-3.5 h-3.5 text-primary" />
+                          <h4 className="text-xs font-bold text-main uppercase tracking-wider">{selectedPreviewModule.replace(/-/g, ' ')} VIEW</h4>
+                        </div>
+                        <span className="text-[8px] font-mono font-bold uppercase tracking-widest text-[#24ce24] bg-[#24ce24]/10 border border-[#24ce24]/20 px-1.5 py-0.5 rounded">
+                          ● ONLINE
+                        </span>
+                      </div>
+
+                      {/* Mock UI Contents per tab selection */}
+                      {selectedPreviewModule === 'dashboard' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-surface-2 p-3 rounded-lg border border-border-subtle text-left">
+                              <span className="text-[10px] text-ghost block mb-0.5">Project S-Curve</span>
+                              <span className="text-sm font-bold text-main">72.4%</span>
+                              <div className="w-full h-1 bg-surface-3 rounded-full mt-1.5 overflow-hidden">
+                                <div className="w-[72%] h-full bg-accent" />
+                              </div>
+                            </div>
+                            <div className="bg-surface-2 p-3 rounded-lg border border-border-subtle text-left">
+                              <span className="text-[10px] text-ghost block mb-0.5">Delivery Audit</span>
+                              <span className="text-sm font-bold text-[#24ce24]">Healthy</span>
+                            </div>
+                          </div>
+                          <div className="bg-surface-2/40 border border-border-subtle rounded-lg p-3 text-left">
+                            <div className="text-[10px] text-ghost mb-2">Milestones Timeline</div>
+                            <div className="space-y-1.5 font-mono text-[9px] text-dim">
+                              <div>✓ Foundations Concrete Poured - MAR 26</div>
+                              <div>✓ Section Block Grid A locked - APR 26</div>
+                              <div className="text-primary animate-pulse">→ Current: Steel Reinforcements framing - MAY 26</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedPreviewModule === 'planning' && (
+                        <div className="space-y-3">
+                          <div className="bg-surface-2 p-3 rounded-lg border border-border-subtle text-left space-y-1">
+                            <span className="text-[10px] text-ghost block">Bill of Quantities active list</span>
+                            <span className="text-sm font-extrabold text-main">Contract Sum: $1,420,000</span>
+                          </div>
+
+                          <div className="bg-surface-2 rounded-lg p-3 space-y-2 text-left">
+                            <div className="text-[10px] font-bold text-main">BOQ Core Columns (Adjustable):</div>
+                            <div className="space-y-1.5 text-[11px] text-dim">
+                              <div className="flex justify-between border-b border-border-subtle/50 pb-1">
+                                <span>Steel Grate Section B</span>
+                                <span className="font-bold text-main">40 Tons</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Concrete Mix 40MP</span>
+                                <span className="font-bold text-main">120 m³</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedPreviewModule === 'budget' && (
+                        <div className="space-y-3 text-left">
+                          <div className="bg-surface-2 p-3 rounded-lg border border-border-subtle grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-[9px] text-[#24ce24] font-bold uppercase block mb-0.5">Budget Cap</span>
+                              <span className="text-sm font-bold text-main">$145,000</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-ghost font-bold uppercase block mb-0.5">Current Spend</span>
+                              <span className="text-sm font-bold text-warning">$89,450</span>
+                            </div>
+                          </div>
+
+                          <div className="bg-surface-2/60 border border-border-subtle rounded-lg p-3">
+                            <span className="text-[10px] text-ghost uppercase font-mono block mb-2">Interactive Triggers</span>
+                            <div className="flex gap-2">
+                              {selectedPreviewRole === 'finance' ? (
+                                <button className="flex-1 py-1.5 px-3 bg-[#24ce24]/10 text-[#24ce24] hover:bg-[#24ce24]/20 border border-[#24ce24]/20 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer">
+                                  Match Supplier Invoice
+                                </button>
+                              ) : (
+                                <button className="flex-1 py-1.5 px-3 bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer">
+                                  Submit Budget Proposal
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedPreviewModule === 'warehouse' && (
+                        <div className="space-y-3">
+                          <div className="bg-surface-2 p-3 rounded-lg border border-border-subtle text-left space-y-1">
+                            <span className="text-[10px] text-ghost block">Concrete Block Reserve Stockpile</span>
+                            <span className="text-sm font-bold text-main">4,200 Units</span>
+                          </div>
+                          <div className="bg-surface-2 rounded-lg p-3 space-y-2 text-left">
+                            <div className="text-[10px] font-bold text-main">Live Operations Menu:</div>
+                            <button className="w-full text-center py-2 bg-primary text-surface-base font-bold text-[10px] uppercase rounded-lg shadow-sm cursor-pointer hover:bg-primary/95">
+                              Log Materials Receipt (GRN)
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

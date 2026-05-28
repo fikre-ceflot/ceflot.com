@@ -248,7 +248,7 @@ export const CAPABILITIES: CapabilityItem[] = [
   { id: 'admin:manage_teams', label: 'Manage Teams', description: 'Group users into functional teams', category: 'ADMIN' },
   { id: 'admin:security', label: 'Security Settings', description: 'Configure MFA/SSO/Password rules', category: 'ADMIN' },
   { id: 'admin:import_users', label: 'Import Users', description: 'Bulk invite from Excel', category: 'ADMIN' },
-  { id: 'admin:view_god_logs', label: 'View God Logs', description: 'See activity by Platform God', category: 'ADMIN' },
+  { id: 'admin:view_god_logs', label: 'View Advanced Logs', description: 'See activity by system administrators', category: 'ADMIN' },
   { id: 'admin:reset_password', label: 'Reset Password', description: 'Force password reset for user', category: 'ADMIN' },
 
   // 15. Reports & Dashboards

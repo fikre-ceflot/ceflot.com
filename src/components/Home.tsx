@@ -30,7 +30,12 @@ import {
   X,
   Shapes,
   Globe,
-  Cpu
+  Cpu,
+  MapPin,
+  DollarSign,
+  Building2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, cleanRichText } from '../lib/utils';
@@ -38,6 +43,7 @@ import { CeflotLogo } from './Logo';
 import { supabase } from '../lib/supabase';
 
 import { usePermissions, Capability } from '../hooks/usePermissions';
+import { Project, Tenant } from '../types';
 
 interface ModuleCard {
   id: string;
@@ -155,6 +161,13 @@ interface HomeProps {
   userRole: string;
   tenantId: string;
   userId: string;
+  projects?: Project[];
+  tenant?: Tenant | null;
+  counts?: any;
+  tenantUsers?: any[];
+  setActiveProject?: (id: string) => void;
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
 }
 
 interface Task {
@@ -203,7 +216,24 @@ const SUBTOOL_MAPPING: Record<string, string> = {
   'System Root': 'god'
 };
 
-export function Home({ onSelectModule, onLogout, isGodMode, userName, companyName, userEmail, userRole, tenantId, userId }: HomeProps) {
+export function Home({ 
+  onSelectModule, 
+  onLogout, 
+  isGodMode, 
+  userName, 
+  companyName, 
+  userEmail, 
+  userRole, 
+  tenantId, 
+  userId,
+  projects = [],
+  tenant = null,
+  counts = {},
+  tenantUsers = [],
+  setActiveProject,
+  theme,
+  setTheme
+}: HomeProps) {
   const { hasCapability } = usePermissions(userRole as any, tenantId, { 
     id: userId, 
     email: userEmail, 
@@ -334,26 +364,85 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
     .map(([id]) => allModules.find(m => m.id === id))
     .filter(Boolean) as ModuleCard[];
 
-  const searchedExplorerItems = useMemo(() => {
-    if (!homeSearchQuery.trim()) return [];
-    const q = homeSearchQuery.toLowerCase();
-    
-    return EXPLORER_DATABASE.filter(item => {
-      // 1. Filter by God Mode
+  const unifiedSearchResults = useMemo(() => {
+    if (!homeSearchQuery.trim()) return null;
+    const q = homeSearchQuery.toLowerCase().trim();
+
+    // 1. Search Modules / Tools (only if they have capability matching)
+    const matchedModules = EXPLORER_DATABASE.filter(item => {
       if (item.isGodOnly && !isGodMode) return false;
-      
-      // 2. Filter by User capability
       if (item.capability && !hasCapability(item.capability)) return false;
-      
-      // 3. Perform string searches
       return (
         item.title.toLowerCase().includes(q) ||
         item.description.toLowerCase().includes(q) ||
         item.category.toLowerCase().includes(q) ||
-        item.tags.some(tag => tag.toLowerCase().includes(q))
+        item.tags.some(t => t.toLowerCase().includes(q))
       );
     });
-  }, [homeSearchQuery, isGodMode, hasCapability]);
+
+    // 2. Search Projects & Details (Project names & main details outside BOQ)
+    const matchedProjects = (projects || []).filter(p => {
+      const matchName = p.name?.toLowerCase().includes(q);
+      const matchCode = p.project_code?.toLowerCase().includes(q);
+      const matchType = p.project_type?.toLowerCase().includes(q);
+      const matchLoc = p.location?.toLowerCase().includes(q);
+      const matchNotes = p.notes?.toLowerCase().includes(q);
+      const matchStatus = p.status?.toLowerCase().includes(q);
+      return matchName || matchCode || matchType || matchLoc || matchNotes || matchStatus;
+    });
+
+    // 3. Search Tenant & Company-level values
+    let matchedTenantInfo = null;
+    if (tenant) {
+      const isCompanyMatch = 
+        tenant.name?.toLowerCase().includes(q) ||
+        tenant.id?.toLowerCase().includes(q) ||
+        "company".includes(q) ||
+        "tenant".includes(q) ||
+        "enterprise".includes(q);
+      
+      if (isCompanyMatch) {
+        matchedTenantInfo = {
+          tenant,
+          counts: counts || {},
+        };
+      }
+    }
+
+    // 4. Search Users & Team Members (under current user's role access/visibility policy)
+    const matchedUsers = (tenantUsers || []).filter(u => {
+      return (
+        u.full_name?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q) ||
+        u.role?.toLowerCase().includes(q)
+      );
+    });
+
+    // 5. Search User Permissions & Overrides (Self capabilities or details)
+    const matchedPermissions = [
+      { id: 'role', label: 'My Corporate Role', value: userRole === 'tenant_admin' ? 'Company Master Administrator' : userRole.replace(/_/g, ' '), isMatch: userRole.toLowerCase().includes(q) },
+      { id: 'email', label: 'My Registered Email', value: userEmail, isMatch: userEmail.toLowerCase().includes(q) },
+      { id: 'name', label: 'My Account Name', value: userName, isMatch: userName.toLowerCase().includes(q) },
+      { id: 'tenant', label: 'My Company Workspace', value: companyName, isMatch: companyName.toLowerCase().includes(q) },
+      { id: 'cap_boq_view', label: 'BOQ Build Capacity', value: 'boq:view_recipes (Authorized)', isMatch: 'boq'.includes(q) && hasCapability('boq:view_recipes') },
+      { id: 'cap_budget_view', label: 'Budget Allocation Access', value: 'fin:view_budget (Authorized)', isMatch: ('budget'.includes(q) || 'finance'.includes(q)) && hasCapability('fin:view_budget') },
+      { id: 'cap_permissions_view', label: 'Security Configuration Control', value: 'admin:view_roles (Authorized)', isMatch: ('permissions'.includes(q) || 'security'.includes(q)) && hasCapability('admin:view_roles') },
+      { id: 'cap_users_view', label: 'Staff Management Credentials', value: 'admin:view_users (Authorized)', isMatch: ('users'.includes(q) || 'staff'.includes(q)) && hasCapability('admin:view_users') }
+    ].filter(item => item.isMatch);
+
+    return {
+      modules: matchedModules,
+      projects: matchedProjects,
+      tenantDetails: matchedTenantInfo,
+      users: matchedUsers,
+      permissions: matchedPermissions,
+      totalCount: matchedModules.length + matchedProjects.length + (matchedTenantInfo ? 1 : 0) + matchedUsers.length + matchedPermissions.length
+    };
+  }, [homeSearchQuery, isGodMode, hasCapability, projects, tenant, counts, tenantUsers, userRole, userEmail, userName, companyName]);
+
+  const searchedExplorerItems = useMemo(() => {
+    return unifiedSearchResults?.modules || [];
+  }, [unifiedSearchResults]);
 
   // Group searched results by category
   const groupedSearchedItems = useMemo(() => {
@@ -397,17 +486,47 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
         </div>
 
         <div className="flex items-center gap-6">
+          {/* Distinctive, highly visible Dark/Light Toggle with Labels */}
+          <div className="flex items-center bg-surface-2/60 border border-border-subtle rounded-xl p-1 gap-1 select-none">
+            <button
+              onClick={() => setTheme('light')}
+              className={cn(
+                "flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] uppercase font-bold tracking-wider transition-all cursor-pointer",
+                theme === 'light' 
+                  ? "bg-surface-base text-amber-500 shadow-sm border border-border-subtle/45" 
+                  : "text-ghost hover:text-dim"
+              )}
+              title="Switch to light mode"
+            >
+              <Sun className="w-3.5 h-3.5 text-amber-500" />
+              <span className="opacity-90">Light</span>
+            </button>
+            <button
+              onClick={() => setTheme('dark')}
+              className={cn(
+                "flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] uppercase font-bold tracking-wider transition-all cursor-pointer",
+                theme === 'dark' 
+                  ? "bg-surface-base text-primary shadow-sm border border-border-subtle/45" 
+                  : "text-ghost hover:text-dim"
+              )}
+              title="Switch to dark mode"
+            >
+              <Moon className="w-3.5 h-3.5 text-primary" />
+              <span className="opacity-90">Dark</span>
+            </button>
+          </div>
+
           <div className="flex items-center gap-4 border-r border-border-subtle pr-6 mr-2">
-            <div className="flex flex-col items-end hidden lg:flex">
+            <div className="flex flex-col items-end hidden lg:flex select-none">
               <span className="text-xs font-bold text-main">{userName}</span>
-              <span className="text-[10px] text-ghost font-mono uppercase tracking-widest">{userRole === 'tenant_admin' ? 'Company Admin' : userRole.replace(/_/g, ' ')}</span>
+              <span className="text-[9px] text-ghost font-mono uppercase tracking-widest mt-0.5">{userRole === 'tenant_admin' ? 'Company Admin' : userRole.replace(/_/g, ' ')}</span>
             </div>
-            <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary overflow-hidden select-none">
                 {(userName || userEmail).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
             </div>
             <button 
               onClick={onLogout}
-              className="p-2 hover:bg-danger/10 rounded-lg text-ghost hover:text-danger transition-all"
+              className="p-2 hover:bg-danger/10 rounded-lg text-ghost hover:text-danger transition-all cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
@@ -731,16 +850,16 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
           </div>
 
           <div className="flex-1 w-full mx-auto flex flex-col gap-3.5 lg:gap-5 xl:gap-6 justify-start py-1.5 overflow-y-auto custom-scrollbar relative z-10">
-            {homeSearchQuery.trim() ? (
+            {homeSearchQuery.trim() && unifiedSearchResults ? (
               /* Highly detailed search board filtered on-the-fly as per permissions */
-              <div className="flex-1 flex flex-col gap-5 lg:gap-6">
-                <div className="flex items-center justify-between border-b border-border-subtle/50 pb-3">
+              <div className="flex-1 flex flex-col gap-6 pb-12">
+                <div className="flex items-center justify-between border-b border-border-subtle pb-3">
                   <div>
-                    <h3 className="text-xs font-black text-main uppercase tracking-widest">
-                      Search Results for "{homeSearchQuery}"
+                    <h3 className="text-sm font-black text-main uppercase tracking-widest">
+                      Platform Intelligence Search Results
                     </h3>
                     <p className="text-[10px] text-dim font-medium mt-1">
-                      Showing matching tools and system modules tailored to role level <span className="text-primary font-bold uppercase">{userRole.replace(/_/g, ' ')}</span>
+                      Query matches across system tools, commercial projects, enterprise directories, and permission clearances for <span className="text-primary font-bold uppercase">{userRole.replace(/_/g, ' ')}</span>
                     </p>
                   </div>
                   <button 
@@ -748,76 +867,264 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
                     className="text-[10px] font-black text-primary hover:text-primary/75 uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer bg-primary/5 px-3 py-1.5 rounded-lg border border-primary/20"
                   >
                     <X className="w-3 h-3" />
-                    Reset Catalog
+                    Reset Search
                   </button>
                 </div>
 
-                {searchedExplorerItems.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4 pb-8">
-                    {searchedExplorerItems.map((item, idx) => {
-                      const m = allModules.find(mod => mod.id === item.id);
-                      const mColor = m?.color || 'text-primary';
-                      const IconComponent = m?.icon || Search;
-                      return (
-                        <motion.div
-                          key={`${item.id}-${idx}`}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.03 }}
-                          onClick={() => handleModuleClick(item.id)}
-                          className="group relative flex flex-col bg-surface-1 border border-border-subtle hover:border-primary hover:bg-surface-2/40 rounded-2xl p-4 text-left transition-all duration-300 hover:shadow-lg cursor-pointer h-full min-h-[140px] xl:min-h-[160px] shadow-sm select-none"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "w-9 h-9 rounded-xl bg-surface-base border border-border-subtle flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-surface-base transition-all duration-300 shadow-sm",
-                                mColor
-                              )}>
-                                <IconComponent className="w-4.5 h-4.5" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <span className="text-[8px] font-black tracking-[0.16em] text-ghost uppercase block mb-0.5 leading-none">
-                                  {item.category}
-                                </span>
-                                <h3 className="text-xs lg:text-sm font-black text-main group-hover:text-primary transition-colors truncate leading-snug">
-                                  {item.title}
-                                </h3>
-                              </div>
-                            </div>
-                            
-                            <span className="text-[8px] font-mono text-ghost bg-surface-base border border-border-subtle px-1.5 py-0.5 rounded uppercase font-bold tracking-wider leading-none">
-                              Active
-                            </span>
-                          </div>
+                {unifiedSearchResults.totalCount > 0 ? (
+                  <div className="flex flex-col gap-8">
+                    
+                    {/* 1. Modules & Systems Matches */}
+                    {unifiedSearchResults.modules.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 select-none border-l-2 border-primary pl-2.5">
+                          <span className="text-[10px] font-black tracking-widest text-main uppercase">
+                            ⚙️ Integrated Systems & Tools ({unifiedSearchResults.modules.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                          {unifiedSearchResults.modules.map((item, idx) => {
+                            const m = allModules.find(mod => mod.id === item.id);
+                            const mColor = m?.color || 'text-primary';
+                            const IconComponent = m?.icon || Search;
+                            return (
+                              <motion.div
+                                key={`mod-${item.id}-${idx}`}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.03 }}
+                                onClick={() => handleModuleClick(item.id)}
+                                className="group relative flex flex-col bg-surface-1 border border-border-subtle hover:border-primary hover:bg-surface-2/40 rounded-xl p-3.5 text-left transition-all duration-300 hover:shadow-md cursor-pointer h-full min-h-[120px] shadow-sm select-none"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={cn(
+                                    "w-8.5 h-8.5 rounded-lg bg-surface-base border border-border-subtle flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-surface-base transition-all duration-300 shadow-sm",
+                                    mColor
+                                  )}>
+                                    <IconComponent className="w-4 h-4" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-[8px] font-black tracking-[0.16em] text-ghost uppercase block mb-0.5 leading-none">
+                                      {item.category}
+                                    </span>
+                                    <h3 className="text-xs font-bold text-main group-hover:text-primary transition-colors truncate">
+                                      {item.title}
+                                    </h3>
+                                  </div>
+                                </div>
+                                <p className="text-[11px] text-dim leading-relaxed mt-2.5 mb-2 flex-1">
+                                  {item.description}
+                                </p>
+                                <div className="flex items-center justify-between border-t border-border-subtle/30 pt-2.5 mt-auto">
+                                  <span className="text-[8px] font-mono text-ghost bg-surface-base border border-border-subtle px-1.5 py-0.5 rounded uppercase font-bold tracking-wider leading-none">
+                                    Authorized
+                                  </span>
+                                  <span className="text-[9px] font-black text-primary uppercase tracking-[0.15em] opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                    Launch Tool ↗
+                                  </span>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
-                          <p className="text-[11px] text-dim leading-relaxed mt-3.5 mb-4 flex-1">
-                            {item.description}
-                          </p>
-                          
-                          <div className="flex items-center justify-between border-t border-border-subtle/30 pt-3 mt-auto">
-                            <div className="flex flex-wrap gap-1">
-                              {item.tags.slice(0, 3).map((tag, tIdx) => (
-                                <span key={tIdx} className="text-[8px] font-mono uppercase tracking-wider bg-surface-base text-ghost px-1.5 py-0.5 border border-border-subtle/40 rounded">
-                                  {tag}
-                                </span>
-                              ))}
+                    {/* 2. Projects Matches (Search Project name and details outside BOQ) */}
+                    {unifiedSearchResults.projects.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 select-none border-l-2 border-accent pl-2.5">
+                          <span className="text-[10px] font-black tracking-widest text-main uppercase">
+                            🏗️ Project Portfolio & Active Contracts ({unifiedSearchResults.projects.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                          {unifiedSearchResults.projects.map((p, idx) => {
+                            return (
+                              <motion.div
+                                key={`proj-search-${p.id}`}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.04 }}
+                                onClick={() => {
+                                  if (setActiveProject) {
+                                    setActiveProject(p.id);
+                                    handleModuleClick('dashboard'); // Switch views automatically to dashboard when selected
+                                  }
+                                }}
+                                className="group relative flex flex-col bg-surface-1 border border-border-subtle hover:border-accent hover:bg-surface-2/40 rounded-xl p-4 text-left transition-all duration-300 hover:shadow-md cursor-pointer shadow-sm select-none"
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-[8px] font-mono font-bold text-accent bg-accent/5 border border-accent/20 px-1.5 py-0.5 rounded-md uppercase tracking-wide self-start mb-1.5">
+                                      {p.project_code || 'UNTITLED CODE'}
+                                    </span>
+                                    <h3 className="text-xs font-bold text-main group-hover:text-accent transition-colors truncate">
+                                      {p.name}
+                                    </h3>
+                                  </div>
+                                  <span className={cn(
+                                    "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border leading-none shrink-0",
+                                    p.status === 'active' ? "bg-primary/10 border-primary/20 text-primary" : "bg-ghost/10 border-border-subtle text-ghost"
+                                  )}>
+                                    {p.status.replace(/_/g, ' ')}
+                                  </span>
+                                </div>
+
+                                <div className="space-y-1.5 text-[11px] text-dim flex-1 my-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <Globe className="w-3.5 h-3.5 text-ghost shrink-0" />
+                                    <span className="truncate">{p.location || 'No Location Logged'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5 text-ghost shrink-0" />
+                                    <span>{p.start_date || 'N/A'} — {p.end_date || 'N/A'}</span>
+                                  </div>
+                                  {p.contract_value !== null && (
+                                    <div className="flex items-center gap-1.5 font-semibold text-main">
+                                      <DollarSign className="w-3.5 h-3.5 text-primary shrink-0" />
+                                      <span>Contract Baseline Value: ${p.contract_value.toLocaleString()}</span>
+                                    </div>
+                                  )}
+                                  {p.notes && (
+                                    <p className="text-[10px] text-ghost/80 italic mt-2 border-t border-border-subtle/30 pt-1.5 line-clamp-2">
+                                      "{p.notes}"
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="border-t border-border-subtle/30 pt-2.5 mt-auto flex items-center justify-between text-[10px]">
+                                  <span className="text-accent font-bold group-hover:underline">
+                                    Select active project context
+                                  </span>
+                                  <span className="text-accent opacity-0 group-hover:opacity-100 transition-all">
+                                    Open Portfolio ↗
+                                  </span>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. Company & Tenant Matches */}
+                    {unifiedSearchResults.tenantDetails && (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 select-none border-l-2 border-warning pl-2.5">
+                          <span className="text-[10px] font-black tracking-widest text-main uppercase">
+                            🏢 Enterprise Tenant & Company Workspace (1)
+                          </span>
+                        </div>
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.99 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="bg-surface-1 border border-border-subtle rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
+                              <Building2 className="w-6 h-6" />
                             </div>
-                            <span className="text-[9px] font-black text-primary uppercase tracking-[0.15em] opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-1 group-hover:translate-x-0">
-                              Launch
-                            </span>
+                            <div>
+                              <h3 className="text-sm font-black text-main">{unifiedSearchResults.tenantDetails.tenant.name}</h3>
+                              <p className="text-[10px] text-ghost font-mono uppercase tracking-wider mt-0.5">
+                                ID: {unifiedSearchResults.tenantDetails.tenant.id} • Active Commercial Subscription
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-surface-base border border-border-subtle/50 px-4 py-2.5 rounded-xl text-center min-w-full md:min-w-[400px]">
+                            <div>
+                              <div className="text-xs font-black text-main">{counts.projects || 0}</div>
+                              <span className="text-[8px] text-ghost font-mono uppercase tracking-widest select-none">Projects</span>
+                            </div>
+                            <div className="border-l border-border-subtle/60 pl-2">
+                              <div className="text-xs font-black text-main">{counts.users || 0}</div>
+                              <span className="text-[8px] text-ghost font-mono uppercase tracking-widest select-none">Staff Users</span>
+                            </div>
+                            <div className="border-l border-border-subtle/60 pl-2">
+                              <div className="text-xs font-black text-main">{counts.resources_global + counts.resources_company || 0}</div>
+                              <span className="text-[8px] text-ghost font-mono uppercase tracking-widest select-none">Materials</span>
+                            </div>
+                            <div className="border-l border-border-subtle/60 pl-2">
+                              <div className="text-xs font-black text-main">{counts.trades_global + counts.trades_company || 0}</div>
+                              <span className="text-[8px] text-ghost font-mono uppercase tracking-widest select-none">Trade Rates</span>
+                            </div>
                           </div>
                         </motion.div>
-                      );
-                    })}
+                      </div>
+                    )}
+
+                    {/* 4. Users / Teammate Matches */}
+                    {unifiedSearchResults.users.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 select-none border-l-2 border-ghost pl-2.5">
+                          <span className="text-[10px] font-black tracking-widest text-main uppercase">
+                            👥 Teammates & Enterprise Directory ({unifiedSearchResults.users.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {unifiedSearchResults.users.map((u, idx) => (
+                            <motion.div
+                              key={`user-match-${u.id}`}
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: idx * 0.03 }}
+                              className="bg-surface-1 border border-border-subtle rounded-xl p-3 flex items-center justify-between gap-3 shadow-xs"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-black text-primary shrink-0 uppercase">
+                                  {u.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || u.email[0]}
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="text-xs font-bold text-main truncate leading-tight">{u.full_name || 'Pending User Setup'}</h4>
+                                  <p className="text-[10px] text-ghost truncate font-mono mt-0.5">{u.email}</p>
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-mono border border-border-subtle/40 bg-surface-base px-2 py-0.5 rounded-lg text-ghost uppercase shrink-0">
+                                {u.role === 'tenant_admin' ? 'Company Admin' : u.role?.replace(/_/g, ' ')}
+                              </span>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 5. Personal Clearances & Security Overrides Matches */}
+                    {unifiedSearchResults.permissions.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 select-none border-l-2 border-red-500 pl-2.5">
+                          <span className="text-[10px] font-black tracking-widest text-main uppercase">
+                            🛡️ Clearances, Security Tokens & Access Policies ({unifiedSearchResults.permissions.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {unifiedSearchResults.permissions.map((p, idx) => (
+                            <motion.div
+                              key={`perm-${p.id}`}
+                              initial={{ opacity: 0, y: 4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="bg-surface-1 border border-border-subtle/80 rounded-xl p-3 flex flex-col justify-between shadow-xs border-dashed"
+                            >
+                              <span className="text-[9px] font-black tracking-wide text-dim uppercase">{p.label}</span>
+                              <div className="text-[11px] font-mono font-bold text-main mt-1 pt-1 border-t border-border-subtle/30">
+                                {p.value}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
                     <div className="w-14 h-14 bg-surface-2 rounded-2xl flex items-center justify-center border border-dashed border-border-subtle text-dim mb-4 animate-pulse">
                       <Search className="w-5 h-5 text-ghost" />
                     </div>
-                    <h4 className="text-sm font-bold text-main">No authorized capabilities found</h4>
+                    <h4 className="text-sm font-bold text-main">No database matches found</h4>
                     <p className="text-xs text-ghost max-w-sm mt-1 px-4 leading-normal">
-                      We couldn't access any modules matching <span className="text-primary font-bold">"{homeSearchQuery}"</span> under your current security credentials policy.
+                      We couldn't match any system tools, commercial projects, staff directories, or clearance tags matching <span className="text-primary font-bold">"{homeSearchQuery}"</span>.
                     </p>
                   </div>
                 )}
