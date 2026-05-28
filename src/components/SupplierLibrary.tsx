@@ -643,8 +643,8 @@ export default function SupplierLibrary({ userRole, tenantId, isGodMode }: Suppl
                     value={formData.library_tier}
                     onChange={e => setFormData({...formData, library_tier: e.target.value as any})}
                   >
-                    <option value="company">Company (Tenant Only)</option>
-                    <option value="global">Global (All Tenants)</option>
+                    <option value="company">Company (Company Only)</option>
+                    <option value="global">Global (All Companies)</option>
                   </select>
                 </div>
               )}

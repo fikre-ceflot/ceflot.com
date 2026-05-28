@@ -45,8 +45,8 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<string | null>(null);
-  const [activePanel, setActivePanel] = useState('project-selection');
-  const [panelHistory, setPanelHistory] = useState<string[]>(['project-selection']);
+  const [activePanel, setActivePanel] = useState('home');
+  const [panelHistory, setPanelHistory] = useState<string[]>(['home']);
   const [pendingPanel, setPendingPanel] = useState<string | null>(null);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -97,33 +97,54 @@ export default function App() {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error && (error.message.includes('Refresh Token') || error.message.includes('invalid'))) {
-        console.warn('Auth session error, clearing:', error.message);
-        supabase.auth.signOut().then(() => {
-          setSession(null);
-          setLoading(false);
-        });
-        return;
+    const handleAuthReset = async () => {
+      console.warn('Handling clear auth session and resetting Supabase keys...');
+      try {
+        await supabase.auth.signOut();
+      } catch (errsignOut) {
+        console.warn('SignOut failed gracefully:', errsignOut);
       }
-      setSession(session);
-      if (session) loadProfile(session.user.id);
-      else setLoading(false);
-    });
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase') || key.includes('sb-') || key.includes('auth-token')) {
+          localStorage.removeItem(key);
+        }
+      });
+      setSession(null);
+      setProfile(null);
+      setLoading(false);
+    };
+
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (error) {
+          console.warn('Session verification caught error, resetting:', error.message);
+          handleAuthReset();
+          return;
+        }
+        setSession(session);
+        if (session) {
+          loadProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error('getSession catch error, resetting:', err);
+        handleAuthReset();
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       // Handle session refresh failures
       if (event === 'TOKEN_REFRESHED' && !session) {
-        console.warn('Token refresh failed');
-        setSession(null);
-        setProfile(null);
-        setLoading(false);
+        console.warn('Token refresh failed inside onAuthStateChange, resetting...');
+        handleAuthReset();
         return;
       }
 
       setSession(session);
-      if (session) loadProfile(session.user.id);
-      else {
+      if (session) {
+        loadProfile(session.user.id);
+      } else {
         setProfile(null);
         setLoading(false);
       }
@@ -214,7 +235,54 @@ export default function App() {
     if (!isGod) q = q.eq('tenant_id', tenantId);
     
     const { data } = await q;
-    const projs = data || [];
+    let projs = data || [];
+
+    // Filter projects based on user assignment if they are not superadmin
+    if (session && !isGod) {
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+          
+        if (profile && profile.role !== 'tenant_admin') {
+          const assignmentStr = localStorage.getItem(`user_project_assignments_${session.user.id}`);
+          let isAll = false;
+          let pIds: string[] = [];
+          
+          if (assignmentStr) {
+            try {
+              const parsed = JSON.parse(assignmentStr);
+              isAll = parsed.all_projects;
+              pIds = parsed.project_ids || [];
+            } catch {}
+          } else {
+            // Default roles
+            if (profile.role === 'director' || profile.role === 'project_coordinator') {
+              isAll = true;
+            } else {
+              isAll = false;
+              // Fetch from database project_members
+              const { data: members } = await supabase
+                .from('project_members')
+                .select('project_id')
+                .eq('user_id', session.user.id);
+              if (members) {
+                pIds = members.map(m => m.project_id);
+              }
+            }
+          }
+          
+          if (!isAll) {
+            projs = projs.filter(p => pIds.includes(p.id));
+          }
+        }
+      } catch (e) {
+        console.error('Error applying project boundaries:', e);
+      }
+    }
+
     setProjects(projs);
     // Remove auto-selection to force project selection page
   };
@@ -515,7 +583,7 @@ export default function App() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-dim">Company (Tenant ID)</label>
+              <label className="text-[11px] font-medium uppercase tracking-wider text-dim">Company Name</label>
               <select 
                 name="tenantId"
                 className="bg-surface-2 border border-border-subtle rounded-md text-sm p-3 outline-none text-main focus:border-primary transition-colors"
@@ -599,6 +667,7 @@ export default function App() {
           isGodMode={!!profile.is_platform_god} 
           userName={profile.full_name || profile.email}
           userEmail={profile.email}
+          userId={profile.id}
           userRole={profile.role}
           tenantId={profile.tenant_id}
           companyName={tenant?.name || 'Your Company'}

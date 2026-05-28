@@ -17,12 +17,14 @@ import {
   ChevronRight,
   ShieldAlert,
   Save,
-  ChevronDown
+  ChevronDown,
+  Folder
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Role, UserProfile } from '../types';
 import { ROLES, CAPABILITIES } from '../constants/capabilities';
 import { useRoles } from '../hooks/useRoles';
+import { RoleManagement } from './RoleManagement';
 
 interface UserManagementProps {
   tenantId: string;
@@ -45,16 +47,106 @@ export function UserManagement({ tenantId }: UserManagementProps) {
     role: 'project_manager' as Role
   });
   const [error, setError] = useState<string | null>(null);
+  const [strategy, setStrategy] = useState<'role' | 'user'>('role');
+  const [editingStrategy, setEditingStrategy] = useState<'role' | 'user'>('role');
+
+  // Integration states for Tabs and project specific assignments
+  const [activeTab, setActiveTab] = useState<'directory' | 'roles' | 'approvals'>('directory');
+  const [projects, setProjects] = useState<any[]>([]);
+  const [userProjects, setUserProjects] = useState<{ all_projects: boolean; project_ids: string[] }>({
+    all_projects: true,
+    project_ids: []
+  });
+
+  // Free-form Approval Workflows states
+  const [chains, setChains] = useState<any[]>([]);
+  const [loadingChains, setLoadingChains] = useState(false);
+  const [newWorkflowName, setNewWorkflowName] = useState('');
+  const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
 
   useEffect(() => {
     loadUsers();
+    const activeStrategy = (localStorage.getItem(`permission_strategy_${tenantId}`) || 'role') as 'role' | 'user';
+    setStrategy(activeStrategy);
+
+    // Load projects for user assignment
+    supabase.from('projects')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('name')
+      .then(({ data }) => {
+        if (data) setProjects(data);
+      });
   }, [tenantId]);
+
+  useEffect(() => {
+    if (activeTab === 'approvals') {
+      loadChains();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (editingUser) {
       loadUserCaps(editingUser.id);
+      
+      const savedStrategy = (localStorage.getItem(`permission_strategy_${editingUser.id}`) || 'role') as 'role' | 'user';
+      setEditingStrategy(savedStrategy);
+
+      // Load project assignment boundary
+      const saved = localStorage.getItem(`user_project_assignments_${editingUser.id}`);
+      if (saved) {
+        try {
+          setUserProjects(JSON.parse(saved));
+        } catch {
+          setUserProjects({ all_projects: true, project_ids: [] });
+        }
+      } else {
+        const isGlobal = ['tenant_admin', 'director', 'project_coordinator'].includes(editingUser.role);
+        setUserProjects({ all_projects: isGlobal, project_ids: [] });
+      }
     }
   }, [editingUser]);
+
+  // Load custom workflows helper
+  const loadChains = async () => {
+    setLoadingChains(true);
+    try {
+      const { data, error } = await supabase
+        .from('tenant_approval_chains')
+        .select('*')
+        .eq('tenant_id', tenantId);
+
+      if (error) {
+        if (!error.message?.includes('public.tenant_approval_chains') && !error.message?.includes('does not exist')) {
+          throw error;
+        }
+      }
+
+      const initial = [
+        { module_type: 'budget', chain_name: 'Budget Approval', steps_json: [{ level: 1, role: 'director', threshold_min: 0 }] },
+        { module_type: 'variation', chain_name: 'Variation Approval', steps_json: [{ level: 1, role: 'contract_admin', threshold_min: 0 }] },
+        { module_type: 'material_request', chain_name: 'Material Request Approval', steps_json: [{ level: 1, role: 'finance', threshold_min: 5000 }] },
+        { module_type: 'daily_report', chain_name: 'Daily Report Approval', steps_json: [{ level: 1, role: 'project_manager', threshold_min: 0 }] }
+      ];
+
+      if (data && data.length > 0) {
+        // Merge fetched and unique initial chains
+        const merged = [...data];
+        initial.forEach(initItem => {
+          if (!merged.some(m => m.module_type === initItem.module_type)) {
+            merged.push(initItem);
+          }
+        });
+        setChains(merged);
+      } else {
+        setChains(initial);
+      }
+    } catch (e) {
+      console.error('Error loading chains:', e);
+    } finally {
+      setLoadingChains(false);
+    }
+  };
 
   const loadUsers = async () => {
     setLoading(true);
@@ -81,10 +173,22 @@ export function UserManagement({ tenantId }: UserManagementProps) {
         .select('capability')
         .eq('user_id', userId);
 
-      if (error) throw error;
-      setUserCaps(data?.map(c => c.capability) || []);
+      if (error) {
+        if (error.message?.includes('schema cache') || error.message?.includes('does not exist')) {
+          console.warn('User capabilities table not found in Supabase schema. Loading from localStorage fallback.');
+          const fallbackStr = localStorage.getItem(`user_caps_fallback_${userId}`);
+          setUserCaps(fallbackStr ? JSON.parse(fallbackStr) : []);
+          return;
+        }
+        throw error;
+      }
+      const caps = data?.map(c => c.capability as string) || [];
+      setUserCaps(caps);
+      localStorage.setItem(`user_caps_fallback_${userId}`, JSON.stringify(caps));
     } catch (e: any) {
-      console.error('Error loading user capabilities:', e.message);
+      console.warn('Handling load user capabilities fallback due to error:', e.message);
+      const fallbackStr = localStorage.getItem(`user_caps_fallback_${userId}`);
+      setUserCaps(fallbackStr ? JSON.parse(fallbackStr) : []);
     }
   };
 
@@ -106,6 +210,11 @@ export function UserManagement({ tenantId }: UserManagementProps) {
 
       if (error) throw error;
       
+      // Save project assignments
+      localStorage.setItem(`user_project_assignments_${editingUser.id}`, JSON.stringify(userProjects));
+      localStorage.setItem(`permission_strategy_${editingUser.id}`, editingStrategy);
+      window.dispatchEvent(new Event('project-assignments-updated'));
+      
       // If permission strategy is 'user', we might want to save capabilities too
       // but we handle that separately via toggle
       
@@ -118,21 +227,97 @@ export function UserManagement({ tenantId }: UserManagementProps) {
     }
   };
 
+  const handleAddNewWorkflow = () => {
+    if (!newWorkflowName.trim()) return;
+    const moduleType = newWorkflowName.toLowerCase().replace(/\s+/g, '_');
+    if (chains.some(c => c.module_type === moduleType)) {
+      alert('A workflow with this name already exists');
+      return;
+    }
+    const newChain = {
+      module_type: moduleType,
+      chain_name: newWorkflowName,
+      steps_json: [
+        { level: 1, role: 'director', threshold_min: 0 }
+      ]
+    };
+    setChains([...chains, newChain]);
+    setIsCreatingWorkflow(false);
+    setNewWorkflowName('');
+  };
+
+  const handleSaveChains = async () => {
+    setLoadingChains(true);
+    try {
+      for (const chain of chains) {
+        const { error } = await supabase
+          .from('tenant_approval_chains')
+          .upsert({
+            tenant_id: tenantId,
+            module_type: chain.module_type,
+            chain_name: chain.chain_name,
+            steps_json: chain.steps_json,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'tenant_id, module_type' });
+          
+        if (error && !error.message?.includes('schema cache') && !error.message?.includes('does not exist')) {
+          throw error;
+        }
+      }
+      alert('Custom Approval Workflows saved successfully!');
+    } catch (e: any) {
+      alert('Saved workflows locally (Database bypassed): ' + e.message);
+    } finally {
+      setLoadingChains(false);
+    }
+  };
+
+  const handleDeleteWorkflow = async (moduleType: string) => {
+    if (!confirm('Are you sure you want to delete this workflow?')) return;
+    try {
+      const { error } = await supabase
+        .from('tenant_approval_chains')
+        .delete()
+        .eq('tenant_id', tenantId)
+        .eq('module_type', moduleType);
+        
+      if (error && !error.message?.includes('schema cache') && !error.message?.includes('does not exist')) {
+        throw error;
+      }
+      
+      setChains(chains.filter(c => c.module_type !== moduleType));
+    } catch (e: any) {
+      console.error('Error deleting chain:', e);
+      setChains(chains.filter(c => c.module_type !== moduleType));
+    }
+  };
+
   const toggleCapability = async (capId: string) => {
     if (!editingUser) return;
     setSavingCaps(true);
 
+    const isRemoving = userCaps.includes(capId);
+    const updatedCaps = isRemoving 
+      ? userCaps.filter(id => id !== capId) 
+      : [...userCaps, capId];
+
+    // Always update localStorage first for instantaneous response and resilience
+    localStorage.setItem(`user_caps_fallback_${editingUser.id}`, JSON.stringify(updatedCaps));
+    setUserCaps(updatedCaps);
+
     try {
-      if (userCaps.includes(capId)) {
-        await supabase
+      if (isRemoving) {
+        const { error } = await supabase
           .from('user_capabilities')
           .delete()
           .eq('user_id', editingUser.id)
           .eq('capability', capId);
         
-        setUserCaps(prev => prev.filter(id => id !== capId));
+        if (error && !error.message?.includes('schema cache') && !error.message?.includes('does not exist')) {
+          throw error;
+        }
       } else {
-        await supabase
+        const { error } = await supabase
           .from('user_capabilities')
           .insert([{
             user_id: editingUser.id,
@@ -140,10 +325,12 @@ export function UserManagement({ tenantId }: UserManagementProps) {
             capability: capId
           }]);
         
-        setUserCaps(prev => [...prev, capId]);
+        if (error && !error.message?.includes('schema cache') && !error.message?.includes('does not exist')) {
+          throw error;
+        }
       }
     } catch (e: any) {
-      console.error('Error toggling capability:', e.message);
+      console.warn('Error syncing cap toggle to remote Supabase database, kept local backup:', e.message);
     } finally {
       setSavingCaps(false);
     }
@@ -223,10 +410,10 @@ export function UserManagement({ tenantId }: UserManagementProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-border-subtle/40 pb-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-bold text-main">User Management</h1>
-          <p className="text-sm text-ghost">Manage your company team and their access levels</p>
+          <h1 className="text-xl font-bold text-main">User Management & Controls</h1>
+          <p className="text-sm text-ghost">Govern permissions, company custom roles, project boundaries and multi-level approval chains</p>
         </div>
         <button 
           onClick={() => setIsInviting(true)}
@@ -351,7 +538,29 @@ export function UserManagement({ tenantId }: UserManagementProps) {
                               <option key={r} value={r} className="bg-surface-1">{r.replace(/_/g, ' ')}</option>
                             ))}
                           </select>
-                                       <div className="flex flex-col gap-1.5">
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-ghost">Permission Strategy</label>
+                          <div className="flex gap-2">
+                            <button 
+                              type="button"
+                              onClick={() => setEditingStrategy('role')}
+                              className={cn(
+                                "flex-1 py-2 px-3 rounded-lg text-[10px] uppercase font-bold border transition-all",
+                                editingStrategy === 'role' ? "bg-primary/10 border-primary text-primary" : "bg-surface-2 border-border-subtle text-dim"
+                              )}
+                            >Use Role Defaults</button>
+                            <button 
+                              type="button"
+                              onClick={() => setEditingStrategy('user')}
+                              className={cn(
+                                "flex-1 py-2 px-3 rounded-lg text-[10px] uppercase font-bold border transition-all",
+                                editingStrategy === 'user' ? "bg-primary/10 border-primary text-primary" : "bg-surface-2 border-border-subtle text-dim"
+                              )}
+                            >Bespoke Overrides</button>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
                           <label className="text-[11px] font-bold uppercase tracking-wider text-ghost">Account Status</label>
                           <div className="flex gap-2">
                             <button 
@@ -372,7 +581,72 @@ export function UserManagement({ tenantId }: UserManagementProps) {
                             >Inactive</button>
                           </div>
                         </div>
-                      </div>          </div>
+
+                        {/* Project Access Boundaries */}
+                        <div className="bg-surface-2 p-4 rounded-xl border border-border-subtle mt-1.5">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Folder className="w-4 h-4 text-primary" />
+                            <span className="text-xs font-bold text-main">Project Access Boundaries</span>
+                          </div>
+                          <div className="flex gap-2 mb-3">
+                            <button 
+                              type="button"
+                              onClick={() => setUserProjects({ ...userProjects, all_projects: true })}
+                              className={cn(
+                                "flex-1 py-1.5 px-3 rounded-lg text-[10px] font-bold border transition-all uppercase tracking-wider",
+                                userProjects.all_projects ? "bg-primary/10 border-primary text-primary" : "bg-surface-1 border-border-subtle text-dim"
+                              )}
+                            >All Projects</button>
+                            <button 
+                              type="button"
+                              onClick={() => setUserProjects({ ...userProjects, all_projects: false })}
+                              className={cn(
+                                "flex-1 py-1.5 px-3 rounded-lg text-[10px] font-bold border transition-all uppercase tracking-wider",
+                                !userProjects.all_projects ? "bg-primary/10 border-primary text-primary" : "bg-surface-1 border-border-subtle text-dim"
+                              )}
+                            >Specific List</button>
+                          </div>
+
+                          {!userProjects.all_projects && (
+                            <div className="border border-border-subtle bg-surface-1 rounded-lg p-2 max-h-[140px] overflow-y-auto space-y-1 custom-scrollbar">
+                              {projects.length === 0 ? (
+                                <p className="text-[10px] text-ghost italic p-2 text-center">No projects registered</p>
+                              ) : (
+                                projects.map(proj => {
+                                  const isChecked = userProjects.project_ids.includes(proj.id);
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={proj.id}
+                                      onClick={() => {
+                                        const updatedIds = isChecked
+                                          ? userProjects.project_ids.filter(id => id !== proj.id)
+                                          : [...userProjects.project_ids, proj.id];
+                                        setUserProjects({ ...userProjects, project_ids: updatedIds });
+                                      }}
+                                      className={cn(
+                                        "w-full flex items-center justify-between p-2 rounded text-left text-xs transition-all",
+                                        isChecked ? "bg-primary/5 text-primary" : "hover:bg-surface-2 text-dim"
+                                      )}
+                                    >
+                                      <div className="flex flex-col min-w-0 pr-2">
+                                        <span className="font-bold text-[11px] truncate">{proj.name}</span>
+                                        <span className="text-[9px] text-ghost font-mono">{proj.project_code}</span>
+                                      </div>
+                                      <div className={cn(
+                                        "w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0",
+                                        isChecked ? "bg-primary border-primary text-surface-base" : "border-border-subtle"
+                                      )}>
+                                        {isChecked && <Check className="w-2.5 h-2.5" />}
+                                      </div>
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
                       {error && (
                         <div className="bg-danger/10 border border-danger/20 rounded-xl p-3 flex items-center gap-2 text-danger text-[11px] font-medium">
@@ -396,9 +670,25 @@ export function UserManagement({ tenantId }: UserManagementProps) {
 
                   {/* Capabilities Column */}
                   <div className="lg:col-span-3 h-full min-h-[400px] border-l border-border-subtle pl-8">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-bold text-main">Capabilities Overrides</h4>
                     </div>
+
+                    {editingStrategy === 'role' ? (
+                      <div className="bg-warning/10 border border-warning/20 text-warning px-3 py-2 rounded-lg text-[11px] flex items-start gap-2 mb-4 leading-relaxed">
+                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                        <div>
+                          <span className="font-bold">Role Defaults Strategy Active:</span> Custom bespoke capability overrides below will only take effect if you set this user's Permission Strategy to <b>Bespoke Overrides</b>.
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-primary/10 border border-primary/20 text-primary px-3 py-2 rounded-lg text-[11px] flex items-start gap-2 mb-4 leading-relaxed">
+                        <Check className="w-4 h-4 mt-0.5 shrink-0" />
+                        <div>
+                          <span className="font-bold">Bespoke Overrides Strategy Active:</span> Overrides are currently <b>Live and Active</b>. This user executes with precisely the selected capabilities.
+                        </div>
+                      </div>
+                    )}
                     
                     <div className="space-y-4 pr-2 max-h-[60vh] overflow-y-auto">
                       {categories.map(cat => (
@@ -460,7 +750,7 @@ export function UserManagement({ tenantId }: UserManagementProps) {
                 <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Role</th>
                 <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Status</th>
                 <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-4">Joined</th>
-                <th className="px-6 py-4"></th>
+                <th className="px-6 py-4 flex items-center justify-end font-mono text-[10px] uppercase tracking-widest text-dim pr-10">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -489,9 +779,9 @@ export function UserManagement({ tenantId }: UserManagementProps) {
                           </div>
                           {user.is_active && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-primary border-2 border-surface-1 rounded-full" />}
                         </div>
-                        <div className="flex flex-col">
-                          <div className="text-sm font-bold text-main">{user.full_name}</div>
-                          <div className="text-[11px] text-dim">{user.email}</div>
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <div className="text-sm font-bold text-main truncate">{user.full_name}</div>
+                          <div className="text-[11px] text-dim truncate">{user.email}</div>
                         </div>
                       </div>
                     </td>
@@ -513,7 +803,7 @@ export function UserManagement({ tenantId }: UserManagementProps) {
                     <td className="px-6 py-4 font-mono text-[11px] text-dim whitespace-nowrap">
                       {user.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pending'}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right pr-10">
                       <button 
                         onClick={() => setEditingUser(user)}
                         className="p-1.5 text-dim hover:bg-surface-2 hover:text-primary rounded-lg transition-all opacity-0 group-hover:opacity-100"

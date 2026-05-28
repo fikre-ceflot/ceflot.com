@@ -9,8 +9,8 @@ html, body {
   /* Default Dark Values (Historical context) */
   --color-primary: #1aacaa;
   --color-primary-hover: #1ed1cf;
-  --color-accent: #3b82f6;
-  --color-accent-hover: #60a5fa;
+  --color-accent: #1aacaa;
+  --color-accent-hover: #1ed1cf;
   --color-danger: #f04a5a;
   --color-danger-hover: #ff5a6a;
   --color-warning: #f5a623;

@@ -81,7 +81,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
       setNewTenantName('');
       setShowNewTenantModal(false);
     } catch (e: any) {
-      alert('Error creating tenant: ' + e.message);
+      alert('Error creating company: ' + e.message);
     }
   }
 
@@ -100,7 +100,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
   }
 
   async function handleDeleteTenant(id: string) {
-    if (!window.confirm('Are you sure you want to delete this tenant? This will delete all associated data.')) return;
+    if (!window.confirm('Are you sure you want to delete this company? This will delete all associated data.')) return;
     try {
       const { error } = await supabase
         .from('tenants')
@@ -111,7 +111,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
       setTenants(tenants.filter(t => t.id !== id));
       setStats(prev => ({ ...prev, totalTenants: prev.totalTenants - 1 }));
     } catch (e: any) {
-      alert('Error deleting tenant: ' + e.message);
+      alert('Error deleting company: ' + e.message);
     }
   }
 
@@ -141,7 +141,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
         <div className="flex items-center gap-1 mt-8">
           {[
             { id: 'overview', label: 'Overview', icon: Activity },
-            { id: 'tenants', label: 'Tenants', icon: Building2 },
+            { id: 'tenants', label: 'Companies', icon: Building2 },
             { id: 'users', label: 'User Directory', icon: Users },
             { id: 'system', label: 'System Health', icon: Globe }
           ].map((tab) => (
@@ -168,7 +168,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { label: 'Total Tenants', value: stats.totalTenants, icon: Building2, color: 'text-info' },
+                { label: 'Total Companies', value: stats.totalTenants, icon: Building2, color: 'text-info' },
                 { label: 'Active Projects', value: stats.totalProjects, icon: TrendingUp, color: 'text-primary' },
                 { label: 'Platform Users', value: stats.totalUsers, icon: Users, color: 'text-accent' },
                 { label: 'Live Sessions', value: stats.activeSessions, icon: Activity, color: 'text-error' }
@@ -245,7 +245,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dim" />
                 <input 
                   type="text" 
-                  placeholder="Search tenants..." 
+                  placeholder="Search companies..." 
                   className="w-full bg-surface-1 border border-border-subtle rounded-xl pl-10 pr-4 py-2 text-sm text-main outline-none focus:border-error transition-all"
                 />
               </div>
@@ -254,7 +254,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
                 className="flex items-center gap-2 bg-error text-black px-4 py-2 rounded-xl text-sm font-bold hover:brightness-110 transition-all border border-error shadow-[0_0_15px_rgba(240,74,90,0.15)]"
               >
                 <Plus className="w-4 h-4" />
-                Add Tenant
+                Add Company
               </button>
             </div>
 
@@ -262,7 +262,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-border-subtle bg-surface-2/50">
-                    <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">Tenant Name</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">Company Name</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">ID</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">Created At</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">Status</th>
@@ -297,7 +297,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
                           <button 
                             onClick={() => handleDeleteTenant(tenant.id)}
                             className="p-2 hover:text-error transition-colors hover:bg-error/5 rounded-lg"
-                            title="Delete Tenant"
+                            title="Delete Company"
                           >
                             <XCircle className="w-4 h-4" />
                           </button>
@@ -321,7 +321,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dim" />
                 <input 
                   type="text" 
-                  placeholder="Search users across all tenants..." 
+                  placeholder="Search users across all companies..." 
                   className="w-full bg-surface-1 border border-border-subtle rounded-xl pl-10 pr-4 py-2 text-sm text-main outline-none focus:border-error transition-all focus:ring-1 focus:ring-error/20"
                 />
               </div>
@@ -332,7 +332,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
                 <thead>
                   <tr className="border-b border-border-subtle bg-surface-2/50">
                     <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">User</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">Tenant</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">Company</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">Role</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest">Status</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-dim uppercase tracking-widest text-right">Actions</th>
@@ -436,7 +436,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[120] p-4 text-main">
           <div className="bg-surface-1 border border-border-subtle rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-border-subtle bg-surface-2/50 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-main uppercase tracking-widest">Create New Tenant</h3>
+              <h3 className="text-sm font-bold text-main uppercase tracking-widest">Create New Company</h3>
               <button onClick={() => setShowNewTenantModal(false)} className="text-dim hover:text-main">
                 <XCircle className="w-5 h-5" />
               </button>
@@ -456,7 +456,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
               <div className="p-4 bg-error/5 border border-error/10 rounded-xl flex gap-3">
                 <AlertCircle className="w-5 h-5 text-error flex-shrink-0" />
                 <p className="text-[11px] text-error leading-relaxed">
-                  Creating a new tenant will provision a unique workspace. You will need to manually assign a Tenant Admin after creation.
+                  Creating a new company will provision a unique workspace. You will need to manually assign a Company Admin after creation.
                 </p>
               </div>
             </div>
@@ -472,7 +472,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
                 disabled={!newTenantName}
                 className="bg-error text-black px-6 py-2 rounded-xl text-sm font-bold hover:brightness-110 transition-all border border-error disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(240,74,90,0.2)]"
               >
-                Create Tenant
+                Create Company
               </button>
             </div>
           </div>

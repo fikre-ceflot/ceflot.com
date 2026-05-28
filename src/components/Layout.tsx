@@ -26,7 +26,9 @@ import {
   ChevronRight,
   Menu,
   ArrowLeft,
-  User
+  User,
+  Search,
+  Shapes
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
@@ -53,7 +55,7 @@ interface LayoutProps {
 const NAV_ITEMS: { section: string; id: string; label: string; icon: any; capability: Capability | null }[] = [
   { section: 'OVERVIEW', id: 'home',      label: 'Home',      icon: LayoutGrid, capability: null },
   
-  { section: 'DASHBOARD', id: 'dashboard', label: 'Portfolio', icon: LayoutGrid, capability: 'dash:view' },
+  { section: 'DASHBOARD', id: 'dashboard', label: 'Portfolio', icon: Shapes, capability: 'dash:view' },
   { section: 'DASHBOARD', id: 'intelligence', label: 'Intelligence', icon: BrainCircuit, capability: null },
   { section: 'DASHBOARD', id: 'library', label: 'Library', icon: BookOpen, capability: 'trade:view_global' },
 
@@ -98,13 +100,28 @@ export function Layout({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isSavingProfile, setIsSavingProfile] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [isSpotlightOpen, setIsSpotlightOpen] = React.useState(false);
+  const [spotlightQuery, setSpotlightQuery] = React.useState('');
 
   React.useEffect(() => {
     const handleFocusMode = (e: any) => {
       setIsSidebarCollapsed(e.detail);
     };
     window.addEventListener('toggle-focus-mode', handleFocusMode);
-    return () => window.removeEventListener('toggle-focus-mode', handleFocusMode);
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSpotlightOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('toggle-focus-mode', handleFocusMode);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
   const [profileForm, setProfileForm] = React.useState({
     full_name: user.full_name || ''
@@ -114,11 +131,21 @@ export function Layout({
 
   const showSidebar = activePanel !== 'home';
   
-  // Filter items based on current context
+  // Filter items based on current context and search query
   const filteredNavItems = React.useMemo(() => {
-    return NAV_ITEMS.filter(item => {
+    let items = NAV_ITEMS.filter(item => {
       if (item.id === 'god' && !user.is_platform_god) return false;
-      if (item.capability && !hasCapability(item.capability)) return false;
+      
+      const isItemAdmin = item.section === 'ADMIN';
+      const userHasAdminView = hasCapability('admin:view_users') || hasCapability('admin:view_roles');
+      
+      if (isItemAdmin) {
+        if (!userHasAdminView && item.capability && !hasCapability(item.capability)) {
+          return false;
+        }
+      } else {
+        if (item.capability && !hasCapability(item.capability)) return false;
+      }
 
       // Always show Home
       if (item.id === 'home') return true;
@@ -139,6 +166,16 @@ export function Layout({
       }
 
       if (!activeProject && activePanel !== 'home') {
+        const activeItem = NAV_ITEMS.find(i => i.id === activePanel);
+        if (activeItem?.section === 'ADMIN' && item.section === 'ADMIN') {
+          return true;
+        }
+        if (activeItem?.section === 'GOD' && item.section === 'GOD') {
+          return true;
+        }
+        if (activeItem?.section === 'DASHBOARD' && item.section === 'DASHBOARD') {
+          return true;
+        }
         return item.id === activePanel;
       }
       const activeItem = NAV_ITEMS.find(i => i.id === activePanel);
@@ -155,7 +192,33 @@ export function Layout({
 
       return false;
     });
-  }, [activePanel, user.is_platform_god, user.role, hasCapability]);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(item => 
+        item.label.toLowerCase().includes(q) || 
+        item.section.toLowerCase().includes(q)
+      );
+    }
+    return items;
+  }, [activePanel, user.is_platform_god, user.role, hasCapability, searchQuery, activeProject, pendingPanel]);
+
+  const authorizedTools = React.useMemo(() => {
+    return NAV_ITEMS.filter(item => {
+      if (item.id === 'god' && !user.is_platform_god) return false;
+      if (item.capability && !hasCapability(item.capability)) return false;
+      return true;
+    });
+  }, [user.is_platform_god, hasCapability]);
+
+  const filteredSpotlightTools = React.useMemo(() => {
+    if (!spotlightQuery.trim()) return authorizedTools;
+    const q = spotlightQuery.toLowerCase();
+    return authorizedTools.filter(item => 
+      item.label.toLowerCase().includes(q) || 
+      item.section.toLowerCase().includes(q)
+    );
+  }, [authorizedTools, spotlightQuery]);
 
   const [notification, setNotification] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -213,6 +276,28 @@ export function Layout({
               </button>
             </div>
 
+            <div className="px-3 py-2 border-b border-border-subtle/30 flex-shrink-0">
+              <button 
+                onClick={() => {
+                  setSpotlightQuery('');
+                  setIsSpotlightOpen(true);
+                }}
+                className={cn(
+                  "w-full flex items-center bg-surface-base border border-border-subtle hover:border-primary rounded-lg transition-all text-ghost p-2 text-left shrink-0 group",
+                  isSidebarCollapsed && !isMobileMenuOpen ? "justify-center" : "gap-2"
+                )}
+                title="Search all tools... (Cmd+K)"
+              >
+                <Search className="w-4 h-4 text-ghost shrink-0 group-hover:text-primary transition-colors" />
+                {(!isSidebarCollapsed || isMobileMenuOpen) && (
+                  <span className="text-xs font-medium text-ghost/70 group-hover:text-main transition-colors flex items-center justify-between w-full">
+                    <span>Search tools...</span>
+                    <kbd className="hidden md:inline-block text-[9px] px-1.5 py-0.5 bg-surface-2 border border-border-subtle/50 rounded text-ghost/50 font-mono scale-90">⌘K</kbd>
+                  </span>
+                )}
+              </button>
+            </div>
+
             <nav className="flex-1 overflow-y-auto p-2 flex flex-col gap-0.5 custom-scrollbar">
               {permissionsLoading ? (
                 <div className="p-4 text-center">
@@ -236,14 +321,16 @@ export function Layout({
                       }}
                       className={cn(
                         "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full text-left relative",
-                        (activePanel === item.id || (activePanel === 'project-selection' && pendingPanel === item.id))
+                        (activePanel === item.id || 
+                         (activePanel === 'project-selection' && pendingPanel === item.id))
                           ? "bg-primary/10 text-primary" 
                           : "text-dim hover:bg-surface-2 hover:text-main",
                         isSidebarCollapsed && !isMobileMenuOpen && "justify-center px-0"
                       )}
                       title={isSidebarCollapsed && !isMobileMenuOpen ? item.label : undefined}
                     >
-                      {(activePanel === item.id || (activePanel === 'project-selection' && pendingPanel === item.id)) && (
+                      {(activePanel === item.id || 
+                        (activePanel === 'project-selection' && pendingPanel === item.id)) && (
                         <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full" />
                       )}
                       <item.icon className={cn("w-4 h-4 flex-shrink-0", isSidebarCollapsed && !isMobileMenuOpen && "w-5 h-5")} />
@@ -271,7 +358,7 @@ export function Layout({
                   <div className="flex-1 min-w-0 animate-in fade-in duration-300">
                     <div className="text-[12px] font-semibold truncate group-hover:text-primary transition-colors">{user.full_name || user.email}</div>
                     <div className="flex flex-col">
-                      <div className="font-mono text-[8px] text-ghost uppercase tracking-wider">{user.role.replace(/_/g, ' ')}</div>
+                      <div className="font-mono text-[8px] text-ghost uppercase tracking-wider">{user.role === 'tenant_admin' ? 'Company Admin' : user.role.replace(/_/g, ' ')}</div>
                       {tenant && (
                         <div className="text-[10px] text-primary font-bold truncate tracking-tight">{tenant.name}</div>
                       )}
@@ -347,19 +434,19 @@ export function Layout({
                 </div>
                 <div className="hidden md:flex flex-col items-start leading-tight pr-2">
                   <span className="text-xs font-black text-main uppercase tracking-tight">{user.full_name || 'My Profile'}</span>
-                  <div className="font-mono text-[10px] text-ghost uppercase tracking-widest leading-none mt-0.5">{user.role.replace(/_/g, ' ')}</div>
+                  <div className="font-mono text-[10px] text-ghost uppercase tracking-widest leading-none mt-0.5">{user.role === 'tenant_admin' ? 'Company Admin' : user.role.replace(/_/g, ' ')}</div>
                 </div>
               </button>
             </div>
           </header>
         )}
         <div className={cn(
-          "flex-1 overflow-y-auto custom-scrollbar",
-          showSidebar ? "p-4 lg:p-6" : "p-0"
+          "flex-1",
+          showSidebar ? "overflow-y-auto custom-scrollbar p-4 lg:p-6" : "h-full overflow-hidden p-0"
         )}>
           <div className={cn(
             "w-full mx-auto",
-            showSidebar ? "max-w-[1600px]" : "max-w-none"
+            showSidebar ? "max-w-[1600px]" : "h-full max-w-none"
           )}>
             {children}
           </div>
@@ -397,7 +484,7 @@ export function Layout({
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold text-main">{user.full_name || user.email}</div>
-                  <div className="text-[11px] font-mono text-ghost uppercase tracking-widest mt-0.5">{user.role.replace(/_/g, ' ')}</div>
+                  <div className="text-[11px] font-mono text-ghost uppercase tracking-widest mt-0.5">{user.role === 'tenant_admin' ? 'Company Admin' : user.role.replace(/_/g, ' ')}</div>
                 </div>
               </div>
 
@@ -497,6 +584,76 @@ export function Layout({
         )}>
           <CheckCircle className="w-5 h-5" />
           <span className="text-sm font-bold">{notification.message}</span>
+        </div>
+      )}
+
+      {/* Spotlight Command Search Modal */}
+      {isSpotlightOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-start justify-center p-4 pt-[10vh]">
+          <div 
+            className="fixed inset-0"
+            onClick={() => setIsSpotlightOpen(false)}
+          />
+          <div className="bg-surface-1 border border-border-subtle rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative z-10">
+            <div className="flex items-center gap-3 p-4 border-b border-border-subtle bg-surface-2">
+              <Search className="w-5 h-5 text-ghost shrink-0" />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Search all tools across the platform..."
+                value={spotlightQuery}
+                onChange={(e) => setSpotlightQuery(e.target.value)}
+                className="w-full bg-transparent text-sm font-medium outline-none text-main placeholder:text-ghost/60"
+              />
+              <button 
+                onClick={() => setIsSpotlightOpen(false)}
+                className="p-1 px-1.5 hover:bg-surface-3 rounded text-xs text-ghost hover:text-main font-mono border border-border-subtle/40 whitespace-nowrap"
+              >
+                ESC
+              </button>
+            </div>
+
+            <div className="max-h-[350px] overflow-y-auto p-2 space-y-1 custom-scrollbar">
+              {filteredSpotlightTools.length === 0 ? (
+                <div className="p-8 text-center text-dim text-xs italic">
+                  No matching tools found for "{spotlightQuery}"
+                </div>
+              ) : (
+                filteredSpotlightTools.map((item) => {
+                  const isActive = activePanel === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActivePanel(item.id);
+                        setIsSpotlightOpen(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all group",
+                        isActive 
+                          ? "bg-primary/5 border-primary/20" 
+                          : "bg-transparent border-transparent hover:bg-surface-2 hover:border-border-subtle/40"
+                      )}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={cn(
+                          "w-8 h-8 rounded-lg flex items-center justify-center border transition-colors",
+                          isActive ? "bg-primary/10 border-primary/20 text-primary" : "bg-surface-2 border-border-subtle text-dim group-hover:bg-primary/5 group-hover:border-primary/20 group-hover:text-primary"
+                        )}>
+                          <item.icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className={cn("text-xs font-bold", isActive ? "text-primary" : "text-main")}>{item.label}</span>
+                          <span className="text-[10px] text-ghost font-mono uppercase tracking-wider">{item.section}</span>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-mono text-ghost/40 group-hover:text-primary transition-colors pr-2">Launch ↗</span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -71,6 +71,9 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
   const [tenantUsers, setTenantUsers] = useState<UserProfile[]>([]);
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
   const [isStaffLoading, setIsStaffLoading] = useState(false);
+  const [selectedUserToAssign, setSelectedUserToAssign] = useState<string>('');
+  const [assignedPosition, setAssignedPosition] = useState<string>('Project Manager');
+  const [isAssigning, setIsAssigning] = useState(false);
 
   // Approval Chain state
   const [approvalChains, setApprovalChains] = useState<any[]>([]);
@@ -133,35 +136,60 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
     }
   };
 
-  const toggleStaff = async (user: UserProfile) => {
-    const isMember = projectMembers.some(m => m.user_id === user.id);
-    
+  const handleAssignStaff = async () => {
+    if (!selectedUserToAssign) return;
+    setIsAssigning(true);
     try {
-      if (isMember) {
-        const { error } = await supabase
-          .from('project_members')
-          .delete()
-          .match({ project_id: project.id, user_id: user.id });
-        
-        if (error) throw error;
-        setProjectMembers(prev => prev.filter(m => m.user_id !== user.id));
-      } else {
-        const { data, error } = await supabase
-          .from('project_members')
-          .insert([{
-            project_id: project.id,
-            tenant_id: project.tenant_id,
-            user_id: user.id,
-            assigned_role: user.role
-          }])
-          .select()
-          .single();
-          
-        if (error) throw error;
-        setProjectMembers(prev => [...prev, data]);
-      }
+      const user = tenantUsers.find(u => u.id === selectedUserToAssign);
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('project_members')
+        .insert([{
+          project_id: project.id,
+          tenant_id: project.tenant_id,
+          user_id: user.id,
+          assigned_role: assignedPosition
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setProjectMembers(prev => [...prev, data]);
+      setSelectedUserToAssign('');
     } catch (e: any) {
-      alert('Error updating assignment: ' + e.message);
+      alert('Error assigning member: ' + e.message);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const updateMemberPosition = async (userId: string, position: string) => {
+    try {
+      const { error } = await supabase
+        .from('project_members')
+        .update({ assigned_role: position })
+        .match({ project_id: project.id, user_id: userId });
+
+      if (error) throw error;
+      setProjectMembers(prev => prev.map(m => m.user_id === userId ? { ...m, assigned_role: position } : m));
+    } catch (e: any) {
+      alert('Error updating position: ' + e.message);
+    }
+  };
+
+  const handleRemoveStaff = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to remove this staff member from this project?')) return;
+    try {
+      const { error } = await supabase
+        .from('project_members')
+        .delete()
+        .match({ project_id: project.id, user_id: userId });
+
+      if (error) throw error;
+      setProjectMembers(prev => prev.filter(m => m.user_id !== userId));
+    } catch (e: any) {
+      alert('Error removing member: ' + e.message);
     }
   };
 
@@ -725,70 +753,157 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
   };
 
   const renderStaff = () => {
+    const assignedUserIds = projectMembers.map(m => m.user_id);
+    const unassignedUsers = tenantUsers.filter(u => !assignedUserIds.includes(u.id));
+
     return (
       <div className="flex flex-col gap-6">
+        {/* Assign New Staff Card */}
         <div className="bg-surface-1 border border-border-subtle rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                <Users className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-main">Staff Assignments</h2>
-                <p className="text-sm text-dim">Assign company personnel to this project team</p>
-              </div>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Users className="w-6 h-6" />
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ghost" />
-              <input 
-                type="text"
-                placeholder="Search team members..."
-                className="bg-surface-2 border border-border-subtle rounded-xl py-2 pl-9 pr-4 text-xs outline-none focus:border-primary w-64"
-              />
+            <div>
+              <h2 className="text-xl font-bold text-main">Staff Assignments</h2>
+              <p className="text-sm text-dim">Assign company personnel and define their project-specific responsibilities</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isStaffLoading ? (
-              Array(6).fill(0).map((_, i) => (
-                <div key={i} className="h-20 bg-surface-2 animate-pulse rounded-xl border border-border-subtle" />
-              ))
-            ) : tenantUsers.length === 0 ? (
-              <div className="col-span-full py-12 text-center text-ghost">
-                No company users found. Add users in User Management first.
-              </div>
-            ) : (
-              tenantUsers.map((user) => {
-                const isAssigned = projectMembers.some(m => m.user_id === user.id);
-                return (
-                  <button 
-                    key={user.id}
-                    onClick={() => toggleStaff(user)}
-                    className={cn(
-                      "flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
-                      isAssigned 
-                        ? "bg-primary/5 border-primary/20" 
-                        : "bg-surface-2 border-border-subtle hover:border-ghost"
-                    )}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-surface-1 border border-border-subtle flex items-center justify-center text-primary font-bold relative">
-                      {user.full_name?.split(' ').map(n => n[0]).join('') || '?'}
-                      {isAssigned && (
-                        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center border-2 border-surface-1">
-                          <Check className="w-3 h-3 text-surface-base stroke-[4]" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 flex flex-col min-w-0">
-                      <span className="text-sm font-bold text-main truncate">{user.full_name}</span>
-                      <span className="text-[10px] text-ghost uppercase tracking-wider font-bold">
-                        {user.role?.replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })
-            )}
+          <div className="bg-surface-2 p-4 rounded-xl border border-border-subtle/60 flex flex-col md:flex-row items-end gap-4 max-w-4xl">
+            <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-ghost">Select Team Member</label>
+              <select 
+                value={selectedUserToAssign}
+                onChange={(e) => setSelectedUserToAssign(e.target.value)}
+                className="w-full bg-surface-1 border border-border-subtle rounded-xl py-2.5 px-3 text-xs outline-none focus:border-primary text-main"
+              >
+                <option value="">-- Choose an unassigned employee --</option>
+                {unassignedUsers.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name} ({user.email}) - {user.role?.replace(/_/g, ' ').toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="w-full md:w-64 flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-ghost">Project specific position</label>
+              <select 
+                value={assignedPosition}
+                onChange={(e) => setAssignedPosition(e.target.value)}
+                className="w-full bg-surface-1 border border-border-subtle rounded-xl py-2.5 px-3 text-xs outline-none focus:border-primary text-main"
+              >
+                <option value="Project Director">Project Director</option>
+                <option value="Project Coordinator">Project Coordinator</option>
+                <option value="Project Manager">Project Manager</option>
+                <option value="Site Supervisor">Site Supervisor</option>
+                <option value="Storeman">Storeman</option>
+                <option value="QS">QS</option>
+                <option value="Finance Officer">Finance Officer</option>
+                <option value="Procurement Officer">Procurement Officer</option>
+                <option value="Client Representative">Client Representative</option>
+              </select>
+            </div>
+
+            <button 
+              onClick={handleAssignStaff}
+              disabled={isAssigning || !selectedUserToAssign}
+              className="btn btn-primary px-6 py-2.5 text-xs h-10 w-full md:w-auto"
+            >
+              {isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Assign to Team
+            </button>
+          </div>
+        </div>
+
+        {/* Assigned Project Staff Table */}
+        <div className="bg-surface-1 border border-border-subtle rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-border-subtle bg-surface-2 flex items-center justify-between">
+            <h3 className="text-xs font-mono uppercase tracking-widest text-ghost">Currently Assigned Project Staff</h3>
+            <span className="bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+              {projectMembers.length} Members
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-1 border-b border-border-subtle">
+                  <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-3.5">Team Member</th>
+                  <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-3.5">Company Role</th>
+                  <th className="font-mono text-[10px] uppercase tracking-widest text-dim px-6 py-3.5">Project Assignment Position</th>
+                  <th className="px-6 py-3.5 text-right font-mono text-[10px] uppercase tracking-widest text-dim">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-subtle/40">
+                {isStaffLoading ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-xs text-dim">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2 opacity-50" />
+                      Loading staff profile records...
+                    </td>
+                  </tr>
+                ) : projectMembers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-16 text-center text-dim text-xs">
+                      No personnel currently assigned to this project directory. Select a user above to assign them.
+                    </td>
+                  </tr>
+                ) : (
+                  projectMembers.map((member) => {
+                    const user = tenantUsers.find(u => u.id === member.user_id);
+                    if (!user) return null;
+                    return (
+                      <tr key={member.id} className="hover:bg-white/[0.01] transition-colors group/row">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-surface-2 border border-border-subtle flex items-center justify-center text-primary font-bold text-xs animate-in fade-in duration-200">
+                              {user.full_name?.split(' ').map(n => n[0]).join('') || '?'}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-main">{user.full_name}</span>
+                              <span className="text-[10px] text-dim">{user.email}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/5 text-accent text-[10px] font-bold uppercase tracking-wider border border-accent/10">
+                            {user.role?.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <select
+                            value={member.assigned_role || 'Project Manager'}
+                            onChange={(e) => updateMemberPosition(user.id, e.target.value)}
+                            className="bg-surface-2 border border-border-subtle rounded-xl text-xs py-1.5 px-3 outline-none focus:border-primary text-main transition-all font-bold"
+                          >
+                            <option value="Project Director">Project Director</option>
+                            <option value="Project Coordinator">Project Coordinator</option>
+                            <option value="Project Manager">Project Manager</option>
+                            <option value="Site Supervisor">Site Supervisor</option>
+                            <option value="Storeman">Storeman</option>
+                            <option value="QS">QS</option>
+                            <option value="Finance Officer">Finance Officer</option>
+                            <option value="Procurement Officer">Procurement Officer</option>
+                            <option value="Client Representative">Client Representative</option>
+                          </select>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={() => handleRemoveStaff(user.id)}
+                            className="p-2 hover:bg-danger/10 text-dim hover:text-danger rounded-lg transition-colors"
+                            title="Remove project member"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 

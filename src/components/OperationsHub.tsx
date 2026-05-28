@@ -1485,7 +1485,7 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
              <h4 className="text-xs font-black uppercase tracking-widest text-ghost text-center border-b border-border-subtle pb-4">Onboarding Parameters</h4>
              <div className="space-y-4">
                 <div className="flex flex-col gap-1.5">
-                   <label className="text-[10px] font-bold text-ghost uppercase tracking-tighter">Tenant Hub ID</label>
+                   <label className="text-[10px] font-bold text-ghost uppercase tracking-tighter">Company Hub ID</label>
                    <input type="text" readOnly value={tenantId} className="w-full bg-surface-base border border-border-subtle rounded-lg p-2.5 text-[10px] font-mono text-dim select-all" />
                 </div>
                 <div className="flex flex-col gap-1.5">

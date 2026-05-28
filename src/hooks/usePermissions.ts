@@ -56,7 +56,6 @@ export function usePermissions(role: Role | undefined, tenantId: string | undefi
 
     async function loadCapabilities() {
       try {
-        let strategy = 'role';
         let targetUserId = userProfile?.id;
 
         // If userProfile not provided, try to fetch current user's profile
@@ -74,6 +73,9 @@ export function usePermissions(role: Role | undefined, tenantId: string | undefi
             }
           }
         }
+
+        // Read user-specific permission strategy, defaulting to role-based (RBAC)
+        const strategy = targetUserId ? (localStorage.getItem(`permission_strategy_${targetUserId}`) || 'role') : 'role';
 
         if (strategy === 'role') {
           const { data, error } = await supabase
@@ -100,8 +102,18 @@ export function usePermissions(role: Role | undefined, tenantId: string | undefi
             .eq('tenant_id', tenantId);
 
           if (error) {
-            if (error.code === 'PGRST116' || error.message?.includes('public.user_capabilities')) {
-              console.warn('User capabilities table not yet created.');
+            if (error.code === 'PGRST116' || error.message?.includes('public.user_capabilities') || error.message?.includes('schema cache') || error.message?.includes('does not exist')) {
+              console.warn('User capabilities table not yet created or not in schema cache. Falling back to localStorage.');
+              const fallbackStr = localStorage.getItem(`user_caps_fallback_${targetUserId}`);
+              if (fallbackStr) {
+                try {
+                  const parsed = JSON.parse(fallbackStr);
+                  setCapabilities(new Set(parsed as Capability[]));
+                  return;
+                } catch (pe) {
+                  console.error('Failed to parse localStorage user capabilities:', pe);
+                }
+              }
               setCapabilities(new Set());
               return;
             }
@@ -109,8 +121,20 @@ export function usePermissions(role: Role | undefined, tenantId: string | undefi
           }
           setCapabilities(new Set(data.map(d => d.capability as Capability)));
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error('Error loading capabilities:', e);
+        // Clean fallback to local storage if user-based strategy failed
+        const targetUserId = userProfile?.id;
+        if (targetUserId) {
+          const fallbackStr = localStorage.getItem(`user_caps_fallback_${targetUserId}`);
+          if (fallbackStr) {
+            try {
+              const parsed = JSON.parse(fallbackStr);
+              setCapabilities(new Set(parsed as Capability[]));
+              return;
+            } catch {}
+          }
+        }
         setCapabilities(new Set(['view_dashboard', 'view_projects'] as Capability[]));
       } finally {
         setLoading(false);

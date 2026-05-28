@@ -25,7 +25,12 @@ import {
   LogOut,
   Plus,
   MoreHorizontal,
-  RefreshCw
+  RefreshCw,
+  Search,
+  X,
+  Shapes,
+  Globe,
+  Cpu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, cleanRichText } from '../lib/utils';
@@ -44,12 +49,66 @@ interface ModuleCard {
   subTools?: string[];
 }
 
+export interface SearchItem {
+  id: string;
+  title: string;
+  description: string;
+  category: 'DASHBOARD' | 'PROJECT' | 'SUPPORT' | 'ADMIN' | 'GOD';
+  capability: Capability | null;
+  isGodOnly?: boolean;
+  tags: string[];
+}
+
+const EXPLORER_DATABASE: SearchItem[] = [
+  // Dashboard Group
+  { id: 'dashboard', title: 'Portfolio Overview', description: 'Global dashboard representing performance KPIs, cashflows, and overall status for all projects.', category: 'DASHBOARD', capability: 'dash:view', tags: ['portfolio', 'analytics', 'earned value', 'kpi', 'performance', 'map', 'summary'] },
+  { id: 'dashboard', title: 'Project GIS Map', description: 'Geographic and status distribution of all regional company site works and active contracts.', category: 'DASHBOARD', capability: 'dash:view', tags: ['gis', 'map', 'location', 'projects', 'coordinates'] },
+  { id: 'dashboard', title: 'Performance KPIs', description: 'Real-time financial and schedule metrics including Schedule Variance, Cost Variance, and CPI.', category: 'DASHBOARD', capability: 'dash:view', tags: ['charts', 'cpi', 'spi', 'evm', 'performance'] },
+  { id: 'dashboard', title: 'Risk Evaluation Matrix', description: 'Early warning indicators and systematic project risk classification.', category: 'DASHBOARD', capability: 'dash:view', tags: ['risk', 'alerts', 'warnings', 'incidents'] },
+
+  // Client Portal Group
+  { id: 'client-portal', title: 'Client Portal Dashboard', description: 'Security-cleared gateway designed for clients to monitor progress milestones, certified financial summaries, and work variations.', category: 'DASHBOARD', capability: 'client:view', tags: ['client', 'portal', 'transparency', 'collaboration', 'investor'] },
+
+  // Intelligence Group
+  { id: 'intelligence', title: 'Intelligence Center', description: 'Resource demand model, labor planning market trends, and contextual AI assistants.', category: 'DASHBOARD', capability: null, tags: ['ai', 'intelligence', 'gemini', 'assistant', 'trends', 'market', 'labor'] },
+  { id: 'intelligence', title: 'Resource Demand Forecasting', description: 'Forecasting engine displaying allocation limits, shortages, and labor bottlenecks.', category: 'DASHBOARD', capability: null, tags: ['demand', 'forecasting', 'allocation', 'shortages'] },
+
+  // Library Group
+  { id: 'library', title: 'Material and Trade Rate Library', description: 'Global dictionary for material catalog items, standard specifications, and trade subcontract labor rates.', category: 'DASHBOARD', capability: 'trade:view_global', tags: ['library', 'catalog', 'specs', 'materials', 'items', 'costs'] },
+
+  // Project Group
+  { id: 'project-setup', title: 'Project Initialization Setup', description: 'Establish new milestones, setup administrative metadata, add project teams, and audit checklists.', category: 'PROJECT', capability: 'proj:set_checklists', tags: ['milestones', 'initialization', 'checklists', 'teams', 'setup'] },
+  { id: 'planning', title: 'Bill of Quantities (BoQ) Builder', description: 'Construct cost-coded quantities, load recipe estimates, and baseline the original project scope.', category: 'PROJECT', capability: 'boq:view_recipes', tags: ['boq', 'quantities', 'survey', 'measurement', 'contracts', 'recipe'] },
+  { id: 'schedule', title: 'Project Gantt Chart Scheduler', description: 'Create logical sequences between tasks, analyze the critical path, and manage active dates/slippages.', category: 'PROJECT', capability: 'plan:view', tags: ['gantt', 'schedule', 'planning', 'milestones', 'calendar', 'critical path'] },
+  { id: 'budget', title: 'Cost Planning & Budget Manager', description: 'Formulate baseline budgets, track actual costs against committed purchase orders, and monitor bottom-line margins.', category: 'PROJECT', capability: 'fin:view_budget', tags: ['budget', 'cost', 'committed', 'invoice', 'actual', 'margin'] },
+  { id: 'operations-hub', title: 'Operations Control Center', description: 'Daily site reporting, weather logs, manpower ratios, fuel consumptions, activity trackers, and direct supervision.', category: 'PROJECT', capability: 'daily:view_project', tags: ['daily report', 'execution', 'site', 'weather', 'manpower', 'fuel', 'operations'] },
+  { id: 'approvals', title: 'System Approval Desk', description: 'Review, authorize, or delegate work packages, variation orders, material requests, and custom workflow budgets.', category: 'PROJECT', capability: 'appr:view_pending', tags: ['approvals', 'signatures', 'review', 'workflow'] },
+  { id: 'alerts', title: 'Incidents & Broadcaster Alerts', description: 'Warning sinks tracking extreme weather events, variation thresholds, low-material reorder points, and budget variances.', category: 'PROJECT', capability: 'alert:view', tags: ['notifications', 'alerts', 'warnings', 'incidents'] },
+
+  // Support Group
+  { id: 'variations', title: 'Variation Order Management', description: 'Contract changes, additional work assessments, variation rate calculations, and official instructions ledger.', category: 'SUPPORT', capability: 'fin:var_view', tags: ['variations', 'claims', 'rates', 'instructions', 'changes'] },
+  { id: 'eot', title: 'Extension of Time (EoT) Claims', description: 'Slippage impacts, critical path disruptions, claim submissions, and contractual approval logs.', category: 'SUPPORT', capability: 'fin:eot_view', tags: ['eot', 'delay', 'claims', 'insurance', 'impact'] },
+  { id: 'subcontractors', title: 'Subcontractor Directory & Agreements', description: 'Partner database, verified certificates, payment applications, retention ledgers, and trade evaluations.', category: 'SUPPORT', capability: 'res:subcon_view', tags: ['subcontractors', 'trades', 'partners', 'retention', 'certificates'] },
+  { id: 'procurement', title: 'Procurement Pipeline & RFQ Builder', description: 'Track requisitions, compile multi-vendor RFQs, analyze comparative bid tables, and issue unified POs.', category: 'SUPPORT', capability: 'proc:view_demand', tags: ['rfq', 'procurement', 'bids', 'vendors', 'purchase orders', 'po'] },
+  { id: 'warehouse', title: 'Warehouse Stock Registry', description: 'Log incoming materials, request stock releases, track localized warehouses, and check low inventory markers.', category: 'SUPPORT', capability: 'stock:view', tags: ['inventory', 'stock', 'warehouse', 'goods receipt', 'grn'] },
+
+  // Admin Group
+  { id: 'users', title: 'User Account Directory', description: 'Invite team members, assign initial enterprise roles, and audit account states.', category: 'ADMIN', capability: 'admin:view_users', tags: ['users', 'directory', 'teammates', 'invite', 'staff'] },
+  { id: 'permissions', title: 'Role Capabilities Matrix', description: 'Alter global role definitions, toggle user permission strategies, and assign bespoke granular overrides.', category: 'ADMIN', capability: 'admin:view_roles', tags: ['permissions', 'roles', 'capabilities', 'rbac', 'security'] },
+  { id: 'approval-config', title: 'Workflow Chains Configurator', description: 'Construct multi-tier approval levels based on customized cost-centers and specific company roles.', category: 'ADMIN', capability: 'appr:view_chains', tags: ['workflows', 'approvals', 'chains', 'levels', 'sign-off'] },
+  { id: 'alert-settings', title: 'Alert Triggers & Threshold Settings', description: 'Tune automatic warning indicators for budget overrun thresholds and material stock reorder rules.', category: 'ADMIN', capability: 'alert:set_thresholds', tags: ['thresholds', 'triggers', 'sensors', 'tolerances'] },
+  { id: 'audit', title: 'Secure Event Stream Logs', description: 'Immutable trail logging all database record creations, profile updates, and authentication requests.', category: 'ADMIN', capability: 'admin:view_audit', tags: ['audit', 'security', 'logs', 'trail', 'history'] },
+
+  // God Mode Group
+  { id: 'god', title: 'Platform Control Center', description: 'Super-user dashboard managing multitenant database schemas, bypass security constraints, configure baseline templates, and monitor systems telemetry.', category: 'GOD', isGodOnly: true, capability: null, tags: ['god', 'root', 'telemetry', 'tenants', 'admin'] }
+];
+
 const MODULE_GROUPS = [
   {
     title: 'Dashboard',
     description: 'Analytics and Repositories',
     modules: [
-      { id: 'dashboard', title: 'Portfolio', description: 'Global overview for all projects', icon: LayoutGrid, color: 'text-primary', subTools: ['Project Map', 'Performance KPIs', 'Risk Matrix'], capability: 'dash:view' as Capability },
+      { id: 'dashboard', title: 'Portfolio', description: 'Global overview for all projects', icon: Shapes, color: 'text-primary', subTools: ['Project Map', 'Performance KPIs', 'Risk Matrix'], capability: 'dash:view' as Capability },
       { id: 'client-portal', title: 'Client Portal', description: 'Project oversight and transparency', icon: ShieldCheck, color: 'text-accent', subTools: ['Progress', 'Financials', 'Variations'], capability: 'client:view' as Capability },
       { id: 'intelligence', title: 'Intelligence', description: 'Resource demand map & AI queries', icon: BrainCircuit, color: 'text-accent', subTools: ['Resource Demand', 'AI Assistant', 'Market Trends'], capability: 'intel:view' as Capability },
       { id: 'library', title: 'Library', description: 'Resource and trade item repositories', icon: BookOpen, color: 'text-warning', subTools: ['Material Catalog', 'Trade Rates', 'Standard Specs'], capability: 'lib:view' as Capability },
@@ -80,7 +139,7 @@ const MODULE_GROUPS = [
       { id: 'users', title: 'User Management', description: 'Team members and role permissions', icon: Users, color: 'text-accent', subTools: ['User List', 'Role Config', 'Access Logs'], capability: 'admin:view_users' as Capability },
       { id: 'approval-config', title: 'Settings', description: 'System config and approval workflows', icon: Settings, color: 'text-dim', subTools: ['Workflows', 'Global Settings', 'Integrations'], capability: 'appr:view_chains' as Capability },
       { id: 'audit', title: 'Audit Logs', description: 'Track system changes and activities', icon: History, color: 'text-ghost', subTools: ['Activity Stream', 'Security Logs', 'Export Data'], capability: 'admin:view_audit' as Capability },
-      { id: 'god', title: 'Platform God', description: 'System administrative controls and core config', icon: Zap, color: 'text-danger', subTools: ['Tenant Control', 'Global Config', 'System Root'], isGodOnly: true },
+      { id: 'god', title: 'Platform God', description: 'System administrative controls and core config', icon: Zap, color: 'text-danger', subTools: ['Company Control', 'Global Config', 'System Root'], isGodOnly: true },
     ]
   }
 ];
@@ -95,6 +154,7 @@ interface HomeProps {
   userEmail: string;
   userRole: string;
   tenantId: string;
+  userId: string;
 }
 
 interface Task {
@@ -138,20 +198,21 @@ const SUBTOOL_MAPPING: Record<string, string> = {
   'Activity Stream': 'audit',
   'Security Logs': 'audit',
   'Export Data': 'audit',
-  'Tenant Control': 'god',
+  'Company Control': 'god',
   'Global Config': 'god',
   'System Root': 'god'
 };
 
-export function Home({ onSelectModule, onLogout, isGodMode, userName, companyName, userEmail, userRole, tenantId }: HomeProps) {
+export function Home({ onSelectModule, onLogout, isGodMode, userName, companyName, userEmail, userRole, tenantId, userId }: HomeProps) {
   const { hasCapability } = usePermissions(userRole as any, tenantId, { 
-    id: '', 
+    id: userId, 
     email: userEmail, 
     role: userRole as any, 
     tenant_id: tenantId
   } as any);
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
+  const [homeSearchQuery, setHomeSearchQuery] = useState('');
 
   // Filter groups and modules based on capabilities
   const filteredGroups = useMemo(() => {
@@ -179,7 +240,7 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
     try {
       if (userRole === 'platform_god') {
         const { count } = await supabase.from('tenants').select('*', { count: 'exact', head: true }).eq('is_active', false);
-        if (count) actions.push({ id: 's1', title: `Review ${count} Tenant Requests`, type: 'assignment', completed: false, system: true, targetModule: 'god' } as any);
+        if (count) actions.push({ id: 's1', title: `Review ${count} Company Requests`, type: 'assignment', completed: false, system: true, targetModule: 'god' } as any);
       } 
       
       if (userRole === 'tenant_admin' || userRole === 'Company Admin') {
@@ -273,6 +334,49 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
     .map(([id]) => allModules.find(m => m.id === id))
     .filter(Boolean) as ModuleCard[];
 
+  const searchedExplorerItems = useMemo(() => {
+    if (!homeSearchQuery.trim()) return [];
+    const q = homeSearchQuery.toLowerCase();
+    
+    return EXPLORER_DATABASE.filter(item => {
+      // 1. Filter by God Mode
+      if (item.isGodOnly && !isGodMode) return false;
+      
+      // 2. Filter by User capability
+      if (item.capability && !hasCapability(item.capability)) return false;
+      
+      // 3. Perform string searches
+      return (
+        item.title.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        item.tags.some(tag => tag.toLowerCase().includes(q))
+      );
+    });
+  }, [homeSearchQuery, isGodMode, hasCapability]);
+
+  // Group searched results by category
+  const groupedSearchedItems = useMemo(() => {
+    const groups: Record<string, SearchItem[]> = {};
+    searchedExplorerItems.forEach(item => {
+      if (!groups[item.category]) {
+        groups[item.category] = [];
+      }
+      groups[item.category].push(item);
+    });
+    return groups;
+  }, [searchedExplorerItems]);
+
+  const searchedModules = useMemo(() => {
+    if (!homeSearchQuery.trim()) return [];
+    const q = homeSearchQuery.toLowerCase();
+    return allModules.filter(m => 
+      m.title.toLowerCase().includes(q) || 
+      m.description.toLowerCase().includes(q) ||
+      m.subTools?.some(st => st.toLowerCase().includes(q))
+    );
+  }, [allModules, homeSearchQuery]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden bg-surface-base">
       {/* Header */}
@@ -296,7 +400,7 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
           <div className="flex items-center gap-4 border-r border-border-subtle pr-6 mr-2">
             <div className="flex flex-col items-end hidden lg:flex">
               <span className="text-xs font-bold text-main">{userName}</span>
-              <span className="text-[10px] text-ghost font-mono uppercase tracking-widest">{userRole.replace(/_/g, ' ')}</span>
+              <span className="text-[10px] text-ghost font-mono uppercase tracking-widest">{userRole === 'tenant_admin' ? 'Company Admin' : userRole.replace(/_/g, ' ')}</span>
             </div>
             <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary overflow-hidden">
                 {(userName || userEmail).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
@@ -324,40 +428,101 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
 
       <div className="flex-1 flex min-h-0 relative">
         {/* Widen Vertical Frequent Tools - Hidden on Mobile/Portrait */}
-        <div className="hidden lg:flex w-52 lg:w-56 flex-col py-3 border-r border-border-subtle bg-surface-1/40 backdrop-blur-sm">
-          <div className="flex items-center gap-2 px-4 mb-2.5">
-            <Clock className="w-3 h-3 text-primary" />
-            <h2 className="text-[9px] font-black text-ghost uppercase tracking-[0.2em] opacity-60">Frequent</h2>
-          </div>
-          <div className="flex flex-col gap-2 px-3 mb-6 overflow-y-auto custom-scrollbar max-h-[220px]">
-            {frequentModules.length > 0 ? (
-              frequentModules.map((module) => (
-                <button
-                  key={`frequent-${module.id}`}
-                  onClick={() => handleModuleClick(module.id)}
-                  className="group flex items-center gap-3 bg-surface-2/40 border border-border-subtle rounded-xl p-3 text-left hover:border-primary hover:bg-primary/5 transition-all duration-300"
+        <div className="hidden lg:flex w-52 lg:w-56 flex-col py-3 border-r border-border-subtle bg-surface-1/40 backdrop-blur-sm relative z-[1000]">
+          
+          {/* Quick Search Tool */}
+          <div className="px-3 mb-4">
+            <div className="relative flex items-center bg-surface-base border border-border-subtle hover:border-primary focus-within:border-primary rounded-xl transition-all">
+              <Search className="w-3.5 h-3.5 text-ghost absolute left-3 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search tools..."
+                value={homeSearchQuery}
+                onChange={(e) => setHomeSearchQuery(e.target.value)}
+                className="w-full bg-transparent pl-9 pr-8 py-2 text-xs font-semibold outline-none text-main placeholder:text-ghost/60"
+              />
+              {homeSearchQuery && (
+                <button 
+                  onClick={() => setHomeSearchQuery('')} 
+                  className="absolute right-2.5 p-1 text-ghost hover:text-main focus:outline-none"
+                  title="Clear search"
                 >
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl bg-surface-base border border-border-subtle flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:bg-primary/10",
-                    module.color
-                  )}>
-                    <module.icon className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-main truncate group-hover:text-primary transition-colors">{module.title}</h3>
-                    <p className="text-[11px] text-dim truncate leading-tight">{module.description}</p>
-                  </div>
+                  <X className="w-3 h-3" />
                 </button>
-              ))
-            ) : (
-              <div className="p-6 text-center border border-dashed border-border-subtle rounded-xl">
-                <p className="text-[11px] text-ghost">Most used tools appear here</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
+          {homeSearchQuery.trim() ? (
+            <>
+              <div className="flex items-center gap-2 px-4 mb-2.5 pb-1 select-none">
+                <Search className="w-3 h-3 text-primary animate-pulse" />
+                <h2 className="text-[9px] font-black text-ghost uppercase tracking-[0.2em] opacity-60">Search Results</h2>
+              </div>
+              <div className="flex flex-col gap-1.5 px-3 mb-6 overflow-y-auto custom-scrollbar max-h-[220px]">
+                {searchedModules.length > 0 ? (
+                  searchedModules.map((module) => (
+                    <button
+                      key={`search-${module.id}`}
+                      onClick={() => handleModuleClick(module.id)}
+                      className="group flex items-center gap-3 bg-surface-2/40 border border-border-subtle rounded-xl p-2.5 text-left hover:border-primary hover:bg-primary/5 transition-all duration-300"
+                    >
+                      <div className={cn(
+                        "w-9 h-9 rounded-lg bg-surface-base border border-border-subtle flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:bg-primary/10",
+                        module.color
+                      )}>
+                        <module.icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xs font-bold text-main truncate group-hover:text-primary transition-colors">{module.title}</h3>
+                        <p className="text-[10px] text-dim truncate leading-tight">{module.description}</p>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-6 text-center border border-dashed border-border-subtle rounded-xl">
+                    <p className="text-[11px] text-ghost">No matching tools found</p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 px-4 mb-2.5 select-none">
+                <Clock className="w-3 h-3 text-primary" />
+                <h2 className="text-[9px] font-black text-ghost uppercase tracking-[0.2em] opacity-60">Frequent</h2>
+              </div>
+              <div className="flex flex-col gap-1.5 px-3 mb-6 overflow-y-auto custom-scrollbar max-h-[220px]">
+                {frequentModules.length > 0 ? (
+                  frequentModules.map((module) => (
+                    <button
+                      key={`frequent-${module.id}`}
+                      onClick={() => handleModuleClick(module.id)}
+                      className="group flex items-center gap-3 bg-surface-2/40 border border-border-subtle rounded-xl p-2.5 text-left hover:border-primary hover:bg-primary/5 transition-all duration-300"
+                    >
+                      <div className={cn(
+                        "w-9 h-9 rounded-lg bg-surface-base border border-border-subtle flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:bg-primary/10",
+                        module.color
+                      )}>
+                        <module.icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xs font-bold text-main truncate group-hover:text-primary transition-colors">{module.title}</h3>
+                        <p className="text-[10px] text-dim truncate leading-tight">{module.description}</p>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-6 text-center border border-dashed border-border-subtle rounded-xl">
+                    <p className="text-[11px] text-ghost">Most used tools appear here</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {/* Tasks & Assignments Viewport */}
-          <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex flex-col flex-1 min-h-0 relative">
             <div className="flex items-center justify-between px-4 mb-2">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-3.5 h-3.5 text-accent" />
@@ -371,6 +536,79 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
+
+            <AnimatePresence>
+              {showAddTask && (
+                <motion.div
+                  initial={{ scale: 0.96, opacity: 0, y: -5 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.96, opacity: 0, y: -5 }}
+                  transition={{ duration: 0.15 }}
+                  id="add-task-dialog-card"
+                  className="absolute top-[28px] left-[12px] z-[9999] w-[350px] bg-surface-1 border border-border-muted rounded-2xl shadow-2xl flex flex-col p-5"
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-border-subtle mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent">
+                        <Activity className="w-3 h-3" />
+                      </div>
+                      <h3 className="text-[10px] font-black text-main uppercase tracking-widest">New Task Reminder</h3>
+                    </div>
+                    <button 
+                      onClick={() => setShowAddTask(false)} 
+                      className="p-1 rounded-md hover:bg-surface-3 text-ghost hover:text-main transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-dim uppercase tracking-wider block">What needs to be done?</label>
+                      <input 
+                        autoFocus
+                        type="text"
+                        placeholder="e.g. Verify subcontractor compliance"
+                        className="w-full bg-surface-base border border-border-subtle focus:border-accent hover:border-accent/65 rounded-xl px-3 py-2 text-xs text-main outline-none focus:ring-4 focus:ring-accent/10 transition-all font-semibold animate-in fade-in duration-300"
+                        value={newTaskTitle}
+                        onChange={e => setNewTaskTitle(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddTask()}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-dim uppercase tracking-wider block">Target Deadline</label>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-surface-2 border border-border-subtle flex items-center justify-center text-ghost">
+                          <Calendar className="w-4 h-4 text-accent" />
+                        </div>
+                        <input 
+                          type="date"
+                          className="flex-1 bg-surface-base border border-border-subtle focus:border-accent hover:border-accent/65 rounded-xl px-3 py-2 text-xs text-main outline-none focus:ring-4 focus:ring-accent/10 transition-all font-mono font-semibold"
+                          value={newTaskDeadline}
+                          onChange={e => setNewTaskDeadline(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2.5 mt-5 pt-3 border-t border-border-subtle/60">
+                    <button 
+                      onClick={() => setShowAddTask(false)}
+                      className="px-4 py-2 text-[10px] font-bold text-dim hover:text-main transition-colors uppercase tracking-wider"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleAddTask}
+                      className="bg-accent text-black px-5 py-2 rounded-xl text-[10px] font-black hover:brightness-110 active:scale-[0.98] transition-all border border-accent shadow-[0_4px_15px_rgba(26,172,170,0.22)] uppercase tracking-widest"
+                    >
+                      Create
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="flex flex-col gap-2 px-3 overflow-y-auto custom-scrollbar flex-1 pb-4">
               {/* Assignments Section */}
@@ -442,48 +680,6 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
             </div>
           </div>
 
-          {/* Add Task Modal overlay (simple inline for now) */}
-          {showAddTask && (
-            <div className="absolute inset-x-0 bottom-[84px] mx-4 p-5 bg-surface-2 border border-accent/50 rounded-2xl shadow-2xl z-50 animate-in slide-in-from-bottom-4 duration-300">
-              <div className="flex flex-col gap-4">
-                <h3 className="text-[11px] font-black text-main uppercase tracking-widest">New Reminder</h3>
-                <input 
-                  autoFocus
-                  type="text"
-                  placeholder="What needs to be done?"
-                  className="w-full bg-surface-base border border-border-subtle rounded-xl px-4 py-2.5 text-sm text-main outline-none focus:border-accent transition-all"
-                  value={newTaskTitle}
-                  onChange={e => setNewTaskTitle(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddTask()}
-                />
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-surface-base border border-border-subtle flex items-center justify-center text-dim">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <input 
-                    type="date"
-                    className="flex-1 bg-surface-base border border-border-subtle rounded-xl px-4 py-2 text-xs text-main outline-none focus:border-accent"
-                    value={newTaskDeadline}
-                    onChange={e => setNewTaskDeadline(e.target.value)}
-                  />
-                </div>
-                <div className="flex justify-end gap-3 mt-2">
-                  <button 
-                    onClick={() => setShowAddTask(false)}
-                    className="btn btn-ghost btn-sm px-4"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleAddTask}
-                    className="btn btn-accent btn-sm px-6"
-                  >
-                    Create
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* User Profile Footer in Home Sidebar */}
           <div className="p-4 border-t border-border-subtle flex-shrink-0">
@@ -496,7 +692,7 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold truncate text-main group-hover:text-primary transition-colors">{cleanRichText(userName || userEmail)}</div>
-                <div className="font-mono text-[10px] text-ghost uppercase tracking-widest mt-0.5">{userRole.replace(/_/g, ' ')}</div>
+                <div className="font-mono text-[10px] text-ghost uppercase tracking-widest mt-0.5">{userRole === 'tenant_admin' ? 'Company Admin' : userRole.replace(/_/g, ' ')}</div>
               </div>
               <button 
                 onClick={(e) => {
@@ -534,160 +730,289 @@ export function Home({ onSelectModule, onLogout, isGodMode, userName, companyNam
             </button>
           </div>
 
-          <div className="flex-1 w-full mx-auto flex flex-col gap-4 lg:gap-8 justify-start py-2 overflow-y-auto custom-scrollbar relative z-10">
-            {filteredGroups.map((group, groupIdx) => {
-              const isProminent = group.title === 'Project' || group.title === 'Support';
-              const isDashboard = group.title === 'Dashboard';
-              const isAdmin = group.title === 'Admin';
-              
-              return (
-                <motion.div 
-                  key={group.title}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: groupIdx * 0.1 }}
-                  className={cn(
-                    "flex flex-col min-h-fit shrink-0 transition-all duration-500",
-                    isProminent ? "mb-6 lg:mb-8" : "mb-4 lg:mb-6"
-                  )}
-                >
-                  <div className={cn("flex items-center gap-3 mb-2 lg:mb-3 px-1", isAdmin && "h-[15.5104px]")}>
-                    <h2 className="text-[10px] lg:text-[11px] font-black text-dim uppercase tracking-[0.25em] whitespace-nowrap opacity-60">
-                      {group.title}
-                    </h2>
-                    <div className="h-px flex-1 bg-gradient-to-r from-border-subtle to-transparent" />
+          <div className="flex-1 w-full mx-auto flex flex-col gap-3.5 lg:gap-5 xl:gap-6 justify-start py-1.5 overflow-y-auto custom-scrollbar relative z-10">
+            {homeSearchQuery.trim() ? (
+              /* Highly detailed search board filtered on-the-fly as per permissions */
+              <div className="flex-1 flex flex-col gap-5 lg:gap-6">
+                <div className="flex items-center justify-between border-b border-border-subtle/50 pb-3">
+                  <div>
+                    <h3 className="text-xs font-black text-main uppercase tracking-widest">
+                      Search Results for "{homeSearchQuery}"
+                    </h3>
+                    <p className="text-[10px] text-dim font-medium mt-1">
+                      Showing matching tools and system modules tailored to role level <span className="text-primary font-bold uppercase">{userRole.replace(/_/g, ' ')}</span>
+                    </p>
                   </div>
+                  <button 
+                    onClick={() => setHomeSearchQuery('')}
+                    className="text-[10px] font-black text-primary hover:text-primary/75 uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer bg-primary/5 px-3 py-1.5 rounded-lg border border-primary/20"
+                  >
+                    <X className="w-3 h-3" />
+                    Reset Catalog
+                  </button>
+                </div>
 
-                  <div className={cn(
-                    "flex flex-col rounded-xl",
-                    (isDashboard || isAdmin) && "bg-surface-1/5 p-3 lg:p-4 border border-border-subtle/10 shadow-sm"
-                  )}>
-                    <div className={cn(
-                      "grid gap-2 lg:gap-3 w-full",
-                      isProminent 
-                        ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" 
-                        : (isDashboard || isAdmin)
-                          ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
-                          : "grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-                    )}>
-                      {group.modules.map((module, moduleIdx) => (
-                      <motion.div
-                        key={module.id}
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: (groupIdx * 0.1) + (moduleIdx * 0.05) }}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleModuleClick(module.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleModuleClick(module.id);
-                          }
-                        }}
-                        onMouseEnter={() => setHoveredModule(module.id)}
-                        onMouseLeave={() => setHoveredModule(null)}
-                        className={cn(
-                          "group relative flex flex-col bg-surface-1 border border-border-subtle rounded-xl p-2.5 text-left transition-all duration-300 hover:shadow-xl overflow-hidden w-full cursor-pointer",
-                          isProminent 
-                            ? "hover:border-primary hover:bg-surface-2 h-[170px] hover:shadow-primary/5 shadow-sm" 
-                            : cn(
-                              "hover:border-accent hover:bg-surface-2 h-full min-h-[55px] lg:min-h-[65px] border-dashed hover:shadow-accent/5 focus:outline-none focus:ring-1 focus:ring-accent/50",
-                              module.id === 'god' && "hover:border-danger hover:shadow-danger/5 shadow-sm border-solid focus:ring-danger/50"
-                            )
-                        )}
-                      >
-                        {/* Three-dot context menu */}
-                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Placeholder for Move Order / Display logic
-                            }}
-                            className="p-1 hover:bg-surface-3 rounded-md text-ghost hover:text-main transition-colors"
-                          >
-                            <MoreHorizontal className="w-2.5 h-2.5" />
-                          </button>
-                        </div>
+                {searchedExplorerItems.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4 pb-8">
+                    {searchedExplorerItems.map((item, idx) => {
+                      const m = allModules.find(mod => mod.id === item.id);
+                      const mColor = m?.color || 'text-primary';
+                      const IconComponent = m?.icon || Search;
+                      return (
+                        <motion.div
+                          key={`${item.id}-${idx}`}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.03 }}
+                          onClick={() => handleModuleClick(item.id)}
+                          className="group relative flex flex-col bg-surface-1 border border-border-subtle hover:border-primary hover:bg-surface-2/40 rounded-2xl p-4 text-left transition-all duration-300 hover:shadow-lg cursor-pointer h-full min-h-[140px] xl:min-h-[160px] shadow-sm select-none"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "w-9 h-9 rounded-xl bg-surface-base border border-border-subtle flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-surface-base transition-all duration-300 shadow-sm",
+                                mColor
+                              )}>
+                                <IconComponent className="w-4.5 h-4.5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className="text-[8px] font-black tracking-[0.16em] text-ghost uppercase block mb-0.5 leading-none">
+                                  {item.category}
+                                </span>
+                                <h3 className="text-xs lg:text-sm font-black text-main group-hover:text-primary transition-colors truncate leading-snug">
+                                  {item.title}
+                                </h3>
+                              </div>
+                            </div>
+                            
+                            <span className="text-[8px] font-mono text-ghost bg-surface-base border border-border-subtle px-1.5 py-0.5 rounded uppercase font-bold tracking-wider leading-none">
+                              Active
+                            </span>
+                          </div>
 
-                        <div className={cn(
-                          "flex items-center gap-2",
-                          isProminent ? "mb-1" : "mb-0"
-                        )}>
-                          <div className={cn(
-                            "rounded-lg bg-surface-base border border-border-subtle flex items-center justify-center transition-all duration-300 group-hover:scale-105 shadow-sm",
-                            isProminent ? "w-[55px] h-[50px]" : "w-5.5 h-5.5",
-                            isProminent ? "group-hover:bg-primary group-hover:text-surface-base" : cn(
-                              "group-hover:bg-accent group-hover:text-surface-base",
-                              module.id === 'god' && "group-hover:bg-danger text-danger group-hover:text-surface-base"
-                            ),
-                            module.color
-                          )}>
-                            <module.icon className={isProminent ? "w-[30px] h-[30px]" : "w-[40px] h-[25px]"} />
-                          </div>
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <h3 className={cn(
-                              "font-black text-main transition-colors tracking-tight truncate leading-none",
-                              isProminent ? "text-xl group-hover:text-primary" : cn("text-base group-hover:text-accent", module.id === 'god' && "group-hover:text-danger")
-                            )}>
-                              {module.title}
-                            </h3>
-                            {!isProminent && (
-                              <p className="text-[7.5px] text-dim truncate opacity-70 mt-0.5">{module.description}</p>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {isProminent && (
-                          <div className="relative h-14 mt-2 px-0.5">
-                            <p 
-                              className={cn(
-                                "text-[10px] text-dim leading-relaxed transition-all duration-300 absolute inset-0 line-clamp-2 ml-[65px]",
-                                hoveredModule === module.id ? "lg:opacity-0 lg:-translate-y-2" : "opacity-80 translate-y-0"
-                              )}
-                            >
-                              {module.description}
-                            </p>
-                            <div className={cn(
-                              "grid grid-cols-3 gap-1.5 transition-all duration-500 absolute inset-0",
-                              hoveredModule === module.id ? "opacity-100 translate-y-0" : "lg:opacity-0 lg:translate-y-2 lg:pointer-events-none"
-                            )}>
-                              {module.subTools?.slice(0, 3).map((tool, i) => (
-                                <button 
-                                  key={i}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const targetId = SUBTOOL_MAPPING[tool] || module.id;
-                                    handleModuleClick(targetId);
-                                  }}
-                                  className={cn(
-                                    "flex items-center justify-center text-[9px] font-black px-2 h-8 rounded-xl border border-primary/20 bg-primary/5 text-primary uppercase tracking-wider hover:bg-primary hover:text-white transition-all cursor-pointer z-10 shadow-sm text-center self-center",
-                                    "hover:scale-[1.03] active:scale-[0.97]"
-                                  )}
-                                >
-                                  <span className="line-clamp-1 leading-none">{tool}</span>
-                                </button>
+                          <p className="text-[11px] text-dim leading-relaxed mt-3.5 mb-4 flex-1">
+                            {item.description}
+                          </p>
+                          
+                          <div className="flex items-center justify-between border-t border-border-subtle/30 pt-3 mt-auto">
+                            <div className="flex flex-wrap gap-1">
+                              {item.tags.slice(0, 3).map((tag, tIdx) => (
+                                <span key={tIdx} className="text-[8px] font-mono uppercase tracking-wider bg-surface-base text-ghost px-1.5 py-0.5 border border-border-subtle/40 rounded">
+                                  {tag}
+                                </span>
                               ))}
                             </div>
+                            <span className="text-[9px] font-black text-primary uppercase tracking-[0.15em] opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-1 group-hover:translate-x-0">
+                              Launch
+                            </span>
                           </div>
-                        )}
-                        
-                        {isProminent && (
-                          <div className="mt-auto pt-1 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0 border-t border-border-subtle/10">
-                            <span className="text-[7.5px] font-black text-primary uppercase tracking-[0.2em]">Open</span>
-                            <ChevronRight className="w-2.5 h-2.5 text-primary" />
-                          </div>
-                        )}
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      );
+                    })}
                   </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
+                    <div className="w-14 h-14 bg-surface-2 rounded-2xl flex items-center justify-center border border-dashed border-border-subtle text-dim mb-4 animate-pulse">
+                      <Search className="w-5 h-5 text-ghost" />
+                    </div>
+                    <h4 className="text-sm font-bold text-main">No authorized capabilities found</h4>
+                    <p className="text-xs text-ghost max-w-sm mt-1 px-4 leading-normal">
+                      We couldn't access any modules matching <span className="text-primary font-bold">"{homeSearchQuery}"</span> under your current security credentials policy.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Regular dashboard module groups list with enriched sizing for big screens */
+              filteredGroups.map((group, groupIdx) => {
+                const isProminent = group.title === 'Project' || group.title === 'Support';
+                const isDashboard = group.title === 'Dashboard';
+                const isAdmin = group.title === 'Admin';
+                
+                return (
+                  <motion.div 
+                    key={group.title}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: groupIdx * 0.08 }}
+                    className={cn(
+                      "flex flex-col min-h-fit shrink-0 transition-all duration-500",
+                      isProminent ? "mb-1.5 lg:mb-2 xl:mb-3" : "mb-1 lg:mb-1.5 xl:mb-2"
+                    )}
+                  >
+                    <div className={cn("flex items-center gap-3 mb-1.5 px-1", isAdmin && "h-[15.5104px]")}>
+                      <h2 className="text-[9px] lg:text-[10px] xl:text-[11px] font-black text-dim uppercase tracking-[0.25em] whitespace-nowrap opacity-60">
+                        {group.title}
+                      </h2>
+                      <div className="h-px flex-1 bg-gradient-to-r from-border-subtle to-transparent" />
+                    </div>
+
+                    <div className={cn(
+                      "flex flex-col rounded-xl",
+                      (isDashboard || isAdmin) && "bg-surface-1/5 p-2 lg:p-3.5 border border-border-subtle/10 shadow-sm"
+                    )}>
+                      <div className={cn(
+                        "grid gap-2 lg:gap-3 xl:gap-4 w-full",
+                        isProminent 
+                          ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" 
+                          : (isDashboard || isAdmin)
+                            ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
+                            : "grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                      )}>
+                        {group.modules.map((module, moduleIdx) => (
+                        <motion.div
+                          key={module.id}
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: (groupIdx * 0.08) + (moduleIdx * 0.04) }}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => handleModuleClick(module.id)}
+                          onKeyDown={(e) => {
+                             if (e.key === 'Enter' || e.key === ' ') {
+                               e.preventDefault();
+                               handleModuleClick(module.id);
+                             }
+                          }}
+                          onMouseEnter={() => setHoveredModule(module.id)}
+                          onMouseLeave={() => setHoveredModule(null)}
+                          className={cn(
+                            "group relative flex flex-col bg-surface-1 border border-border-subtle rounded-xl p-2.5 lg:p-3 xl:p-4 text-left transition-all duration-300 hover:shadow-xl overflow-hidden w-full cursor-pointer",
+                            isProminent 
+                              ? "hover:border-primary hover:bg-surface-2 h-[155px] lg:h-[180px] xl:h-[200px] hover:shadow-primary/5 shadow-sm" 
+                              : cn(
+                                "hover:border-accent hover:bg-surface-2 h-full min-h-[50px] lg:min-h-[58px] xl:min-h-[66px] border-dashed hover:shadow-accent/5 focus:outline-none focus:ring-1 focus:ring-accent/50",
+                                module.id === 'god' && "hover:border-danger hover:shadow-danger/5 shadow-sm border-solid focus:ring-danger/50"
+                              )
+                          )}
+                        >
+                          {/* Three-dot context menu */}
+                          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                              className="p-1 hover:bg-surface-3 rounded-md text-ghost hover:text-main transition-colors"
+                            >
+                              <MoreHorizontal className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+
+                          <div className={cn(
+                            "flex items-center gap-2 lg:gap-3",
+                            isProminent ? "mb-1" : "mb-0"
+                          )}>
+                            <div className={cn(
+                              "rounded-lg bg-surface-base border border-border-subtle flex items-center justify-center transition-all duration-300 group-hover:scale-105 shadow-sm flex-shrink-0",
+                              isProminent ? "w-11 h-9.5 lg:w-[46px] lg:h-[40px] xl:w-[50px] xl:h-[44px]" : "w-7 h-7 lg:w-8 h-8 xl:w-9 h-9",
+                              isProminent ? "group-hover:bg-primary group-hover:text-surface-base" : cn(
+                                "group-hover:bg-accent group-hover:text-surface-base",
+                                module.id === 'god' && "group-hover:bg-danger text-danger group-hover:text-surface-base"
+                              ),
+                              module.color
+                            )}>
+                              <module.icon className={isProminent ? "w-5 h-5 lg:w-[22px] lg:h-[22px] xl:w-[24px] xl:h-[24px]" : "w-4 h-4"} />
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <h3 className={cn(
+                                "font-black text-main transition-colors tracking-tight truncate leading-none",
+                                isProminent 
+                                  ? "text-sm lg:text-base xl:text-lg group-hover:text-primary" 
+                                  : cn("text-xs lg:text-sm group-hover:text-accent", module.id === 'god' && "group-hover:text-danger")
+                              )}>
+                                {module.title}
+                              </h3>
+                              {!isProminent && (
+                                <p className="text-[7.5px] lg:text-[8px] text-dim truncate opacity-70 mt-0.5">{module.description}</p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {isProminent && (
+                            <div className="relative flex-1 mt-2.5 min-h-[50px] lg:min-h-[58px] xl:min-h-[66px] px-0.5">
+                              <p 
+                                className={cn(
+                                  "text-[10px] lg:text-[11px] xl:text-[11.5px] text-dim leading-relaxed transition-all duration-300 w-full",
+                                  "lg:absolute lg:inset-x-0 lg:top-0 line-clamp-3",
+                                  hoveredModule === module.id ? "lg:opacity-0 lg:-translate-y-2 lg:pointer-events-none" : "opacity-80 translate-y-0"
+                                )}
+                              >
+                                {module.description}
+                              </p>
+                              <div className={cn(
+                                "grid grid-cols-3 gap-1 lg:gap-1.5 transition-all duration-500 mt-2 lg:mt-0",
+                                "lg:absolute lg:inset-0",
+                                hoveredModule === module.id ? "opacity-100 translate-y-0" : "lg:opacity-0 lg:translate-y-2 lg:pointer-events-none"
+                              )}>
+                                {module.subTools?.slice(0, 3).map((tool, i) => (
+                                  <button 
+                                    key={i}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const targetId = SUBTOOL_MAPPING[tool] || module.id;
+                                      handleModuleClick(targetId);
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center text-[9px] lg:text-[10px] xl:text-[11px] font-black px-1 py-1.5 h-8.5 lg:h-9 rounded-lg border border-primary/20 bg-primary/5 text-primary uppercase tracking-wider hover:bg-primary hover:text-white transition-all cursor-pointer z-10 shadow-sm text-center self-center",
+                                      "hover:scale-[1.03] active:scale-[0.97]"
+                                    )}
+                                  >
+                                    <span className="line-clamp-2 leading-tight">{tool}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {isProminent && (
+                            <div className="mt-auto pt-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0 border-t border-border-subtle/10">
+                              <span className="text-[7.5px] font-black text-primary uppercase tracking-[0.2em]">Open Module</span>
+                              <ChevronRight className="w-2.5 h-2.5 text-primary" />
+                            </div>
+                          )}
+                        </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+
+            {/* Live Cockpit Insights Footer - Condense to premium two lines to free up space for taller cards */}
+            {!homeSearchQuery.trim() && (
+              <div className="mt-2 text-[10px] border border-border-subtle/60 bg-gradient-to-r from-surface-1/40 to-surface-2/15 px-4 py-1.5 rounded-xl relative overflow-hidden flex-shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-500 leading-normal">
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-[0.05] pointer-events-none">
+                  <Globe className="w-12 h-12 text-primary animate-pulse" />
                 </div>
-              </motion.div>
-              );
-            })}
+                <div className="flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-dim">
+                  <span className="flex items-center gap-1.5 font-bold text-main uppercase tracking-widest text-[9px]">
+                    <Activity className="w-3 h-3 text-primary animate-pulse" />
+                    Operational Cockpit:
+                  </span>
+                  <span className="flex items-center gap-1 text-main font-semibold">
+                    <ShieldCheck className="w-3 h-3 text-primary" /> Active Workspace ({cleanRichText(companyName)})
+                  </span>
+                  <span className="text-border-subtle">|</span>
+                  <span className="flex items-center gap-1">
+                    <Cpu className="w-3 h-3 text-accent" /> V2 Real-time Sync Active
+                  </span>
+                  <span className="text-border-subtle">|</span>
+                  <span className="flex items-center gap-1">
+                    <Globe className="w-3 h-3 text-warning" /> Nairobi KE Regional Node
+                  </span>
+                  <span className="ml-auto font-mono text-[8px] uppercase text-ghost tracking-widest">Integrity: 100%</span>
+                </div>
+                <div className="text-[10px] text-ghost/75 mt-1 font-medium leading-normal flex items-center gap-1.5">
+                  <span className="w-1 h-1 rounded-full bg-primary/60 animate-ping" />
+                  Telemetry mapping validated. Daily Logs, Planning, Procurement, and Subcontractor status records are fully synchronized under secure compliance.
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
     </div>
   );
 }
