@@ -727,7 +727,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
             className={cn(
               "px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5",
               activeTab === 'matrix'
-                ? "bg-primary text-surface-base border-primary shadow-sm"
+                ? "bg-primary text-white border-primary shadow-sm"
                 : "bg-surface-base border-border-subtle text-ghost hover:text-main"
             )}
           >
@@ -741,7 +741,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
             className={cn(
               "px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 relative",
               activeTab === 'packages'
-                ? "bg-primary text-surface-base border-primary shadow-sm"
+                ? "bg-primary text-white border-primary shadow-sm"
                 : "bg-surface-base border-border-subtle text-ghost hover:text-main"
             )}
           >
@@ -758,7 +758,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
             className={cn(
               "px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5",
               activeTab === 'pos'
-                ? "bg-primary text-surface-base border-primary shadow-sm"
+                ? "bg-primary text-white border-primary shadow-sm"
                 : "bg-surface-base border-border-subtle text-ghost hover:text-main"
             )}
           >
@@ -772,7 +772,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
             className={cn(
               "px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5",
               activeTab === 'analytics'
-                ? "bg-primary text-surface-base border-primary shadow-sm"
+                ? "bg-primary text-white border-primary shadow-sm"
                 : "bg-surface-base border-border-subtle text-ghost hover:text-main"
             )}
           >
@@ -853,7 +853,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
                 <button
                   id="btn-quick-fill"
                   onClick={quickFillRealisticTestingQuotes}
-                  className="w-full py-1.5 bg-primary/10 hover:bg-primary border border-primary/20 text-primary hover:text-surface-base text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
+                  className="w-full py-1.5 bg-primary/10 hover:bg-primary border border-primary/20 text-primary hover:text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
                   title="Simulate realistic quotes responses from direct manufacturers"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
@@ -928,7 +928,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
                           {totalCost > 0 && selectedPackage.status !== 'winner_awarded' && (
                             <button
                               onClick={() => handleAwardWinner(sup.id)}
-                              className="text-[10px] bg-primary text-surface-base font-bold px-2 py-0.5 rounded shadow hover:scale-105 active:scale-95 transition-all"
+                              className="text-[10px] bg-primary text-white font-bold px-2 py-0.5 rounded shadow hover:scale-105 active:scale-95 transition-all"
                             >
                               Award Winner
                             </button>
@@ -1201,7 +1201,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
 
                                 <button
                                   type="submit"
-                                  className="bg-primary text-surface-base font-bold text-xs py-1.5 px-3.5 rounded-lg shadow-md hover:brightness-110 active:scale-95 transition-all"
+                                  className="bg-primary text-white font-bold text-xs py-1.5 px-3.5 rounded-lg shadow-md hover:brightness-110 active:scale-95 transition-all"
                                 >
                                   Add Row
                                 </button>
@@ -1241,7 +1241,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
 
                         <button
                           type="submit"
-                          className="bg-primary/20 hover:bg-primary text-primary hover:text-surface-base hover:border-transparent text-xs font-bold px-3.5 py-1.5 border border-primary/20 rounded-lg transition-colors"
+                          className="bg-primary/20 hover:bg-primary text-primary hover:text-white hover:border-transparent text-xs font-bold px-3.5 py-1.5 border border-primary/20 rounded-lg transition-colors"
                         >
                           Add Column
                         </button>
@@ -1317,7 +1317,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
 
                 <button
                   type="submit"
-                  className="w-full py-2 bg-primary text-surface-base text-xs font-black tracking-wide rounded-lg shadow hover:brightness-110 active:scale-95 transition-all"
+                  className="w-full py-2 bg-primary text-white text-xs font-black tracking-wide rounded-lg shadow hover:brightness-110 active:scale-95 transition-all"
                 >
                   Assemble Empty RFQ Chamber
                 </button>
@@ -1386,7 +1386,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
 
                           <button
                             onClick={() => { setSelectedPackage(pkg); setActiveTab('matrix'); }}
-                            className="bg-primary text-surface-base px-3 py-1.5 text-xs font-bold rounded-lg shadow flex items-center gap-1 hover:brightness-105 active:scale-95 transition-all"
+                            className="bg-primary text-white px-3 py-1.5 text-xs font-bold rounded-lg shadow flex items-center gap-1 hover:brightness-105 active:scale-95 transition-all"
                           >
                             Enter Matrix
                             <ChevronRight className="w-4 h-4" />
@@ -1462,7 +1462,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
                 </p>
                 <button
                   onClick={() => setActiveTab('matrix')}
-                  className="bg-primary text-surface-base text-xs font-bold px-4 py-2 rounded-lg shadow"
+                  className="bg-primary text-white text-xs font-bold px-4 py-2 rounded-lg shadow"
                 >
                   Configure Matrix Bids
                 </button>
@@ -1645,7 +1645,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
                 <button
                   type="button"
                   onClick={handleParseExcelPaste}
-                  className="bg-emerald-500 text-surface-base hover:brightness-115 text-xs font-black px-5 py-2 rounded-xl flex items-center gap-1.5 shadow"
+                  className="bg-emerald-500 text-white hover:brightness-115 text-xs font-black px-5 py-2 rounded-xl flex items-center gap-1.5 shadow"
                 >
                   <Upload className="w-4 h-4" /> Import Cells
                 </button>

@@ -69,17 +69,37 @@ export function FinancialDashboard({ projectId }: FinancialDashboardProps) {
         { data: project },
         { data: boq },
         { data: actuals },
-        { data: subcontractors },
+        subcontractorsRes,
         { data: variations }
       ] = await Promise.all([
         supabase.from('projects').select('id, name').eq('id', projectId).single(),
         supabase.from('boq_items').select('quantity, rate, contract_qty, contract_rate, contract_amount, surveyed_qty').eq('project_id', projectId),
         supabase.from('daily_progress').select('actual_total_cost').eq('project_id', projectId).eq('status', 'reviewed'),
-        supabase.from('payment_certificates').select('gross_amount').eq('project_id', projectId).in('status', ['certified', 'paid']),
+        Promise.resolve(supabase.from('payment_certificates').select('gross_amount').eq('project_id', projectId).in('status', ['certified', 'paid']))
+          .then(res => {
+            if (res.error) {
+              console.warn('FinancialDashboard fallback: payment_certificates is missing, querying local certificates');
+              const key = `local_payment_certs_${projectId}`;
+              const stored = localStorage.getItem(key);
+              const localCerts = stored ? JSON.parse(stored) : [];
+              const certifiedLocal = localCerts.filter((c: any) => c.status === 'certified' || c.status === 'paid');
+              return { data: certifiedLocal, error: null };
+            }
+            return res;
+          })
+          .catch(() => {
+            const key = `local_payment_certs_${projectId}`;
+            const stored = localStorage.getItem(key);
+            const localCerts = stored ? JSON.parse(stored) : [];
+            const certifiedLocal = localCerts.filter((c: any) => c.status === 'certified' || c.status === 'paid');
+            return { data: certifiedLocal, error: null };
+          }),
         supabase.from('variations').select('estimated_cost').eq('project_id', projectId).eq('status', 'approved')
       ]);
 
       if (!project) return;
+
+      const subcontractors = subcontractorsRes?.data || [];
 
       const p_boq = boq?.reduce((sum, b) => {
         const qty = b.contract_qty ?? b.quantity ?? 0;
@@ -94,7 +114,7 @@ export function FinancialDashboard({ projectId }: FinancialDashboardProps) {
         return sum + amount;
       }, 0) || 0;
       const p_actuals = actuals?.reduce((sum, a) => sum + (a.actual_total_cost || 0), 0) || 0;
-      const p_sub = subcontractors?.reduce((sum, s) => sum + (s.gross_amount || 0), 0) || 0;
+      const p_sub = subcontractors?.reduce((sum: number, s: any) => sum + (s.gross_amount || s.net_amount || 0), 0) || 0;
       const p_vars = variations?.reduce((sum, v) => sum + (v.estimated_cost || 0), 0) || 0;
 
       setData({

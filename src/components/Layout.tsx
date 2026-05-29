@@ -32,8 +32,12 @@ import {
   Globe,
   DollarSign,
   Sun,
-  Moon
+  Moon,
+  AlertTriangle,
+  AlertCircle,
+  Info
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import { UserProfile, Project, Tenant } from '../types';
@@ -302,6 +306,117 @@ export function Layout({
     }
   }, [notification]);
 
+  const [dbAlerts, setDbAlerts] = React.useState<any[]>([]);
+  const [showNotificationDropdown, setShowNotificationDropdown] = React.useState(false);
+
+  const fetchHeaderAlerts = async () => {
+    if (!user.tenant_id) return;
+    try {
+      const { data, error } = await supabase
+        .from('alerts')
+        .select('*')
+        .eq('tenant_id', user.tenant_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data && data.length === 0) {
+        // Table is empty, seed it with initial workspace alerts so they are REAL database records that can be closed/marked read
+        const { error: seedError } = await supabase.from('alerts').insert([
+          {
+            tenant_id: user.tenant_id,
+            title: 'Platform Guide Active',
+            message: 'Welcome to your premium CEFLOT workspace. Try configuring a new project or manage subcontractors.',
+            type: 'info',
+            is_read: false,
+            created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString() // 30 mins ago
+          },
+          {
+            tenant_id: user.tenant_id,
+            title: 'System Node Standard Sync',
+            message: 'All core ledgers, trades, and procurement records are fully synchronized.',
+            type: 'success',
+            is_read: true,
+            created_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString() // 4 hours ago
+          }
+        ]);
+
+        if (!seedError) {
+          const { data: refetched } = await supabase
+            .from('alerts')
+            .select('*')
+            .eq('tenant_id', user.tenant_id)
+            .order('created_at', { ascending: false });
+          setDbAlerts(refetched || []);
+        } else {
+          setDbAlerts([]);
+        }
+      } else {
+        setDbAlerts(data || []);
+      }
+    } catch (e) {
+      console.error('Error fetching header alerts:', e);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchHeaderAlerts();
+    if (!user.tenant_id) return;
+
+    const channel = supabase
+      .channel('header_alerts_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'alerts', filter: `tenant_id=eq.${user.tenant_id}` },
+        () => {
+          fetchHeaderAlerts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user.tenant_id]);
+
+  const displayNotifications = React.useMemo(() => {
+    return dbAlerts;
+  }, [dbAlerts]);
+
+  const unreadCount = React.useMemo(() => {
+    return displayNotifications.filter(n => !n.is_read).length;
+  }, [displayNotifications]);
+
+  const markAlertAsRead = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ is_read: true })
+        .eq('id', id);
+      if (error) throw error;
+      fetchHeaderAlerts();
+    } catch (err: any) {
+      console.error('Error marking alert as read:', err);
+    }
+  };
+
+  const markAllAlertsAsRead = async () => {
+    const unreadDbAlerts = dbAlerts.filter(a => !a.is_read);
+    if (unreadDbAlerts.length === 0) return;
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ is_read: true })
+        .eq('tenant_id', user.tenant_id)
+        .eq('is_read', false);
+      if (error) throw error;
+      fetchHeaderAlerts();
+    } catch (err: any) {
+      console.error('Error marking all alerts as read:', err);
+    }
+  };
+
   let lastSection: string | null = null;
 
   return (
@@ -520,10 +635,174 @@ export function Layout({
                 </button>
               </div>
 
-              <button className="relative p-2 text-dim hover:text-main transition-colors hidden sm:block">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-2 right-2.5 w-1.5 h-1.5 bg-danger rounded-full ring-2 ring-surface-1" />
-              </button>
+              <div className="relative hidden sm:block">
+                <button 
+                  onClick={() => setShowNotificationDropdown(prev => !prev)}
+                  className={cn(
+                    "relative p-2 rounded-xl border transition-all cursor-pointer",
+                    showNotificationDropdown 
+                      ? "bg-surface-2 border-primary text-primary" 
+                      : "text-dim border-transparent hover:bg-surface-2 hover:text-main"
+                  )}
+                  title="Updates and Alerts"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-danger text-[8px] font-black text-white rounded-full flex items-center justify-center ring-2 ring-surface-1 animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {showNotificationDropdown && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40 bg-transparent" 
+                      onClick={() => setShowNotificationDropdown(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 12, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 12, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-12 mt-2 w-[360px] bg-surface-1 border border-border-muted rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col"
+                    >
+                      {/* Dropdown Header */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-surface-base">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-primary" />
+                          <h4 className="text-[10px] font-black tracking-widest text-main uppercase">
+                            Operational Alerts
+                          </h4>
+                          {unreadCount > 0 && (
+                            <span className="bg-primary/10 text-primary text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-primary/20">
+                              {unreadCount} New
+                            </span>
+                          )}
+                        </div>
+                        {unreadCount > 0 && (
+                          <button 
+                            onClick={() => {
+                              markAllAlertsAsRead();
+                              // Or update local state dummy ones
+                              setDbAlerts(prev => prev.map(a => ({...a, is_read: true})));
+                            }}
+                            className="text-[9px] font-black text-primary hover:text-primary-hover uppercase tracking-wider transition-colors cursor-pointer"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Dropdown List */}
+                      <div className="max-h-[300px] overflow-y-auto custom-scrollbar divide-y divide-border-subtle/50">
+                        {displayNotifications.length > 0 ? (
+                          displayNotifications.map((noti) => {
+                            const isUnread = !noti.is_read;
+                            const timeAgo = (() => {
+                              try {
+                                const d = new Date(noti.created_at);
+                                const diffMs = Date.now() - d.getTime();
+                                const diffMins = Math.floor(diffMs / 60000);
+                                if (diffMins < 1) return 'Just now';
+                                if (diffMins < 60) return `${diffMins}m ago`;
+                                const diffHrs = Math.floor(diffMins / 60);
+                                if (diffHrs < 24) return `${diffHrs}h ago`;
+                                const diffDays = Math.floor(diffHrs / 24);
+                                if (diffDays === 1) return 'Yesterday';
+                                return d.toLocaleDateString();
+                              } catch {
+                                return '';
+                              }
+                            })();
+                            
+                            // Get visual attributes depending on type of alert
+                            let IconComponent = Info;
+                            let iconColor = 'text-blue-500';
+                            let bgColor = 'bg-blue-500/10';
+                            let borderColor = 'border-blue-500/20';
+
+                            const cat = noti.type || noti.category;
+
+                            if (cat === 'warning') {
+                              IconComponent = AlertTriangle;
+                              iconColor = 'text-amber-500';
+                              bgColor = 'bg-amber-500/10';
+                              borderColor = 'border-amber-500/20';
+                            } else if (cat === 'danger' || cat === 'critical') {
+                              IconComponent = AlertCircle;
+                              iconColor = 'text-danger';
+                              bgColor = 'bg-danger/10';
+                              borderColor = 'border-danger/20';
+                            } else if (cat === 'success') {
+                              IconComponent = CheckCircle;
+                              iconColor = 'text-primary';
+                              bgColor = 'bg-primary/10';
+                              borderColor = 'border-primary/20';
+                            }
+
+                            return (
+                              <div 
+                                key={noti.id}
+                                className={cn(
+                                  "p-3.5 flex items-start gap-3 hover:bg-surface-2/45 transition-colors group cursor-default relative",
+                                  isUnread && "bg-primary/5 border-l-2 border-l-primary"
+                                )}
+                              >
+                                <div className={cn(
+                                  "w-8 h-8 rounded-lg shrink-0 border flex items-center justify-center",
+                                  bgColor, borderColor, iconColor
+                                )}>
+                                  <IconComponent className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0 pr-4">
+                                  <div className="flex items-start justify-between gap-1.5">
+                                    <h5 className="text-[11px] font-bold text-main leading-snug">
+                                      {noti.title}
+                                    </h5>
+                                    {isUnread && (
+                                      <button 
+                                        onClick={(e) => markAlertAsRead(noti.id, e)}
+                                        className="text-[9px] font-bold text-ghost hover:text-primary transition-colors opacity-0 group-hover:opacity-100 uppercase tracking-tighter shrink-0 cursor-pointer"
+                                        title="Mark as read"
+                                      >
+                                        Dismiss
+                                      </button>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-dim leading-relaxed mt-1">
+                                    {noti.message}
+                                  </p>
+                                  <span className="text-[8px] font-mono text-ghost/75 block mt-2 tracking-wide uppercase">
+                                    {timeAgo}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="p-8 text-center flex flex-col items-center justify-center">
+                            <CheckCircle className="w-8 h-8 text-ghost/40 mb-2" />
+                            <p className="text-xs font-bold text-main">All caught up!</p>
+                            <span className="text-[10px] text-ghost/75 mt-0.5">No new notifications on this dashboard.</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Dropdown Footer */}
+                      <button 
+                        onClick={() => {
+                          setShowNotificationDropdown(false);
+                          setActivePanel('alerts');
+                        }}
+                        className="w-full text-center py-2.5 bg-surface-base border-t border-border-subtle text-[10px] font-black text-primary hover:text-primary-hover uppercase tracking-widest transition-colors cursor-pointer"
+                      >
+                        Launch Alerts Dashboard ↗
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </div>
 
               <div className="w-px h-6 bg-border-subtle mx-1 hidden sm:block" />
 

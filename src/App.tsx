@@ -50,7 +50,9 @@ export default function App() {
   const [panelHistory, setPanelHistory] = useState<string[]>(['home']);
   const [pendingPanel, setPendingPanel] = useState<string | null>(null);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('ceflot-theme') as 'dark' | 'light') || 'dark';
+  });
   const [counts, setCounts] = useState({
     projects: 0,
     resources_global: 0,
@@ -73,6 +75,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light');
     document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('ceflot-theme', theme);
   }, [theme]);
 
   const loadCounts = async () => {

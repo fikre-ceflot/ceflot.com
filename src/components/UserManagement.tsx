@@ -431,7 +431,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
         </div>
         <button 
           onClick={() => setIsInviting(true)}
-          className="bg-primary text-surface-base px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 transition-all flex items-center gap-2 cursor-pointer"
+          className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 transition-all flex items-center gap-2 cursor-pointer"
         >
           <UserPlus className="w-4 h-4" />
           Add Team Member
@@ -551,7 +551,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                   )}
                   <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-6 border-t border-border-subtle">
                     <button type="button" onClick={() => setIsInviting(false)} className="px-5 py-2.5 text-sm font-bold text-dim hover:text-main transition-colors">Cancel</button>
-                    <button type="submit" disabled={loading} className="bg-primary text-surface-base px-8 py-2.5 rounded-lg text-sm font-bold hover:bg-primary/90 transition-all flex items-center gap-2">
+                    <button type="submit" disabled={loading} className="bg-primary text-white px-8 py-2.5 rounded-lg text-sm font-bold hover:bg-primary/90 transition-all flex items-center gap-2">
                       {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                       Create Account
                     </button>
@@ -681,7 +681,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                       </div>
                                       <div className={cn(
                                         "w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0",
-                                        isChecked ? "bg-primary border-primary text-surface-base" : "border-border-subtle"
+                                        isChecked ? "bg-primary border-primary text-white" : "border-border-subtle"
                                       )}>
                                         {isChecked && <Check className="w-2.5 h-2.5" />}
                                       </div>
@@ -705,7 +705,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                         <button 
                           type="submit" 
                           disabled={loading}
-                          className="flex-1 bg-primary text-surface-base px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
+                          className="flex-1 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
                         >
                           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                           Update Profile
@@ -767,7 +767,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                     </div>
                                     <div className={cn(
                                       "w-5 h-5 rounded-md flex items-center justify-center transition-all",
-                                      isActive ? "bg-primary text-surface-base" : "bg-surface-3 border border-border-subtle"
+                                      isActive ? "bg-primary text-white" : "bg-surface-3 border border-border-subtle"
                                     )}>
                                       {isActive && <Check className="w-3 h-3" />}
                                     </div>
@@ -1210,7 +1210,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                           </div>
                           <div className="bg-surface-2 rounded-lg p-3 space-y-2 text-left">
                             <div className="text-[10px] font-bold text-main">Live Operations Menu:</div>
-                            <button className="w-full text-center py-2 bg-primary text-surface-base font-bold text-[10px] uppercase rounded-lg shadow-sm cursor-pointer hover:bg-primary/95">
+                            <button className="w-full text-center py-2 bg-primary text-white font-bold text-[10px] uppercase rounded-lg shadow-sm cursor-pointer hover:bg-primary/95">
                               Log Materials Receipt (GRN)
                             </button>
                           </div>

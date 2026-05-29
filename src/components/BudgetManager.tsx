@@ -3745,7 +3745,7 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                         </div>
                         <div className="flex justify-end gap-3 pt-3 border-t border-primary/10">
                           <button onClick={() => setIsAddingFactor(false)} className="px-4 py-2 text-xs font-bold text-ghost hover:text-main">CANCEL</button>
-                          <button onClick={handleAddFactor} className="px-4 py-2 bg-primary text-surface-base rounded-lg shadow-lg hover:bg-primary/90 text-xs font-bold uppercase tracking-widest">Apply To Budget</button>
+                          <button onClick={handleAddFactor} className="px-4 py-2 bg-primary text-white rounded-lg shadow-lg hover:bg-primary/90 text-xs font-bold uppercase tracking-widest">Apply To Budget</button>
                         </div>
                       </div>
                     )}
@@ -3794,7 +3794,7 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                   </button>
                   <button
                     onClick={confirmBudgetChanges}
-                    className="flex-[2] bg-primary text-surface-base text-xs font-bold py-2.5 rounded-xl hover:bg-primary/95 transition-all shadow-lg shadow-primary/25 flex items-center justify-center cursor-pointer"
+                    className="flex-[2] bg-primary text-white text-xs font-bold py-2.5 rounded-xl hover:bg-primary/95 transition-all shadow-lg shadow-primary/25 flex items-center justify-center cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4 mr-2" />
                     Confirm
@@ -3842,7 +3842,7 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
               </>
             ) : (
               <>
-                <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-surface-base mx-auto mb-6 shadow-[0_0_20px_rgba(0,200,150,0.3)]">
+                <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white mx-auto mb-6 shadow-[0_0_20px_rgba(0,200,150,0.3)]">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="text-xl font-bold text-main mb-2">Build Complete!</h3>
@@ -3851,7 +3851,7 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                 </p>
                 <button 
                   onClick={() => setShowRefreshModal(false)}
-                  className="w-full py-3 bg-primary text-surface-base rounded-xl font-bold hover:bg-primary/90 transition-all uppercase tracking-widest text-xs"
+                  className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all uppercase tracking-widest text-xs"
                 >
                   View Final Report
                 </button>
@@ -4132,7 +4132,7 @@ function CostFactorCalculator({ baseRate, onApply }: CostFactorCalculatorProps) 
                   onApply(finalRate);
                   setIsOpen(false);
                 }}
-                className="w-full py-1.5 bg-primary text-surface-base rounded text-[10px] font-bold uppercase transition-colors hover:bg-primary/90"
+                className="w-full py-1.5 bg-primary text-white rounded text-[10px] font-bold uppercase transition-colors hover:bg-primary/90"
               >
                 Apply Rate Build-up
               </button>

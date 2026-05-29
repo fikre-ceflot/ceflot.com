@@ -105,13 +105,54 @@ export function CrossProjectFinancials() {
         { data: projects },
         { data: boq },
         { data: actuals },
-        { data: subcontractors },
+        subcontractorsRes,
         { data: variations }
       ] = await Promise.all([
         supabase.from('projects').select('id, name, tenant_id'),
         supabase.from('boq_items').select('project_id, quantity, rate, contract_qty, contract_rate, contract_amount, surveyed_qty'),
         supabase.from('daily_progress').select('project_id, actual_total_cost').eq('status', 'reviewed'),
-        supabase.from('payment_certificates').select('project_id, gross_amount').in('status', ['certified', 'paid']),
+        Promise.resolve(supabase.from('payment_certificates').select('project_id, gross_amount').in('status', ['certified', 'paid']))
+          .then(res => {
+            if (res.error) {
+              console.warn('CrossProjectFinancials: payment_certificates is missing, querying local certificates keys');
+              // Collect all keys in local storage that match local_payment_certs_
+              const allCerts: any[] = [];
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('local_payment_certs_')) {
+                  try {
+                    const stored = localStorage.getItem(key);
+                    if (stored) {
+                      const list = JSON.parse(stored);
+                      allCerts.push(...list.filter((c: any) => c.status === 'certified' || c.status === 'paid'));
+                    }
+                  } catch (e) {
+                    console.error('Error parsing local certifications in listing loop', e);
+                  }
+                }
+              }
+              return { data: allCerts, error: null };
+            }
+            return res;
+          })
+          .catch(() => {
+            const allCerts: any[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('local_payment_certs_')) {
+                try {
+                  const stored = localStorage.getItem(key);
+                  if (stored) {
+                    const list = JSON.parse(stored);
+                    allCerts.push(...list.filter((c: any) => c.status === 'certified' || c.status === 'paid'));
+                  }
+                } catch (e) {
+                  console.error('Error parsing local certifications in catching loop', e);
+                }
+              }
+            }
+            return { data: allCerts, error: null };
+          }),
         supabase.from('variations').select('project_id, estimated_cost').eq('status', 'approved')
       ]);
 
@@ -119,6 +160,8 @@ export function CrossProjectFinancials() {
         loadStaticOfflineFinancials();
         return;
       }
+
+      const subcontractors = subcontractorsRes?.data || [];
 
       const aggregated = projects.map(p => {
         const p_boq = boq?.filter(b => b.project_id === p.id).reduce((sum, b) => {
@@ -134,7 +177,7 @@ export function CrossProjectFinancials() {
           return sum + amount;
         }, 0) || 0;
         const p_actuals = actuals?.filter(a => a.project_id === p.id).reduce((sum, a) => sum + (a.actual_total_cost || 0), 0) || 0;
-        const p_sub = subcontractors?.filter(s => s.project_id === p.id).reduce((sum, s) => sum + (s.gross_amount || 0), 0) || 0;
+        const p_sub = subcontractors?.filter((s: any) => s.project_id === p.id).reduce((sum: number, s: any) => sum + (s.gross_amount || s.net_amount || 0), 0) || 0;
         const p_vars = variations?.filter(v => v.project_id === p.id).reduce((sum, v) => sum + (v.estimated_cost || 0), 0) || 0;
 
         return {

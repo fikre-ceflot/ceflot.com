@@ -67,7 +67,7 @@ export function ProjectSelection({
             {canCreate && onCreateNew && !showArchived && (
               <button 
                 onClick={onCreateNew}
-                className="btn btn-accent btn-sm whitespace-nowrap text-surface-base"
+                className="btn btn-primary btn-sm whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" />
                 New Project
