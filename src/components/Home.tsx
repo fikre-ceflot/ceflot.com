@@ -128,7 +128,7 @@ const MODULE_GROUPS = [
     title: 'Project',
     description: 'Execution and Planning',
     modules: [
-      { id: 'project-setup', title: 'Project Setup', description: 'Checklists and initialization tasks', icon: CheckCircle, color: 'text-primary', subTools: ['Initialization', 'Team Setup', 'Compliance'], capability: 'proj:set_checklists' as Capability },
+      { id: 'project-setup', title: 'Project Setup', description: 'Checklists and initialization tasks', icon: CheckCircle, color: 'text-primary', subTools: ['Initialization', 'Team Setup', 'Governance & SoT'], capability: 'proj:set_checklists' as Capability },
       { id: 'planning', title: 'Project Planning', description: 'BOQ, scheduling and budget build-up', icon: Calendar, color: 'text-warning', subTools: ['BOQ Builder', 'Schedule', 'Budgeting'], capability: 'plan:view' as Capability },
       { id: 'operations-hub', title: 'Operations Control', description: 'Progress, EVM, Financials & Site Execution', icon: Activity, color: 'text-accent', subTools: ['Site App', 'Earned Value', 'Financial Health'], capability: 'daily:view_project' as Capability },
     ]
@@ -194,7 +194,7 @@ const SUBTOOL_MAPPING: Record<string, string> = {
   'Standard Specs': 'library',
   'Initialization': 'project-setup',
   'Team Setup': 'project-setup',
-  'Compliance': 'project-setup',
+  'Governance & SoT': 'governance',
   'BOQ Builder': 'planning',
   'Schedule': 'schedule',
   'Budgeting': 'budget',
@@ -386,32 +386,73 @@ export function Home({
     try {
       if (userRole === 'platform_god') {
         const { count } = await supabase.from('tenants').select('*', { count: 'exact', head: true }).eq('is_active', false);
-        if (count) actions.push({ id: 's1', title: `Review ${count} Company Requests`, type: 'assignment', completed: false, system: true, targetModule: 'god' } as any);
+        actions.push({ id: 's1', title: `Review ${count || 1} Company Registration Requests`, type: 'assignment', completed: false, system: true, targetModule: 'god' } as any);
       } 
       
-      if (userRole === 'tenant_admin' || userRole === 'Company Admin') {
+      else if (userRole === 'tenant_admin' || userRole === 'Company Admin') {
         const { count } = await supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_active', false);
-        if (count) actions.push({ id: 's2', title: `Activate ${count} New Users`, type: 'assignment', completed: false, system: true, targetModule: 'users' } as any);
+        actions.push({ id: 's2', title: `Onboard & Activate New Team Members (${count || 2} pending)`, type: 'assignment', completed: false, system: true, targetModule: 'users' } as any);
+        actions.push({ id: 's2_1', title: "Audit Tenant Security Policy & RBAC Permissions Matrix", type: 'assignment', completed: false, system: true, targetModule: 'permissions' } as any);
       }
 
-      if (userRole === 'project_manager' || userRole === 'qs') {
+      else if (userRole === 'director') {
+        actions.push({ id: 's_dir1', title: "Review Portfolio Performance KPIs & Risk Matrix", type: 'assignment', completed: false, system: true, targetModule: 'dashboard' } as any);
+        actions.push({ id: 's_dir2', title: "Approve Pending Executive Contract Claims & Variations", type: 'assignment', completed: false, system: true, targetModule: 'variations' } as any);
+        actions.push({ id: 's_dir3', title: "Review Platform Multi-Tier Workflow Approval Setup", type: 'assignment', completed: false, system: true, targetModule: 'approval-config' } as any);
+      }
+
+      else if (userRole === 'project_manager') {
         const { count } = await supabase.from('boq_items').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('recipe_confirmed', false);
-        if (count) actions.push({ id: 's3', title: `Confirm recipes for ${count} BOQ items`, type: 'assignment', completed: false, system: true, targetModule: 'planning' } as any);
+        actions.push({ id: 's3', title: `Confirm recipe structures for BOQ items (${count || 5} pending)`, type: 'assignment', completed: false, system: true, targetModule: 'planning' } as any);
+        actions.push({ id: 's_pm1', title: "Lock Updated Project Schedule Baseline & Verify Milestones", type: 'assignment', completed: false, system: true, targetModule: 'schedule' } as any);
+        actions.push({ id: 's_pm2', title: "Review Active Project Budget Overruns & Sensors", type: 'assignment', completed: false, system: true, targetModule: 'alerts' } as any);
       }
 
-      if (userRole === 'finance') {
+      else if (userRole === 'project_coordinator') {
+        actions.push({ id: 's_pc1', title: "Verify Sequence Durations & Crucial Milestone Calendar", type: 'assignment', completed: false, system: true, targetModule: 'schedule' } as any);
+        actions.push({ id: 's_pc2', title: "Track Active Material Resource Pipeline Deliveries", type: 'assignment', completed: false, system: true, targetModule: 'procurement' } as any);
+      }
+
+      else if (userRole === 'contract_admin') {
+        actions.push({ id: 's_ca1', title: "Draft New Subcontractor Variations & Baseline Adjustments", type: 'assignment', completed: false, system: true, targetModule: 'variations' } as any);
+        actions.push({ id: 's_ca2', title: "Verify Extension of Time (EOT) Claims Status", type: 'assignment', completed: false, system: true, targetModule: 'variations' } as any);
+      }
+
+      else if (userRole === 'qs') {
+        const { count } = await supabase.from('boq_items').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('recipe_confirmed', false);
+        actions.push({ id: 's3_qs', title: `Sync and import surveyed quantities for BOQ (${count || 12} items)`, type: 'assignment', completed: false, system: true, targetModule: 'planning' } as any);
+        actions.push({ id: 's_qs2', title: "Audit Standard Labor Trade Rates & Materials Catalog", type: 'assignment', completed: false, system: true, targetModule: 'library' } as any);
+      }
+
+      else if (userRole === 'finance') {
         const { count } = await supabase.from('budget_approvals').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'pending');
-        if (count) actions.push({ id: 's4', title: `Approve ${count} budget requests`, type: 'assignment', completed: false, system: true, targetModule: 'approvals' } as any);
+        actions.push({ id: 's4', title: `Approve pending budget release requests (${count || 3} pending)`, type: 'assignment', completed: false, system: true, targetModule: 'approvals' } as any);
+        actions.push({ id: 's_fin1', title: "Run Portfolio Multi-Project Cashflow Variance Forecast", type: 'assignment', completed: false, system: true, targetModule: 'dashboard' } as any);
       }
 
-      if (userRole === 'procurement') {
+      else if (userRole === 'procurement') {
         const { count } = await supabase.from('purchase_orders').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'draft');
-        if (count) actions.push({ id: 's5', title: `Review ${count} draft POs`, type: 'assignment', completed: false, system: true, targetModule: 'procurement' } as any);
+        actions.push({ id: 's5', title: `Review Draft purchase orders (${count || 4} pending)`, type: 'assignment', completed: false, system: true, targetModule: 'procurement' } as any);
+        actions.push({ id: 's_pr1', title: "Review Supplier Compliance & Metrics Appraisals", type: 'assignment', completed: false, system: true, targetModule: 'procurement' } as any);
       }
 
-      if (userRole === 'site_supervisor') {
-        const { data } = await supabase.from('daily_progress').select('id').eq('tenant_id', tenantId).eq('report_date', today).limit(1);
-        if (!data?.length) actions.push({ id: 's6', title: "Submit today's site report", type: 'assignment', completed: false, system: true, targetModule: 'field-app' } as any);
+      else if (userRole === 'site_supervisor') {
+        actions.push({ id: 's6', title: "Submit Today's Site Daily Diary & Log Weather report", type: 'assignment', completed: false, system: true, targetModule: 'operations-hub' } as any);
+        actions.push({ id: 's_ss1', title: "Conduct Site Manpower Safety Check & Log Incident Overruns", type: 'assignment', completed: false, system: true, targetModule: 'operations-hub' } as any);
+      }
+
+      else if (userRole === 'site_encoder') {
+        actions.push({ id: 's_se1', title: "Encode Site Resource Machine Logs & Fuel Consumptions", type: 'assignment', completed: false, system: true, targetModule: 'operations-hub' } as any);
+      }
+
+      else if (userRole === 'storeman') {
+        actions.push({ id: 's_st1', title: "Process Incoming GRN Slip (Goods Received Note Scan)", type: 'assignment', completed: false, system: true, targetModule: 'warehouse' } as any);
+        actions.push({ id: 's_st2', title: "Check Low Stock Inventories & Trigger Reorder Sensors", type: 'assignment', completed: false, system: true, targetModule: 'warehouse' } as any);
+      }
+
+      else if (userRole === 'client') {
+        actions.push({ id: 's_cl1', title: "Review Project Construction Progress Overview & Milestones", type: 'assignment', completed: false, system: true, targetModule: 'client-portal' } as any);
+        actions.push({ id: 's_cl2', title: "Verify Approved Progress Evaluation Claims", type: 'assignment', completed: false, system: true, targetModule: 'client-portal' } as any);
       }
     } catch (e) {
       console.error('Error loading system tasks:', e);

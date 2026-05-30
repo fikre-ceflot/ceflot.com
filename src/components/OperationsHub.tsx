@@ -56,7 +56,7 @@ interface OperationsHubProps {
 }
 
 export function OperationsHub({ project, tenantId }: OperationsHubProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'execution' | 'analytics' | 'subcontractors' | 'risks' | 'site_control' | 'payments' | 'financials'>('overview');
+  const [activeTab, setActiveTab] = useState<'site_health' | 'daily_controls' | 'field_app' | 'subcon_progress'>('site_health');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set([
     'item_no',
@@ -348,7 +348,7 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
   }, [project.id]);
 
   useEffect(() => {
-    if (activeTab === 'execution') {
+    if (activeTab === 'daily_controls') {
       loadReportActivities();
     }
   }, [project.id, activeTab]);
@@ -1121,7 +1121,7 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
                    ))}
                 </div>
              </div>
-             <button onClick={() => setActiveTab('analytics')} className="btn btn-primary btn-sm h-11 w-full rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20">
+             <button onClick={() => setActiveTab('site_health')} className="btn btn-primary btn-sm h-11 w-full rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20">
                Access Intelligence Pipeline
              </button>
           </div>
@@ -1536,14 +1536,10 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
           <div className="pb-2 border-b border-border-subtle">
             <TabBar 
               tabs={[
-                { id: 'overview', label: 'OVERALL HEALTH', icon: Gauge },
-                { id: 'execution', label: 'CONTROLS', icon: Database },
-                { id: 'analytics', label: 'EVM & ANALYTICS', icon: BarChart3 },
-                { id: 'subcontractors', label: 'SUBCONTRACTORS', icon: Users },
-                { id: 'risks', label: 'RISK FEED', icon: ShieldAlert },
-                { id: 'site_control', label: 'SITE CONTROL', icon: Smartphone },
-                { id: 'payments', label: 'PAYMENTS', icon: CreditCard },
-                { id: 'financials', label: 'FINANCIALS', icon: PieChart }
+                { id: 'site_health', label: 'Site Health', icon: Gauge },
+                { id: 'daily_controls', label: 'Daily Controls', icon: Database },
+                { id: 'field_app', label: 'Field App', icon: Smartphone },
+                { id: 'subcon_progress', label: 'Subcontractor Progress', icon: Users }
               ]}
               activeTab={activeTab}
               onChange={setActiveTab}
@@ -1556,22 +1552,23 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
         <div className="h-64 flex items-center justify-center">
           <RefreshCw className="w-6 h-6 text-primary animate-spin" />
         </div>
-      ) : activeTab === 'overview' ? (
-        renderOverallHealth()
-      ) : activeTab === 'execution' ? (
+      ) : activeTab === 'site_health' ? (
+        <div className="space-y-8 animate-in fade-in duration-500">
+          {renderOverallHealth()}
+          <div className="border-t border-border-subtle pt-8">
+            <div className="mb-4">
+              <h2 className="text-sm font-black uppercase text-accent tracking-widest">Dynamic EVM & Advanced Analytics</h2>
+              <p className="text-[10px] text-ghost mt-0.5">Real-time Earned Value Management projections computed from BoQ surveyed outputs and actual progress updates.</p>
+            </div>
+            {renderDetailedAnalytics()}
+          </div>
+        </div>
+      ) : activeTab === 'daily_controls' ? (
         renderExecutionControls()
-      ) : activeTab === 'analytics' ? (
-        renderDetailedAnalytics()
-      ) : activeTab === 'subcontractors' ? (
-        renderSubcontractorsSection()
-      ) : activeTab === 'risks' ? (
-        renderRisks()
-      ) : activeTab === 'site_control' ? (
+      ) : activeTab === 'field_app' ? (
         renderSiteControl()
-      ) : activeTab === 'payments' ? (
-        <PaymentCertificateManager projectId={project.id} tenantId={tenantId} />
-      ) : activeTab === 'financials' ? (
-        <FinancialDashboard projectId={project.id} />
+      ) : activeTab === 'subcon_progress' ? (
+        renderSubcontractorsSection()
       ) : null}
     </div>
   );

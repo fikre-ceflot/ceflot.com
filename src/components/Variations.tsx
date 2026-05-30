@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { GitBranch, Plus, Search, FileText, AlertTriangle, CheckCircle, Clock, MoreHorizontal, ArrowRight, DollarSign, X } from 'lucide-react';
+import { GitBranch, Plus, Search, FileText, AlertTriangle, CheckCircle, Clock, MoreHorizontal, ArrowRight, DollarSign, X, Calendar } from 'lucide-react';
 import { cn, cleanRichText } from '../lib/utils';
 import { Project } from '../types';
+import { EoTClaims } from './EoTClaims';
 
 interface Variation {
   id: string;
@@ -23,6 +24,7 @@ interface VariationsProps {
 }
 
 export function Variations({ project, tenantId }: VariationsProps) {
+  const [activeSubtab, setActiveSubtab] = useState<'variations' | 'eot'>('variations');
   const [variations, setVariations] = useState<Variation[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
@@ -87,43 +89,68 @@ export function Variations({ project, tenantId }: VariationsProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6 ml-[60px]">
+    <div className="flex flex-col gap-6">
       <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 px-1">
         <div className="flex flex-col gap-0.5 md:mt-auto">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Contractual Change</span>
+            <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Contractual Claims Hub</span>
           </div>
           <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">{cleanRichText(project.name)}</h1>
           <div className="flex items-center gap-3 mt-1.5">
             <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-              <span className="text-primary font-black uppercase tracking-widest decoration-primary/30 underline-offset-4">Variation Orders</span>
+              <span className="text-primary font-black uppercase tracking-widest decoration-primary/30 underline-offset-4">
+                {activeSubtab === 'variations' ? 'Variation Orders' : 'Extension of Time (EoT)'}
+              </span>
               <span className="w-1 h-1 rounded-full bg-border-subtle" />
-              <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">{variations.length} Items</span>
+              <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">
+                {activeSubtab === 'variations' ? `${variations.length} items logged` : 'active cases'}
+              </span>
             </div>
-            <div className="h-1 w-1 rounded-full bg-border-subtle" />
-            <span className="text-[10px] font-bold text-dim uppercase tracking-wider">{project.status || 'Active'}</span>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-5">
-          <div className="flex flex-col items-end min-w-[120px]">
-            <span className="text-[8px] font-bold text-ghost uppercase tracking-[0.2em] mb-1 opacity-60">Reference ID</span>
-            <div className="px-3 py-1.5 rounded-lg bg-surface-2 border border-border-subtle flex items-center justify-center w-full">
-              <span className="text-xs font-black text-primary tracking-widest">{project.project_code}</span>
-            </div>
+        <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
+          {/* Inline Toggle */}
+          <div className="flex bg-surface-2 p-1 rounded-xl border border-border-subtle shadow-inner">
+            <button 
+              onClick={() => setActiveSubtab('variations')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                activeSubtab === 'variations' ? "bg-surface-1 text-accent shadow-sm border border-border-subtle" : "text-ghost hover:text-main"
+              )}
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+              Variations
+            </button>
+            <button 
+              onClick={() => setActiveSubtab('eot')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                activeSubtab === 'eot' ? "bg-surface-1 text-accent shadow-sm border border-border-subtle" : "text-ghost hover:text-main"
+              )}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              EoT Claims
+            </button>
           </div>
 
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="btn btn-accent btn-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Draft Variation
-          </button>
+          {activeSubtab === 'variations' && (
+            <button 
+              onClick={() => setIsAdding(true)}
+              className="btn btn-accent btn-sm h-10 px-4"
+            >
+              <Plus className="w-4 h-4" />
+              Draft Variation
+            </button>
+          )}
         </div>
       </header>
 
-      {isAdding && (
+      {activeSubtab === 'eot' ? (
+        <EoTClaims project={project} embedded={true} />
+      ) : (
+        <>
+          {isAdding && (
         <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-bold text-main">Draft New Variation Order</h3>
@@ -350,6 +377,8 @@ export function Variations({ project, tenantId }: VariationsProps) {
               </div>
            </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -295,7 +295,7 @@ export function PaymentCertificateManager({ projectId, tenantId }: PaymentCertif
       </div>
 
       {/* Certificates List */}
-      <div className="bg-surface-1 border border-border-subtle rounded-xl overflow-hidden ml-[60px]">
+      <div className="bg-surface-1 border border-border-subtle rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse table-fixed">
             <thead>

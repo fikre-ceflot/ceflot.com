@@ -43,7 +43,9 @@ import {
   ClipboardCheck,
   Edit2,
   Save,
-  SlidersHorizontal
+  SlidersHorizontal,
+  CreditCard,
+  PieChart
 } from 'lucide-react';
 import { cn, isValidUUID, cleanRichText } from '../lib/utils';
 import { usePermissions } from '../hooks/usePermissions';
@@ -51,6 +53,8 @@ import ExcelJS from 'exceljs';
 import { motion, AnimatePresence } from 'motion/react';
 import { TabBar } from './ui/TabBar';
 import { CollaborationFeed } from './CollaborationFeed';
+import { PaymentCertificateManager } from './PaymentCertificateManager';
+import { FinancialDashboard } from './FinancialDashboard';
 import { 
   TRADE_GROUPS, 
   RESOURCE_CATEGORIES, 
@@ -77,7 +81,7 @@ interface BudgetSummary {
   status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
 }
 
-type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts' | 'overheads' | 'collaboration';
+type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts' | 'overheads' | 'collaboration' | 'payments' | 'financials';
 
   export function BudgetManager({ project, userRole, tenantId, onSelectModule }: BudgetManagerProps) {
   const [activeTab, setActiveTab] = useState<TabType>('internal-budget');
@@ -1606,100 +1610,106 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
       isFullscreen ? "fixed top-0 bottom-0 right-0 left-0 lg:left-16 z-[100] bg-surface-base p-4 overflow-hidden" : "gap-8"
     )}>
       {!isFullscreen && (
-        <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
-          <div className="flex flex-col gap-0.5 md:mt-auto">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Commercial & Financial</span>
-            </div>
-            <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">{project.name}</h1>
-            <div className="flex items-center gap-3 mt-1.5">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-                <span className="text-primary font-black uppercase tracking-widest decoration-primary/30 underline-offset-4">Cost & Budget Dashboard</span>
+        <div className="flex flex-col gap-5 mb-5 mt-1 border-b border-border-subtle pb-5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Commercial & Financial Integration</span>
+              <h1 className="text-xl font-black text-main leading-none mt-1 tracking-tight select-none">
+                {project.name}
+              </h1>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-primary font-black text-[9px] uppercase tracking-wider">Cost & Budget Dashboard</span>
                 <span className="w-1 h-1 rounded-full bg-border-subtle" />
-                <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">{items.length} Tracked Lines</span>
+                <span className="px-1.5 py-0.5 rounded bg-surface-2 border border-border-subtle text-[10px] font-bold text-ghost">
+                  {items.length} Tracked Lines
+                </span>
+                <span className="w-1 h-1 rounded-full bg-border-subtle" />
+                <span className="text-[10px] font-mono text-dim uppercase tracking-wider font-bold">
+                  Status: {project.status || 'Active'}
+                </span>
               </div>
-              <div className="h-1 w-1 rounded-full bg-border-subtle" />
-              <span className="text-[10px] font-bold text-dim uppercase tracking-wider">{project.status || 'Active'}</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-end">
+                <span className="text-[8px] font-bold text-ghost uppercase tracking-[0.2em] mb-1 opacity-70">Reference ID</span>
+                <div className="px-3 py-1.5 rounded-xl bg-surface-2 border border-border-subtle flex items-center justify-center">
+                  <span className="text-xs font-black text-primary tracking-widest leading-none">
+                    {project.project_code}
+                  </span>
+                </div>
+              </div>
+              <button 
+                onClick={startSyncAll}
+                disabled={isSyncing}
+                className="btn btn-secondary h-9 w-9 p-0 rounded-xl mt-4 shrink-0"
+                title="Synchronize all ledgers and items"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
+              </button>
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-5">
-            <div className="flex flex-col items-end min-w-[120px]">
-              <span className="text-[8px] font-bold text-ghost uppercase tracking-[0.2em] mb-1 opacity-60">Reference ID</span>
-              <div className="px-3 py-1 rounded-lg bg-surface-2 border border-border-subtle flex items-center justify-center w-full">
-                <span className="text-xs font-black text-primary tracking-widest">{project.project_code}</span>
-              </div>
-            </div>
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-surface-2/40 p-1.5 rounded-2xl border border-border-subtle">
+            <TabBar 
+              tabs={[
+                { id: 'subcontractor-contracts', label: 'Contracts', icon: Building2 },
+                { id: 'internal-budget', label: 'Budget', icon: Briefcase },
+                { id: 'resource-demands', label: 'Resources', icon: Layers },
+                { id: 'overheads', label: 'Overheads', icon: Zap },
+                { id: 'payments', label: 'Payments', icon: CreditCard },
+                { id: 'financials', label: 'Financials', icon: PieChart },
+                { id: 'collaboration', label: 'Discussion', icon: MessageSquare }
+              ]}
+              activeTab={activeTab}
+              onChange={setActiveTab}
+            />
 
-            <div className="flex items-center gap-4">
-              <TabBar 
-                tabs={[
-                  { id: 'subcontractor-contracts', label: 'Contracts', icon: Building2 },
-                  { id: 'internal-budget', label: 'Budget', icon: Briefcase },
-                  { id: 'resource-demands', label: 'Resources', icon: Layers },
-                  { id: 'overheads', label: 'Overheads', icon: Zap },
-                  { id: 'collaboration', label: 'Discussion', icon: MessageSquare }
-                ]}
-                activeTab={activeTab}
-                onChange={setActiveTab}
-              />
-              
-              <div className="h-8 w-px bg-border-subtle mx-2" />
-              
-              <div className="flex items-center gap-2">
-                {summary?.status === 'draft' && (
-                  <button 
-                    onClick={submitForApproval}
-                    disabled={isSubmitting}
-                    className="btn btn-accent btn-sm h-10 px-4"
-                  >
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <GitBranch className="w-4 h-4" />}
-                    <span className="text-[11px] font-black uppercase tracking-widest">Submit Approval</span>
-                  </button>
-                )}
-
-                {summary?.status === 'pending_approval' && (userRole === 'director' || userRole === 'platform_god' || userRole === 'tenant_admin') && (
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={handleRejectBudget}
-                      disabled={isSubmitting}
-                      className="btn btn-danger btn-sm h-10 px-4"
-                    >
-                      <XIcon className="w-4 h-4" />
-                      Reject
-                    </button>
-                    <button 
-                      onClick={handleApproveBudget}
-                      disabled={isSubmitting}
-                      className="btn btn-primary btn-sm h-10 px-4"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Approve
-                    </button>
-                  </div>
-                )}
-
-                {summary?.status === 'pending_approval' && (
-                  <button 
-                    onClick={() => onSelectModule?.('approvals')}
-                    className="flex items-center gap-1.5 h-10 px-4 bg-accent/10 border border-accent/20 hover:bg-accent/20 rounded-xl text-accent transition-all text-xs font-bold leading-none shrink-0"
-                    title="Review active workflow pipelines in Approvals module"
-                  >
-                    <span>Track In Approvals Panel ↗</span>
-                  </button>
-                )}
-
+            <div className="flex items-center gap-2 px-1">
+              {summary?.status === 'draft' && (
                 <button 
-                  onClick={startSyncAll}
-                  disabled={isSyncing}
-                  className="btn btn-secondary h-10 w-10 p-0 rounded-xl"
+                  onClick={submitForApproval}
+                  disabled={isSubmitting}
+                  className="btn btn-accent btn-sm h-9 px-4 rounded-xl shadow-lg shadow-accent/15 hover:shadow-accent/25"
                 >
-                  <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <GitBranch className="w-3.5 h-3.5" />}
+                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">Submit Approval</span>
                 </button>
-              </div>
+              )}
+
+              {summary?.status === 'pending_approval' && (userRole === 'director' || userRole === 'platform_god' || userRole === 'tenant_admin') && (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handleRejectBudget}
+                    disabled={isSubmitting}
+                    className="btn btn-danger btn-sm h-9 px-3 rounded-xl shadow-lg shadow-danger/10"
+                  >
+                    <XIcon className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-black uppercase tracking-widest leading-none">Reject</span>
+                  </button>
+                  <button 
+                    onClick={handleApproveBudget}
+                    disabled={isSubmitting}
+                    className="btn btn-primary btn-sm h-9 px-3 rounded-xl shadow-lg shadow-primary/10"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-black uppercase tracking-widest leading-none">Approve</span>
+                  </button>
+                </div>
+              )}
+
+              {summary?.status === 'pending_approval' && (
+                <button 
+                  onClick={() => onSelectModule?.('approvals')}
+                  className="flex items-center gap-1.5 h-9 px-3 bg-accent/10 border border-accent/20 hover:bg-accent/20 rounded-xl text-accent transition-all text-[10px] font-black uppercase tracking-widest leading-none"
+                  title="Review active workflow pipelines in Approvals module"
+                >
+                  <span>Track In Approvals Panel ↗</span>
+                </button>
+              )}
             </div>
           </div>
-        </header>
+        </div>
       )}
 
       {summary && !isFullscreen && (
@@ -3178,6 +3188,18 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
             tenantId={tenantId}
             category="budget"
           />
+        </div>
+      )}
+
+      {activeTab === 'payments' && (
+        <div className="flex flex-col gap-6 h-[calc(100vh-240px)] overflow-y-auto">
+          <PaymentCertificateManager projectId={project.id} tenantId={tenantId} />
+        </div>
+      )}
+
+      {activeTab === 'financials' && (
+        <div className="flex flex-col gap-6 h-[calc(100vh-240px)] overflow-y-auto animate-in fade-in duration-300">
+          <FinancialDashboard projectId={project.id} />
         </div>
       )}
 

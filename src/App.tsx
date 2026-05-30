@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { UserProfile, Project, Tenant } from './types';
 import { Layout } from './components/Layout';
@@ -28,6 +28,7 @@ import { PlatformGod } from './components/PlatformGod';
 import { Library } from './components/Library';
 import { ProjectModal } from './components/ProjectModal';
 import { ProjectSetup } from './components/ProjectSetup';
+import { Governance } from './components/Governance';
 import { ProjectSelection } from './components/ProjectSelection';
 import { Zap, ExternalLink, Plus, Building2, Calendar as CalendarIcon, MapPin, Users as UsersIcon, Package as PackageIcon, GitBranch as GitBranchIcon, Calculator as CalculatorIcon, Activity, ShoppingCart, ChevronRight, LayoutDashboard, CheckCircle, HelpCircle, History, Truck, AlertCircle } from 'lucide-react';
 import { cn } from './lib/utils';
@@ -72,10 +73,28 @@ export default function App() {
     }
   }, [profile, projects]);
 
+  const isInitialTheme = useRef(true);
+
   useEffect(() => {
+    if (isInitialTheme.current) {
+      document.documentElement.classList.toggle('light', theme === 'light');
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+      localStorage.setItem('ceflot-theme', theme);
+      isInitialTheme.current = false;
+      return;
+    }
+
+    // Add transitioning class for a smooth 300ms transition
+    document.documentElement.classList.add('theme-transition');
     document.documentElement.classList.toggle('light', theme === 'light');
     document.documentElement.classList.toggle('dark', theme === 'dark');
     localStorage.setItem('ceflot-theme', theme);
+
+    const timer = setTimeout(() => {
+      document.documentElement.classList.remove('theme-transition');
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [theme]);
 
   const loadCounts = async () => {
@@ -316,7 +335,7 @@ export default function App() {
   const handleModuleSelect = (moduleId: string) => {
     // If it's a project-specific module, always go to project selection first
     // The app should not assume the last worked project
-    const projectModules = ['project-setup', 'planning', 'operations-hub', 'budget', 'procurement', 'schedule', 'variations', 'eot', 'subcontractors', 'field-app', 'warehouse'];
+    const projectModules = ['project-setup', 'planning', 'operations-hub', 'budget', 'schedule', 'variations', 'subcontractors', 'field-app', 'procurement'];
     if (projectModules.includes(moduleId)) {
       setActiveProject(null); // Clear active project to force selection
       setPendingPanel(moduleId);
@@ -331,7 +350,7 @@ export default function App() {
 
   const handleBack = () => {
     if (panelHistory.length > 1) {
-      const projectModules = ['project-setup', 'planning', 'budget', 'procurement', 'schedule'];
+      const projectModules = ['project-setup', 'planning', 'budget', 'schedule'];
       if (projectModules.includes(activePanel)) {
         if (!window.confirm('You may have unsaved changes. Are you sure you want to go back?')) {
           return;
@@ -641,7 +660,7 @@ export default function App() {
   }
 
   const renderProjectPanel = (component: React.ReactNode) => {
-    const isProjectSpecific = ['project-setup', 'planning', 'budget', 'procurement', 'schedule'].includes(activePanel);
+    const isProjectSpecific = ['project-setup', 'planning', 'budget', 'schedule'].includes(activePanel);
 
     return (
       <div className="flex flex-col h-full pt-1">
@@ -821,6 +840,10 @@ export default function App() {
         )
       )}
 
+      {activePanel === 'governance' && (
+        renderProjectPanel(<Governance project={currentProject!} />)
+      )}
+
       {activePanel === 'budget' && (
         renderProjectPanel(<BudgetManager project={currentProject!} userRole={profile.role} tenantId={profile.tenant_id} onSelectModule={handleModuleSelect} />)
       )}
@@ -838,7 +861,7 @@ export default function App() {
       )}
 
       {activePanel === 'warehouse' && (
-        renderProjectPanel(<WarehouseManager project={currentProject!} tenantId={profile.tenant_id} userRole={profile.role} />)
+        <WarehouseManager project={currentProject || null} tenantId={profile.tenant_id} userRole={profile.role} />
       )}
 
       {activePanel === 'library' && (
@@ -857,16 +880,12 @@ export default function App() {
         <Alerts project={currentProject || undefined} tenantId={profile.tenant_id} />
       )}
 
-      {(activePanel === 'approval-config' || activePanel === 'alert-settings') && (
+      {activePanel === 'approval-config' && (
         <Settings tenantId={profile.tenant_id} />
       )}
 
       {activePanel === 'variations' && (
         renderProjectPanel(<Variations project={currentProject!} tenantId={profile.tenant_id} />)
-      )}
-
-      {activePanel === 'eot' && (
-        renderProjectPanel(<EoTClaims project={currentProject!} />)
       )}
 
       {activePanel === 'subcontractors' && (

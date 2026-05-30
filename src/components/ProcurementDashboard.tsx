@@ -183,6 +183,10 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
 
   // Load from local storage sync
   useEffect(() => {
+    if (!project?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const stored = localStorage.getItem(`custom_rfqs_v2_${project.id}`);
@@ -223,11 +227,13 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
     } finally {
       setLoading(false);
     }
-  }, [project.id]);
+  }, [project?.id]);
 
   const saveToStorage = (updatedList: RFQPackage[]) => {
     setPackages(updatedList);
-    localStorage.setItem(`custom_rfqs_v2_${project.id}`, JSON.stringify(updatedList));
+    if (project?.id) {
+      localStorage.setItem(`custom_rfqs_v2_${project.id}`, JSON.stringify(updatedList));
+    }
   };
 
   // Create empty new package
@@ -695,6 +701,20 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
     setSelectedPackage(updatedPackage);
     saveToStorage(packages.map(p => p.id === selectedPackage.id ? updatedPackage : p));
   };
+
+  if (!project || !project.id) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] text-center p-6">
+        <div className="w-16 h-16 rounded-2xl bg-surface-2 border border-border-subtle flex items-center justify-center text-ghost mb-4">
+          <ShoppingCart className="w-8 h-8 opacity-40 animate-pulse" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-lg font-semibold text-main">No Project Selected</h2>
+          <p className="text-xs text-dim max-w-sm mt-1">Please select an active project in the workspace to load procurement and RFQ records.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full gap-5">

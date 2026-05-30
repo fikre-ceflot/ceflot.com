@@ -30,6 +30,7 @@ export function ProjectSelection({
 
   const NAV_ITEMS = [
     { id: 'project-setup', label: 'Project Setup' },
+    { id: 'governance', label: 'Governance & SoT' },
     { id: 'planning', label: 'BOQ Management' },
     { id: 'schedule', label: 'Project Schedule' },
     { id: 'budget', label: 'Cost Breakdown (CBD) & Budget' },

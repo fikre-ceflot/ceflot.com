@@ -20,42 +20,45 @@ const SAMPLE_CLAIMS: EoTClaim[] = [
 
 interface EoTClaimsProps {
   project: Project;
+  embedded?: boolean;
 }
 
-export function EoTClaims({ project }: EoTClaimsProps) {
+export function EoTClaims({ project, embedded = false }: EoTClaimsProps) {
   return (
-    <div className="flex flex-col gap-6 text-main ml-[60px]">
-      <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 px-1">
-        <div className="flex flex-col gap-0.5 md:mt-auto">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Temporal Claims</span>
-          </div>
-          <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">{project.name}</h1>
-          <div className="flex items-center gap-3 mt-1.5">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-              <span className="text-primary font-black uppercase tracking-widest decoration-primary/30 underline-offset-4">Extension of Time (EoT)</span>
-              <span className="w-1 h-1 rounded-full bg-border-subtle" />
-              <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">{SAMPLE_CLAIMS.length} Claims</span>
+    <div className="flex flex-col gap-6 text-main">
+      {!embedded && (
+        <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 px-1">
+          <div className="flex flex-col gap-0.5 md:mt-auto">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Temporal Claims</span>
             </div>
-            <div className="h-1 w-1 rounded-full bg-border-subtle" />
-            <span className="text-[10px] font-bold text-dim uppercase tracking-wider">{project.status || 'Active'}</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-end gap-5">
-          <div className="flex flex-col items-end min-w-[120px]">
-            <span className="text-[8px] font-bold text-ghost uppercase tracking-[0.2em] mb-1 opacity-60">Reference ID</span>
-            <div className="px-3 py-1.5 rounded-lg bg-surface-2 border border-border-subtle flex items-center justify-center w-full">
-              <span className="text-xs font-black text-primary tracking-widest">{project.project_code}</span>
+            <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">{project.name}</h1>
+            <div className="flex items-center gap-3 mt-1.5">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
+                <span className="text-primary font-black uppercase tracking-widest decoration-primary/30 underline-offset-4">Extension of Time (EoT)</span>
+                <span className="w-1 h-1 rounded-full bg-border-subtle" />
+                <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">{SAMPLE_CLAIMS.length} Claims</span>
+              </div>
+              <div className="h-1 w-1 rounded-full bg-border-subtle" />
+              <span className="text-[10px] font-bold text-dim uppercase tracking-wider">{project.status || 'Active'}</span>
             </div>
           </div>
 
-          <button className="btn btn-accent btn-sm">
-            <Plus className="w-4 h-4" />
-            New EoT Claim
-          </button>
-        </div>
-      </header>
+          <div className="flex flex-col items-end gap-5">
+            <div className="flex flex-col items-end min-w-[120px]">
+              <span className="text-[8px] font-bold text-ghost uppercase tracking-[0.2em] mb-1 opacity-60">Reference ID</span>
+              <div className="px-3 py-1.5 rounded-lg bg-surface-2 border border-border-subtle flex items-center justify-center w-full">
+                <span className="text-xs font-black text-primary tracking-widest">{project.project_code}</span>
+              </div>
+            </div>
+
+            <button className="btn btn-accent btn-sm">
+              <Plus className="w-4 h-4" />
+              New EoT Claim
+            </button>
+          </div>
+        </header>
+      )}
 
       <div className="bg-surface-1 border border-border-subtle rounded-xl overflow-hidden">
         <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-surface-2">

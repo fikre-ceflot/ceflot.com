@@ -65,28 +65,30 @@ interface LayoutProps {
 const NAV_ITEMS: { section: string; id: string; label: string; icon: any; capability: Capability | null }[] = [
   { section: 'OVERVIEW', id: 'home',      label: 'Home',      icon: LayoutGrid, capability: null },
   
-  { section: 'DASHBOARD', id: 'dashboard', label: 'Portfolio', icon: Shapes, capability: 'dash:view' },
-  { section: 'DASHBOARD', id: 'intelligence', label: 'Intelligence', icon: BrainCircuit, capability: null },
-  { section: 'DASHBOARD', id: 'library', label: 'Library', icon: BookOpen, capability: 'trade:view_global' },
+  { section: 'INSIGHTS', id: 'dashboard', label: 'Portfolio', icon: Shapes, capability: 'dash:view' },
+  { section: 'INSIGHTS', id: 'intelligence', label: 'Intelligence', icon: BrainCircuit, capability: null },
+  { section: 'INSIGHTS', id: 'client-portal', label: 'Client view', icon: Globe, capability: 'client:view' },
 
-  { section: 'PROJECT', id: 'project-setup', label: 'Project Setup', icon: CheckCircle, capability: null },
-  { section: 'PROJECT', id: 'planning',   label: 'BoQ Manager',  icon: Calendar, capability: 'boq:view_recipes' },
-  { section: 'PROJECT', id: 'schedule',   label: 'Project Schedule',  icon: Clock, capability: 'plan:view' },
-  { section: 'PROJECT', id: 'budget',    label: 'Cost & Budget', icon: Calculator, capability: 'fin:view_budget' },
-  { section: 'PROJECT', id: 'operations-hub', label: 'Operations Control', icon: Activity, capability: 'daily:view_project' },
-  { section: 'PROJECT', id: 'approvals',  label: 'Approvals', icon: CheckCircle, capability: 'appr:view_pending' },
-  { section: 'PROJECT', id: 'alerts',     label: 'Alerts',    icon: Bell, capability: 'alert:view' },
+  { section: 'PLANNING', id: 'project-setup', label: 'Project setup', icon: CheckCircle, capability: null },
+  { section: 'PLANNING', id: 'governance',    label: 'Governance & SoT', icon: ShieldCheck, capability: 'boq:manage_baseline' },
+  { section: 'PLANNING', id: 'planning',   label: 'BoQ',  icon: Calendar, capability: 'boq:view_recipes' },
+  { section: 'PLANNING', id: 'schedule',   label: 'Schedule',  icon: Clock, capability: 'plan:view' },
+  { section: 'PLANNING', id: 'variations',     label: 'Contract claims',     icon: GitBranch, capability: 'fin:var_view' },
+  { section: 'PLANNING', id: 'budget',    label: 'Cost & budget', icon: Calculator, capability: 'fin:view_budget' },
 
-  { section: 'SUPPORT', id: 'variations',     label: 'Variations',     icon: GitBranch, capability: 'fin:var_view' },
-  { section: 'SUPPORT', id: 'eot',            label: 'EoT Claims',     icon: Clock,      capability: 'fin:eot_view' },
-  { section: 'SUPPORT', id: 'subcontractors', label: 'Subcontractors', icon: Users,      capability: 'res:subcon_view' },
-  { section: 'SUPPORT', id: 'procurement', label: 'Procurement', icon: ShoppingCart, capability: 'proc:view_demand' },
-  { section: 'SUPPORT', id: 'warehouse', label: 'Warehouse', icon: Package, capability: 'stock:view' },
+  { section: 'EXECUTION', id: 'operations-hub', label: 'Operations', icon: Activity, capability: 'daily:view_project' },
+  { section: 'EXECUTION', id: 'subcontractors', label: 'Subcontractors', icon: Users,      capability: 'res:subcon_view' },
+  { section: 'EXECUTION', id: 'approvals',  label: 'Approvals', icon: CheckCircle, capability: 'appr:view_pending' },
+  { section: 'EXECUTION', id: 'alerts',     label: 'Alerts',    icon: Bell, capability: 'alert:view' },
 
-  { section: 'ADMIN', id: 'users',          label: 'User Management',    icon: UserPlus, capability: 'admin:view_users' },
-  { section: 'ADMIN', id: 'permissions',    label: 'Role Permissions',   icon: ShieldCheck, capability: 'admin:view_roles' },
-  { section: 'ADMIN', id: 'approval-config',label: 'Approval Config',    icon: Sliders,   capability: 'appr:view_chains' },
-  { section: 'ADMIN', id: 'alert-settings', label: 'Alert Settings',     icon: Settings,  capability: 'alert:set_thresholds' },
+  { section: 'SUPPLY CHAIN', id: 'procurement', label: 'Procurement', icon: ShoppingCart, capability: 'proc:view_demand' },
+  { section: 'SUPPLY CHAIN', id: 'warehouse', label: 'Supply hub', icon: Package, capability: 'stock:view' },
+
+  { section: 'REFERENCE', id: 'library', label: 'Library', icon: BookOpen, capability: 'trade:view_global' },
+
+  { section: 'ADMIN', id: 'users',          label: 'Team',    icon: UserPlus, capability: 'admin:view_users' },
+  { section: 'ADMIN', id: 'permissions',    label: 'Role permissions',   icon: ShieldCheck, capability: 'admin:view_roles' },
+  { section: 'ADMIN', id: 'approval-config',label: 'Platform settings',    icon: Sliders,   capability: 'appr:view_chains' },
   
   { section: 'GOD',   id: 'god',            label: 'God Mode',           icon: Zap,       capability: null },
 ];
@@ -136,7 +138,8 @@ export function Layout({
     };
   }, []);
   const [profileForm, setProfileForm] = React.useState({
-    full_name: user.full_name || ''
+    full_name: user.full_name || '',
+    role: user.role
   });
 
   const { hasCapability, loading: permissionsLoading } = usePermissions(user.role, user.tenant_id, user);
@@ -884,6 +887,36 @@ export function Layout({
               </div>
 
               <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold uppercase tracking-widest text-dim ml-1">Corporate Position / Role</label>
+                <div className="relative">
+                  <select 
+                    value={profileForm.role}
+                    onChange={e => setProfileForm({...profileForm, role: e.target.value as any})}
+                    className="w-full bg-surface-2 border border-border-subtle rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary transition-all text-main appearance-none cursor-pointer font-medium"
+                  >
+                    <option value="director">Director (Managing Director)</option>
+                    <option value="project_manager">Project Manager</option>
+                    <option value="qs">Quantity Surveyor (QS)</option>
+                    <option value="contract_admin">Contract Administrator</option>
+                    <option value="project_coordinator">Project Coordinator</option>
+                    <option value="finance">Finance Officer / Analyst</option>
+                    <option value="procurement">Procurement Specialist</option>
+                    <option value="site_supervisor">Site Supervisor</option>
+                    <option value="site_encoder">Site Data Encoder</option>
+                    <option value="storeman">Warehouse Storeman</option>
+                    <option value="client">External Client / Stakeholder</option>
+                    <option value="tenant_admin">Company Admin (Tenant master)</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-ghost">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                    </svg>
+                  </div>
+                </div>
+                <span className="text-[10px] text-ghost/70 ml-1 leading-normal italic">Optimizes workflow, tabs, and assigned tools automatically as per your operational position.</span>
+              </div>
+
+              <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-dim ml-1">Appearance</label>
                 <div className="flex gap-2">
                   <button 
@@ -938,7 +971,8 @@ export function Layout({
                     const { error } = await supabase
                       .from('user_profiles')
                       .update({
-                        full_name: profileForm.full_name
+                        full_name: profileForm.full_name,
+                        role: profileForm.role
                       })
                       .eq('id', user.id);
                     

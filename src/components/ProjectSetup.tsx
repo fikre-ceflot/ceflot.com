@@ -51,7 +51,7 @@ interface ProjectSetupProps {
   onDelete?: () => void;
 }
 
-type SetupTab = 'checklist' | 'parameters' | 'staff' | 'approvals' | 'governance';
+type SetupTab = 'checklist' | 'parameters' | 'staff' | 'approvals';
 
 const DEFAULT_ASSETS_SOT = [
   {
@@ -2033,23 +2033,12 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
           <GitBranch className="w-4 h-4" />
           Approval Chains
         </button>
-        <button 
-          onClick={() => setActiveTab('governance')}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
-            activeTab === 'governance' ? "bg-surface-2 text-primary shadow-sm" : "text-ghost hover:text-main"
-          )}
-        >
-          <Shield className="w-4 h-4 text-primary" />
-          Governance & SoT Lock
-        </button>
       </div>
 
       {activeTab === 'checklist' && renderChecklist()}
       {activeTab === 'parameters' && renderParameters()}
       {activeTab === 'staff' && renderStaff()}
       {activeTab === 'approvals' && renderApprovals()}
-      {activeTab === 'governance' && renderGovernance()}
 
       <AnimatePresence>
         {showDeleteModal && (

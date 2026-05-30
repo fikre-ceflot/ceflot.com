@@ -207,7 +207,7 @@ export default function PurchaseOrderManager({ project, tenantId }: PurchaseOrde
       </div>
 
       {isCreating ? (
-        <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 animate-in slide-in-from-top-4 duration-300 ml-[60px]">
+        <div className="bg-surface-1 border border-border-subtle rounded-xl p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-main">New Purchase Order</h3>
             <button onClick={() => setIsCreating(false)} className="text-ghost hover:text-main">
@@ -364,7 +364,7 @@ export default function PurchaseOrderManager({ project, tenantId }: PurchaseOrde
           </div>
         </div>
       ) : (
-        <div className="bg-surface-1 border border-border-subtle rounded-xl overflow-hidden flex-1 flex flex-col min-h-0 ml-[60px]">
+        <div className="bg-surface-1 border border-border-subtle rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {loading ? (
               <div className="flex flex-col items-center justify-center h-64">

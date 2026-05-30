@@ -2573,7 +2573,7 @@ export function Schedule({ project }: ScheduleProps) {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4 max-w-sm mx-auto text-center px-4 ml-[60px]">
+      <div className="flex flex-col items-center justify-center py-20 gap-4 max-w-sm mx-auto text-center px-4">
         <AlertCircle className="w-12 h-12 text-danger animate-pulse" />
         <h3 className="text-sm font-black text-main mt-2 uppercase tracking-wider">Failed to Load Schedule</h3>
         <p className="text-xs text-ghost leading-relaxed">
