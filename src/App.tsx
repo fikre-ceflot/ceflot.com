@@ -30,6 +30,8 @@ import { ProjectModal } from './components/ProjectModal';
 import { ProjectSetup } from './components/ProjectSetup';
 import { Governance } from './components/Governance';
 import { ProjectSelection } from './components/ProjectSelection';
+import { Diagnostics } from './components/Diagnostics';
+import { LandingPage } from './components/LandingPage';
 import { Zap, ExternalLink, Plus, Building2, Calendar as CalendarIcon, MapPin, Users as UsersIcon, Package as PackageIcon, GitBranch as GitBranchIcon, Calculator as CalculatorIcon, Activity, ShoppingCart, ChevronRight, LayoutDashboard, CheckCircle, HelpCircle, History, Truck, AlertCircle } from 'lucide-react';
 import { cn } from './lib/utils';
 
@@ -537,62 +539,7 @@ export default function App() {
 
   if (!session) {
     return (
-      <div className="h-screen bg-surface-base flex items-center justify-center p-6">
-        <div className="w-full max-w-[400px] flex flex-col gap-7">
-          <div className="flex flex-col items-center gap-3.5">
-            <div className="w-32 h-20 flex items-center justify-center">
-              <CeflotLogo className="w-32 h-20" />
-            </div>
-            <div className="text-3xl font-black tracking-tighter text-main">CEFLOT</div>
-            <div className="font-mono text-[10px] text-ghost uppercase tracking-[0.2em] text-center">Cloud Construction Delivery Platform</div>
-          </div>
-          
-          <form onSubmit={handleLogin} className="bg-surface-1 border border-border-subtle rounded-xl p-6 flex flex-col gap-4">
-            <div className="text-sm font-semibold text-main">Sign in to your company</div>
-            
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-dim">Email</label>
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-surface-2 border border-border-subtle rounded-md text-sm p-3 outline-none text-main focus:border-primary transition-colors"
-                placeholder="you@company.com"
-                required
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-dim">Password</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-surface-2 border border-border-subtle rounded-md text-sm p-3 outline-none text-main focus:border-primary transition-colors"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            {authError && (
-              <div className="bg-danger/10 border border-danger/25 rounded-md text-danger text-xs p-3 leading-relaxed">
-                {authError}
-              </div>
-            )}
-
-            <button 
-              type="submit"
-              className="bg-primary text-surface-base rounded-md text-sm font-bold p-3 mt-2 hover:bg-primary-hover active:scale-[0.97] transition-all"
-            >
-              Sign In
-            </button>
-          </form>
-          
-          <div className="text-center font-mono text-[10px] text-ghost tracking-wider uppercase">
-            CEFLOT · SECURE PLATFORM · v0.4
-          </div>
-        </div>
-      </div>
+      <LandingPage onLoginSuccess={(sess) => setSession(sess)} />
     );
   }
 
@@ -734,6 +681,7 @@ export default function App() {
           counts={counts}
           onSelectProject={handleProjectSelect}
           onSelectModule={handleModuleSelect}
+          tenantId={profile?.tenant_id}
         />
       )}
       {activePanel === 'intelligence' && (
@@ -917,20 +865,19 @@ export default function App() {
         <RoleManagement userRole={profile.role} isPlatformGod={profile.is_platform_god} />
       )}
 
-      {activePanel === 'help' && (
-        <div className="bg-surface-1 border border-border-subtle rounded-xl p-8 text-center">
-          <HelpCircle className="w-12 h-12 text-primary opacity-40 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-main">Help & Documentation</h3>
-          <p className="text-sm text-dim max-w-md mx-auto mt-2">Access platform guides, tutorials, and support resources.</p>
-        </div>
-      )}
-
-      {activePanel === 'audit' && (
-        <div className="bg-surface-1 border border-border-subtle rounded-xl p-8 text-center">
-          <History className="w-12 h-12 text-accent opacity-40 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-main">Audit Logs</h3>
-          <p className="text-sm text-dim max-w-md mx-auto mt-2">Review system-wide activity logs and administrative changes.</p>
-        </div>
+      {(activePanel === 'help' || activePanel === 'audit') && (
+        <Diagnostics 
+          tenantId={profile.tenant_id}
+          userRole={profile.role}
+          userName={profile.full_name}
+          isGodMode={!!profile.is_platform_god}
+          onNavigateToModule={handleModuleSelect}
+          onRefreshCounts={() => {
+            if (profile) {
+              loadProjects(profile.tenant_id, !!profile.is_platform_god);
+            }
+          }}
+        />
       )}
 
       {activePanel === 'god' && profile.is_platform_god && (

@@ -1034,7 +1034,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
 
         // Filter items dynamically using identical logic to Layout.tsx
         const hasAdminView = simulatedCaps.has('admin:view_users') || simulatedCaps.has('admin:view_roles');
-        const filteredMockNavItems = MOCK_NAV_ITEMS.filter(item => {
+        let filteredMockNavItems = MOCK_NAV_ITEMS.filter(item => {
           if (item.section === 'ADMIN') {
             if (!hasAdminView && item.capability && !simulatedCaps.has(item.capability)) {
               return false;
@@ -1046,6 +1046,84 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
           }
           return true;
         });
+
+        // Helper mapping of clicked home page card IDs to their associated sidebar subtool IDs
+        const getCardNavIds = (activeId: string): string[] => {
+          const base = ['home'];
+          
+          if (activeId === 'dashboard') {
+            return [...base, 'dashboard'];
+          }
+          if (activeId === 'client-portal') {
+            return [...base, 'client-portal'];
+          }
+          if (activeId === 'intelligence') {
+            return [...base, 'intelligence'];
+          }
+          if (activeId === 'library') {
+            return [...base, 'library'];
+          }
+          
+          // Project Setup Card
+          if (activeId === 'project-setup' || activeId === 'governance') {
+            return [...base, 'project-setup', 'governance'];
+          }
+          
+          // Project Planning Card
+          if (activeId === 'planning' || activeId === 'schedule' || activeId === 'budget') {
+            return [...base, 'planning', 'schedule', 'budget'];
+          }
+          
+          // Operations Control Card
+          if (activeId === 'operations-hub' || activeId === 'field-app') {
+            return [...base, 'operations-hub'];
+          }
+          
+          // Contracts Card
+          if (activeId === 'variations' || activeId === 'subcontractors') {
+            return [...base, 'variations', 'subcontractors'];
+          }
+          
+          // Procurement Card
+          if (activeId === 'procurement' || activeId === 'warehouse') {
+            return [...base, 'procurement', 'warehouse'];
+          }
+          
+          // User Management Card
+          if (activeId === 'users' || activeId === 'permissions') {
+            return [...base, 'users', 'permissions'];
+          }
+          
+          // Settings Card
+          if (activeId === 'approval-config') {
+            return [...base, 'approval-config'];
+          }
+          
+          // Standalone Approvals
+          if (activeId === 'approvals') {
+            return [...base, 'approvals'];
+          }
+          
+          // Standalone Alerts
+          if (activeId === 'alerts') {
+            return [...base, 'alerts'];
+          }
+
+          // Reference Audit Logs / Help
+          if (activeId === 'audit') {
+            return [...base, 'audit'];
+          }
+
+          // Platform God
+          if (activeId === 'god') {
+            return [...base, 'god'];
+          }
+
+          return [...base, activeId];
+        };
+
+        const allowedCardNavIds = getCardNavIds(selectedPreviewModule);
+        filteredMockNavItems = filteredMockNavItems.filter(item => allowedCardNavIds.includes(item.id));
 
         // Ensure selectedPreviewModule has a fallback to the first active screen
         const isCurrentModuleAuthorised = filteredMockNavItems.some(m => m.id === selectedPreviewModule);
@@ -1125,30 +1203,30 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
             </div>
 
             {/* Console Sandbox Screen (Identical to actual App) - Now Full Screen width */}
-            <div className="w-full flex flex-col bg-[#0b0f17] border border-[#1e2530] rounded-2xl overflow-hidden shadow-2xl h-full min-h-[620px]">
+            <div className="w-full flex flex-col bg-surface-base border border-border-subtle rounded-2xl overflow-hidden shadow-2xl h-full min-h-[620px]">
                 {/* Real-looking window chrome header */}
-                <div className="bg-[#131924] border-b border-[#2d3748] p-3 flex items-center justify-between">
+                <div className="bg-surface-1 border-b border-border-subtle p-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="flex gap-1.5">
-                      <span className="w-3 h-3 rounded-full bg-[#ef4444]/80" />
-                      <span className="w-3 h-3 rounded-full bg-[#f59e0b]/80" />
-                      <span className="w-3 h-3 rounded-full bg-[#10b981]/80" />
+                      <span className="w-3 h-3 rounded-full bg-red-500/80" />
+                      <span className="w-3 h-3 rounded-full bg-amber-500/80" />
+                      <span className="w-3 h-3 rounded-full bg-green-500/80" />
                     </div>
-                    <div className="w-px h-3 bg-[#2d3748] mx-2" />
-                    <span className="text-[10px] font-mono font-bold tracking-tight text-[#a0aec0] uppercase">
+                    <div className="w-px h-3 bg-border-subtle mx-2" />
+                    <span className="text-[10px] font-mono font-bold tracking-tight text-dim uppercase">
                       PREVIEWING: {simulatedUser ? simulatedUser.full_name : simulatedRole.replace(/_/g, ' ')}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 bg-[#1b2535] border border-[#2d3748] px-2.5 py-1 rounded-md">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#24ce24] animate-pulse" />
-                    <span className="text-[9px] font-mono uppercase font-black text-[#24ce24]">● SIMULATION ACTIVE</span>
+                  <div className="flex items-center gap-2 bg-surface-2 border border-border-subtle px-2.5 py-1 rounded-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    <span className="text-[9px] font-mono uppercase font-black text-primary">● SIMULATION ACTIVE</span>
                   </div>
                 </div>
 
                 <div className="flex-1 flex min-h-0">
                   {/* IDENTICAL sidebar layout */}
-                  <div className="w-48 bg-[#0b0f17] border-r border-[#1e2530] flex flex-col p-2 gap-1 select-none overflow-y-auto custom-scrollbar">
-                    <div className="px-2 py-2 mb-1 bg-[#131924] rounded-lg border border-[#1e2530] text-center">
+                  <div className="w-48 bg-surface-base border-r border-border-subtle flex flex-col p-2 gap-1 select-none overflow-y-auto custom-scrollbar">
+                    <div className="px-2 py-2 mb-1 bg-surface-1 rounded-lg border border-border-subtle text-center">
                       <div className="text-[10px] font-mono font-bold text-white truncate">
                         {simulatedUser ? simulatedUser.full_name : 'Blueprint Mode'}
                       </div>
@@ -1176,11 +1254,11 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             className={cn(
                               "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-bold tracking-tight transition-all cursor-pointer border",
                               isSelect 
-                                ? "bg-primary/20 border-primary/40 text-primary" 
-                                : "bg-transparent border-transparent text-[#a0aec0] hover:bg-[#131924] hover:text-white"
+                                ? "bg-primary/10 border-primary/25 text-primary" 
+                                : "bg-transparent border-transparent text-dim hover:bg-surface-2 hover:text-main"
                             )}
                           >
-                            <item.icon className={cn("w-3.5 h-3.5 flex-shrink-0", isSelect ? "text-primary" : "text-[#4a5568]")} />
+                            <item.icon className={cn("w-3.5 h-3.5 flex-shrink-0", isSelect ? "text-primary" : "text-ghost")} />
                             <span className="truncate flex-1 text-left">{item.label}</span>
                           </button>
                         </React.Fragment>
@@ -1189,12 +1267,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                   </div>
 
                   {/* IDENTICAL workspace / simulator pane */}
-                  <div className="flex-1 bg-[#070a0e] p-6 overflow-y-auto relative text-left">
+                  <div className="flex-1 bg-surface-base border-l border-border-subtle p-6 overflow-y-auto relative text-left">
                     <div className="h-full space-y-5 animate-in fade-in duration-300">
-                      <div className="flex items-center justify-between border-b border-[#1e2530] pb-2.5">
+                      <div className="flex items-center justify-between border-b border-border-subtle pb-2.5">
                         <div className="flex items-center gap-2">
                           <Unlock className="w-4 h-4 text-primary" />
-                          <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                          <h4 className="text-xs font-black text-main uppercase tracking-wider">
                             {activePreviewModule.replace(/-/g, ' ')} Module
                           </h4>
                         </div>
@@ -1208,40 +1286,40 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {/* Mock UI Contents per tab selection */}
                       {activePreviewModule === 'home' && (
                         <div className="space-y-4">
-                          <p className="text-xs text-[#a0aec0] leading-relaxed">
+                          <p className="text-xs text-dim leading-relaxed font-sans">
                             Welcome to the Construction Platform landing cockpit. Below is your simulated access clearance profile for live operations validation:
                           </p>
-                          <div className="bg-[#131924]/55 border border-[#1e2530] rounded-xl p-4 space-y-3">
-                            <div className="text-[10px] font-mono text-[#a0aec0] uppercase tracking-wide">Corporate Policy Clearance Matrix</div>
+                          <div className="bg-surface-1 border border-border-subtle rounded-xl p-4 space-y-3">
+                            <div className="text-[10px] font-mono text-dim uppercase tracking-wide">Corporate Policy Clearance Matrix</div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
-                              <div className="flex items-center justify-between p-2 bg-[#0b0f17] rounded-lg border border-[#1e2530]">
-                                <span className="text-[#a0aec0]">BoQ Modification</span>
-                                <span className={cn("px-2 py-0.5 rounded font-mono text-[9px] font-bold", hasAddBoq ? "bg-[#24ce24]/10 text-[#24ce24]" : "bg-danger/10 text-danger")}>
+                              <div className="flex items-center justify-between p-2 bg-surface-base rounded-lg border border-border-subtle">
+                                <span className="text-dim">BoQ Modification</span>
+                                <span className={cn("px-2 py-0.5 rounded font-mono text-[9px] font-bold", hasAddBoq ? "bg-primary/10 text-primary" : "bg-danger/10 text-danger")}>
                                   {hasAddBoq ? "AUTHORIZED" : "READ-ONLY"}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between p-2 bg-[#0b0f17] rounded-lg border border-[#1e2530]">
-                                <span className="text-[#a0aec0]">Milestone Sign-off</span>
-                                <span className={cn("px-2 py-0.5 rounded font-mono text-[9px] font-bold", hasUpdateProgress ? "bg-[#24ce24]/10 text-[#24ce24]" : "bg-danger/10 text-danger")}>
+                              <div className="flex items-center justify-between p-2 bg-surface-base rounded-lg border border-border-subtle">
+                                <span className="text-dim">Milestone Sign-off</span>
+                                <span className={cn("px-2 py-0.5 rounded font-mono text-[9px] font-bold", hasUpdateProgress ? "bg-primary/10 text-primary" : "bg-danger/10 text-danger")}>
                                   {hasUpdateProgress ? "AUTHORIZED" : "READ-ONLY"}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between p-2 bg-[#0b0f17] rounded-lg border border-[#1e2530]">
-                                <span className="text-[#a0aec0]">Daily Progress Reporting</span>
-                                <span className={cn("px-2 py-0.5 rounded font-mono text-[9px] font-bold", hasDailySubmit ? "bg-[#24ce24]/10 text-[#24ce24]" : "bg-danger/10 text-danger")}>
+                              <div className="flex items-center justify-between p-2 bg-surface-base rounded-lg border border-border-subtle">
+                                <span className="text-dim">Daily Progress Reporting</span>
+                                <span className={cn("px-2 py-0.5 rounded font-mono text-[9px] font-bold", hasDailySubmit ? "bg-primary/10 text-primary" : "bg-danger/10 text-danger")}>
                                   {hasDailySubmit ? "AUTHORIZED" : "LOCKED"}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between p-2 bg-[#0b0f17] rounded-lg border border-[#1e2530]">
-                                <span className="text-[#a0aec0]">Digital Voucher Release</span>
-                                <span className={cn("px-2 py-0.5 rounded font-mono text-[9px] font-bold", hasApprove ? "bg-[#24ce24]/10 text-[#24ce24]" : "bg-danger/10 text-danger")}>
+                              <div className="flex items-center justify-between p-2 bg-surface-base rounded-lg border border-border-subtle">
+                                <span className="text-dim">Digital Voucher Release</span>
+                                <span className={cn("px-2 py-0.5 rounded font-mono text-[9px] font-bold", hasApprove ? "bg-primary/10 text-primary" : "bg-danger/10 text-danger")}>
                                   {hasApprove ? "AUTHORIZED" : "LOCKED"}
                                 </span>
                               </div>
                             </div>
                           </div>
                           
-                          <div className="p-3 bg-[#1e2530]/40 border border-[#1e2530] rounded-xl text-[11px] text-[#a0aec0] leading-relaxed">
+                          <div className="p-3 bg-surface-2 border border-border-subtle rounded-xl text-[11px] text-dim leading-relaxed">
                             💡 Use the sidebar navigation on the left to toggle between simulated application screens and watch how components instantly switch between input and locked layouts based on standard capabilities.
                           </div>
                         </div>
@@ -1250,37 +1328,37 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'dashboard' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0] leading-relaxed">
+                            <p className="text-xs text-dim leading-relaxed">
                               Portfolio summary dashboard, project S-curves, and aggregate risks.
                             </p>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-[#131924] p-4 rounded-xl border border-[#1e2530] text-left">
-                              <span className="text-[10px] text-[#718096] block mb-0.5">Project S-Curve Completeness</span>
-                              <span className="text-base font-extrabold text-white">{simulatedMilestoneProgress}%</span>
-                              <div className="w-full h-1.5 bg-[#0b0f17] rounded-full mt-2 overflow-hidden">
+                            <div className="bg-surface-1 p-4 rounded-xl border border-border-subtle text-left">
+                              <span className="text-[10px] text-ghost block mb-0.5">Project S-Curve Completeness</span>
+                              <span className="text-base font-extrabold text-main">{simulatedMilestoneProgress}%</span>
+                              <div className="w-full h-1.5 bg-surface-base rounded-full mt-2 overflow-hidden">
                                 <div className="h-full bg-primary transition-all duration-500" style={{ width: `${simulatedMilestoneProgress}%` }} />
                               </div>
                             </div>
-                            <div className="bg-[#131924] p-4 rounded-xl border border-[#1e2530] text-left">
-                              <span className="text-[10px] text-[#718096] block mb-0.5">Delivery Compliance Audit</span>
-                              <span className="text-base font-extrabold text-[#10b981]">Fully Compliant</span>
-                              <div className="text-[9px] text-[#718096] mt-1.5">No critical NCR variances assigned</div>
+                            <div className="bg-surface-1 p-4 rounded-xl border border-border-subtle text-left">
+                              <span className="text-[10px] text-ghost block mb-0.5">Delivery Compliance Audit</span>
+                              <span className="text-base font-extrabold text-green-500">Fully Compliant</span>
+                              <div className="text-[9px] text-ghost mt-1.5">No critical NCR variances assigned</div>
                             </div>
                           </div>
 
-                          <div className="bg-[#131924]/45 border border-[#1e2530] rounded-xl p-4 text-left">
+                          <div className="bg-surface-1/45 border border-border-subtle rounded-xl p-4 text-left">
                             <div className="text-[10px] text-primary font-bold mb-2 uppercase tracking-wider flex justify-between items-center">
                               <span>Milestones Timeline Sequencer</span>
-                              <span className="text-[8px] font-mono text-[#a0aec0]">CAP: plan:view</span>
+                              <span className="text-[8px] font-mono text-dim">CAP: plan:view</span>
                             </div>
-                            <div className="space-y-2 font-mono text-[10px] text-[#a0aec0]">
+                            <div className="space-y-2 font-mono text-[10px] text-dim">
                               <div className="flex items-center gap-2">
-                                <span className="text-[#10b981]">✓</span>
+                                <span className="text-green-500 font-bold">✓</span>
                                 <span>Foundations Concrete Poured - MAR 26</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <span className="text-[#10b981]">✓</span>
+                                <span className="text-green-500 font-bold">✓</span>
                                 <span>Section Block Grid A locked - APR 26</span>
                               </div>
                               <div className="flex items-center gap-2 text-primary">
@@ -1296,18 +1374,18 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                         <div className="space-y-4">
                           <div className="flex items-center justify-between bg-accent/5 border border-accent/20 p-2.5 rounded-lg">
                             <span className="text-[10px] text-accent font-bold uppercase tracking-wider font-mono">Module Access Lock: Verified</span>
-                            <span className="text-[9px] text-[#a0aec0] font-mono">REQ: intel:view</span>
+                            <span className="text-[9px] text-dim font-mono">REQ: intel:view</span>
                           </div>
-                          <p className="text-xs text-[#a0aec0] leading-relaxed">
+                          <p className="text-xs text-dim leading-relaxed">
                             High-fidelity forecasting engine mapping regional construction rates and material procurement thresholds:
                           </p>
-                          <div className="bg-[#131924] p-4 rounded-xl border border-[#1e2530] space-y-3">
+                          <div className="bg-surface-1 p-4 rounded-xl border border-border-subtle space-y-3">
                             <div className="text-[10px] font-mono text-accent font-bold uppercase tracking-wide flex justify-between">
                               <span>Neural Material Index Recommendation</span>
                               <span className="text-[9px] text-accent">Active AI Forecast</span>
                             </div>
-                            <p className="text-xs text-[#a0aec0] leading-relaxed">
-                              Concrete procurement rates in Region A are modeled to rise by <b className="text-white">14.6%</b> over the coming 60 days. Secure bulk batch pricing immediately to hedge against regional labor spikes.
+                            <p className="text-xs text-dim leading-relaxed">
+                              Concrete procurement rates in Region A are modeled to rise by <b className="text-main">14.6%</b> over the coming 60 days. Secure bulk batch pricing immediately to hedge against regional labor spikes.
                             </p>
                           </div>
                         </div>
@@ -1317,23 +1395,23 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                         <div className="space-y-4">
                           <div className="flex items-center justify-between bg-primary/5 border border-primary/20 p-2.5 rounded-lg">
                             <span className="text-[10px] text-primary font-bold uppercase tracking-wider font-mono">Client Read-Only Access Gate</span>
-                            <span className="text-[9px] text-[#a0aec0] font-mono">REQ: client:view</span>
+                            <span className="text-[9px] text-dim font-mono">REQ: client:view</span>
                           </div>
-                          <p className="text-xs text-[#a0aec0] leading-relaxed">
+                          <p className="text-xs text-dim leading-relaxed">
                             Oversight portal configured exclusively for project investors, external corporate auditors, and client sponsors:
                           </p>
-                          <div className="bg-[#131924] p-4 rounded-xl border border-[#1e2530] text-left space-y-2.5">
-                            <div className="text-xs font-bold text-white flex justify-between">
+                          <div className="bg-surface-1 p-4 rounded-xl border border-border-subtle text-left space-y-2.5">
+                            <div className="text-xs font-bold text-main flex justify-between">
                               <span>Sponsor Capital Account</span>
-                              <span className="text-[#10b981] font-mono text-[10px]">● SECURE RECORD</span>
+                              <span className="text-green-500 font-mono text-[10px]">● SECURE RECORD</span>
                             </div>
-                            <div className="flex justify-between border-b border-[#1e2530] pb-1.5 text-[11px] text-[#a0aec0]">
+                            <div className="flex justify-between border-b border-border-subtle pb-1.5 text-[11px] text-dim">
                               <span>Approved Core Contract Value</span>
-                              <span className="font-bold text-white">$1,420,000</span>
+                              <span className="font-bold text-main">$1,420,000</span>
                             </div>
-                            <div className="flex justify-between text-[11px] text-[#a0aec0]">
+                            <div className="flex justify-between text-[11px] text-dim">
                               <span>Total Verified & Signed Claims</span>
-                              <span className="font-bold text-[#10b981]">$482,000</span>
+                              <span className="font-bold text-green-500">$482,000</span>
                             </div>
                           </div>
                         </div>
@@ -1342,12 +1420,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'project-setup' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Configure project default milestones, administrative checklists, and baseline constraints:
                             </p>
                             <div className="flex-shrink-0">
                               {hasSetChecklist ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ EDITABLE (proj:set_checklists)
                                 </span>
                               ) : (
@@ -1358,12 +1436,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] border border-[#1e2530] rounded-xl p-4 space-y-2.5">
-                            <div className="text-white text-xs font-bold uppercase tracking-wider pb-1 border-b border-[#1e2530] flex justify-between">
+                          <div className="bg-surface-1 border border-border-subtle rounded-xl p-4 space-y-2.5">
+                            <div className="text-main text-xs font-bold uppercase tracking-wider pb-1 border-b border-border-subtle flex justify-between">
                               <span>Simulation Checklist Items</span>
-                              <span className="text-[9px] text-[#718096] font-mono">Dynamic Checklist State</span>
+                              <span className="text-[9px] text-ghost font-mono">Dynamic Checklist State</span>
                             </div>
-                            <div className="space-y-2.5 text-xs text-[#a0aec0]">
+                            <div className="space-y-2.5 text-xs text-dim">
                               {simulatedChecklist.map(chk => (
                                 <div key={chk.id} className="flex items-start gap-2.5 group">
                                   <input 
@@ -1375,7 +1453,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                     }}
                                     className="mt-0.5 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
                                   />
-                                  <span className={cn("leading-tight transition-colors", chk.completed ? "line-through text-[#4a5568]" : "text-white")}>
+                                  <span className={cn("leading-tight transition-colors", chk.completed ? "line-through text-ghost" : "text-main")}>
                                     {chk.task}
                                   </span>
                                 </div>
@@ -1388,12 +1466,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'governance' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Lockdown official baselines, baseline schedules, and system policy locks:
                             </p>
                             <div>
                               {hasLockBaseline ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ EDITABLE (plan:lock_baseline)
                                 </span>
                               ) : (
@@ -1407,14 +1485,14 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                           <div className={cn(
                             "p-4 rounded-xl border space-y-2.5 transition-all text-xs",
                             simulatedBaselineLocked 
-                              ? "bg-red-950/15 border-red-900/40 text-red-400" 
-                              : "bg-[#131924] border-[#1e2530] text-[#a0aec0]"
+                              ? "bg-red-950/15 border-red-900/40 text-red-450" 
+                              : "bg-surface-1 border-border-subtle text-dim"
                           )}>
                             <div className="flex items-center justify-between">
                               <span className="font-bold uppercase tracking-wider font-mono">
                                 System Baseline Lock: {simulatedBaselineLocked ? "FROZEN LOCKED" : "CURRENTLY UNLOCKED"}
                               </span>
-                              <span className="text-[9px] text-[#718096]">V.1.2 Scope</span>
+                              <span className="text-[9px] text-ghost">V.1.2 Scope</span>
                             </div>
                             <p className="leading-relaxed">
                               When frozen, planning changes are locked, and any cost adjustments are designated as contract variances.
@@ -1426,10 +1504,10 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                               className={cn(
                                 "py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer box-border border",
                                 !hasLockBaseline 
-                                  ? "bg-transparent border-[#1e2530] text-[#4a5568] cursor-not-allowed" 
+                                  ? "bg-transparent border-border-subtle text-ghost cursor-not-allowed" 
                                   : simulatedBaselineLocked 
                                     ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-400" 
-                                    : "bg-[#24ce24]/10 hover:bg-[#24ce24]/20 border-[#24ce24]/30 text-[#24ce24]"
+                                    : "bg-primary/10 hover:bg-primary/20 border-primary/30 text-primary"
                               )}
                             >
                               {simulatedBaselineLocked ? "Unlock Planning Changes" : "Lock Baseline Version"}
@@ -1441,12 +1519,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'planning' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Interactive Bill of Quantities (BoQ) builder:
                             </p>
                             <div>
                               {hasAddBoq ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (boq:add_item)
                                 </span>
                               ) : (
@@ -1457,21 +1535,21 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] p-4 rounded-xl border border-[#1e2530] space-y-3">
-                            <h5 className="text-xs font-bold text-white uppercase tracking-wide">Live Bill of Quantities Summary</h5>
+                          <div className="bg-surface-1 p-4 rounded-xl border border-border-subtle space-y-3">
+                            <h5 className="text-xs font-bold text-main uppercase tracking-wide">Live Bill of Quantities Summary</h5>
                             <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                               {simulatedBoq.map(item => (
-                                <div key={item.id} className="flex justify-between items-center text-xs text-[#a0aec0] bg-[#0b0f17] p-2.5 rounded-lg border border-[#1e2530]">
+                                <div key={item.id} className="flex justify-between items-center text-xs text-dim bg-surface-base p-2.5 rounded-lg border border-border-subtle">
                                   <span>{item.item}</span>
-                                  <span className="font-bold text-white font-mono">{item.quantity} {item.unit}</span>
+                                  <span className="font-bold text-main font-mono">{item.quantity} {item.unit}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
 
                           {/* Adding capabilities control loop to lock planning edits if unauthorized */}
-                          <div className="bg-[#131924]/40 border border-[#1e2530] rounded-xl p-4 space-y-3">
-                            <div className="text-[10px] font-mono text-[#a0aec0] uppercase font-bold">Add Custom BoQ Item</div>
+                          <div className="bg-surface-1/40 border border-border-subtle rounded-xl p-4 space-y-3">
+                            <div className="text-[10px] font-mono text-dim uppercase font-bold">Add Custom BoQ Item</div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                               <input 
                                 type="text"
@@ -1479,7 +1557,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                 placeholder="e.g. Steel Bolts Gauge"
                                 value={newBoqItemName}
                                 onChange={(e) => setNewBoqItemName(e.target.value)}
-                                className="bg-[#0b0f17] border border-[#1e2530] text-xs px-2.5 py-1.5 rounded text-white outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-surface-base border border-border-subtle text-xs px-2.5 py-1.5 rounded text-main outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                               <input 
                                 type="number"
@@ -1487,7 +1565,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                 placeholder="Qty"
                                 value={newBoqItemQty}
                                 onChange={(e) => setNewBoqItemQty(e.target.value)}
-                                className="bg-[#0b0f17] border border-[#1e2530] text-xs px-2.5 py-1.5 rounded text-white outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-surface-base border border-border-subtle text-xs px-2.5 py-1.5 rounded text-main outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                               <button
                                 disabled={!hasAddBoq}
@@ -1509,12 +1587,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'schedule' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Standard timeline sequence parameters:
                             </p>
                             <div>
                               {hasUpdateProgress ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (plan:update_progress)
                                 </span>
                               ) : (
@@ -1525,8 +1603,8 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] p-4 rounded-xl border border-[#1e2530] space-y-4 text-xs">
-                            <div className="flex justify-between items-center text-white">
+                          <div className="bg-surface-1 p-4 rounded-xl border border-border-subtle space-y-4 text-xs">
+                            <div className="flex justify-between items-center text-main">
                               <span className="font-bold uppercase tracking-wider">AGGREGATE FRAMING COMPLETENESS</span>
                               <span className="font-mono text-primary font-bold text-sm bg-primary/10 px-2.5 py-0.5 border border-primary/20 rounded">{simulatedMilestoneProgress}%</span>
                             </div>
@@ -1538,9 +1616,9 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                               value={simulatedMilestoneProgress}
                               disabled={!hasUpdateProgress}
                               onChange={(e) => setSimulatedMilestoneProgress(Number(e.target.value))}
-                              className="w-full h-1.5 bg-[#0b0f17] rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-full h-1.5 bg-surface-base rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
                             />
-                            <p className="text-[10px] text-[#718096] leading-relaxed">
+                            <p className="text-[10px] text-ghost leading-relaxed">
                               * Drag the slider back and forth to dynamically update aggregate framing curves. Progress changes reflect in portfolio calculations.
                             </p>
                           </div>
@@ -1550,12 +1628,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'variations' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Contract variation orders, cost estimates, and client claims log:
                             </p>
                             <div>
                               {hasVarCreate ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (fin:var_create)
                                 </span>
                               ) : (
@@ -1566,20 +1644,20 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] p-4 rounded-xl border border-[#1e2530] space-y-2.5">
-                            <div className="text-white text-xs font-bold uppercase tracking-wider">Claims Ledger</div>
+                          <div className="bg-surface-1 p-4 rounded-xl border border-border-subtle space-y-2.5">
+                            <div className="text-main text-xs font-bold uppercase tracking-wider">Claims Ledger</div>
                             <div className="space-y-1.5">
                               {simulatedVariations.map(vo => (
-                                <div key={vo.id} className="flex justify-between items-center text-xs p-2 bg-[#0b0f17] border border-[#1e2530] rounded-lg">
-                                  <span className="text-[#a0aec0]">{vo.claim}</span>
-                                  <span className="font-mono text-[#10b981] font-bold">+${vo.amount.toLocaleString()}</span>
+                                <div key={vo.id} className="flex justify-between items-center text-xs p-2 bg-surface-base border border-border-subtle rounded-lg">
+                                  <span className="text-dim">{vo.claim}</span>
+                                  <span className="font-mono text-green-500 font-bold">+${vo.amount.toLocaleString()}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
 
-                          <div className="bg-[#131924]/40 border border-[#1e2530] rounded-xl p-4 space-y-2.5">
-                            <div className="text-[10px] font-mono text-[#a0aec0] uppercase font-bold">Initiate New Cost Claim Variant</div>
+                          <div className="bg-surface-1/40 border border-border-subtle rounded-xl p-4 space-y-2.5">
+                            <div className="text-[10px] font-mono text-dim uppercase font-bold">Initiate New Cost Claim Variant</div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                               <input 
                                 type="text"
@@ -1587,7 +1665,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                 disabled={!hasVarCreate}
                                 value={newVoClaimName}
                                 onChange={(e) => setNewVoClaimName(e.target.value)}
-                                className="bg-[#0b0f17] border border-[#1e2530] text-xs px-2.5 py-1.5 rounded text-white outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-surface-base border border-border-subtle text-xs px-2.5 py-1.5 rounded text-main outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                               <input 
                                 type="number"
@@ -1595,7 +1673,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                 disabled={!hasVarCreate}
                                 value={newVoClaimAmount}
                                 onChange={(e) => setNewVoClaimAmount(e.target.value)}
-                                className="bg-[#0b0f17] border border-[#1e2530] text-xs px-2.5 py-1.5 rounded text-white outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-surface-base border border-border-subtle text-xs px-2.5 py-1.5 rounded text-main outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                               <button
                                 disabled={!hasVarCreate}
@@ -1607,7 +1685,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                   setNewVoClaimName('');
                                   setNewVoClaimAmount('');
                                 }}
-                                className="bg-[#10b981]/15 hover:bg-[#10b981]/25 border border-[#10b981]/20 text-[#10b981] text-xs py-1.5 rounded font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                className="bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-500 text-xs py-1.5 rounded font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                               >
                                 Submit VO Claim
                               </button>
@@ -1619,12 +1697,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'budget' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Simulate company spend margins, project cash flows, and supplier invoices:
                             </p>
                             <div>
                               {hasEditBudget ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (fin:edit_budget)
                                 </span>
                               ) : (
@@ -1635,18 +1713,18 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] p-4 rounded-xl border border-[#1e2530] grid grid-cols-2 gap-3 text-xs">
-                            <div className="bg-[#0b0f17] p-3 rounded-lg border border-[#1e2530]">
-                              <span className="text-[10px] text-[#718096] uppercase font-mono block">Budget Cap</span>
-                              <span className="text-base font-extrabold text-white">${simulatedBudget.limit.toLocaleString()}</span>
+                          <div className="bg-surface-1 p-4 rounded-xl border border-border-subtle grid grid-cols-2 gap-3 text-xs">
+                            <div className="bg-surface-base p-3 rounded-lg border border-border-subtle">
+                              <span className="text-[10px] text-ghost uppercase font-mono block">Budget Cap</span>
+                              <span className="text-base font-extrabold text-main">${simulatedBudget.limit.toLocaleString()}</span>
                             </div>
-                            <div className="bg-[#0b0f17] p-3 rounded-lg border border-[#1e2530]">
+                            <div className="bg-surface-base p-3 rounded-lg border border-border-subtle">
                               <span className="text-[10px] text-red-400 uppercase font-mono block">Current Expenditure</span>
-                              <span className="text-base font-extrabold text-white">${simulatedBudget.spend.toLocaleString()}</span>
+                              <span className="text-base font-extrabold text-main">${simulatedBudget.spend.toLocaleString()}</span>
                             </div>
                           </div>
 
-                          <div className="bg-[#131924]/50 border border-[#1e2530] rounded-xl p-4 space-y-3">
+                          <div className="bg-surface-1/55 border border-border-subtle rounded-xl p-4 space-y-3">
                             <span className="text-[10px] text-primary uppercase font-bold block">Interactions Section</span>
                             <div className="flex gap-2.5">
                               <button 
@@ -1663,7 +1741,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                 onClick={() => {
                                   setSimulatedBudget(prev => ({ ...prev, spend: prev.spend + 4500 }));
                                 }}
-                                className="flex-1 py-2 bg-[#10b981]/15 hover:bg-[#10b981]/25 border border-[#10b981]/25 rounded-lg text-[10px] font-bold text-[#10b981] uppercase tracking-wider transition-all disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer text-center"
+                                className="flex-1 py-2 bg-green-500/15 hover:bg-green-500/25 border border-green-500/25 rounded-lg text-[10px] font-bold text-green-500 uppercase tracking-wider transition-all disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer text-center"
                               >
                                 Match Supplier Invoice ($4,500)
                               </button>
@@ -1675,12 +1753,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'operations-hub' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Operations controller logs site progress data:
                             </p>
                             <div>
                               {hasDailySubmit ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (daily:submit)
                                 </span>
                               ) : (
@@ -1691,19 +1769,19 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] p-4 border border-[#1e2530] rounded-xl space-y-2.5">
-                            <div className="text-white text-xs font-bold uppercase tracking-wider">Dynamic Activity Logs</div>
+                          <div className="bg-surface-1 p-4 border border-border-subtle rounded-xl space-y-2.5">
+                            <div className="text-main text-xs font-bold uppercase tracking-wider">Dynamic Activity Logs</div>
                             <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                               {simulatedDailyLogs.map(log => (
-                                <div key={log.id} className="text-xs p-2 bg-[#0b0f17] border border-[#1e2530] rounded-lg text-[#a0aec0] leading-normal font-mono">
+                                <div key={log.id} className="text-xs p-2 bg-surface-base border border-border-subtle rounded-lg text-dim leading-normal font-mono">
                                   &gt; {log.detail}
                                 </div>
                               ))}
                             </div>
                           </div>
 
-                          <div className="bg-[#131924]/40 border border-[#1e2530] rounded-xl p-4 space-y-2.5">
-                            <div className="text-[10px] font-mono text-[#a0aec0] uppercase font-bold">Write Daily Site Report Entry</div>
+                          <div className="bg-surface-1/40 border border-border-subtle rounded-xl p-4 space-y-2.5">
+                            <div className="text-[10px] font-mono text-dim uppercase font-bold">Write Daily Site Report Entry</div>
                             <div className="flex gap-2">
                               <input 
                                 type="text"
@@ -1711,7 +1789,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                 disabled={!hasDailySubmit}
                                 value={newDailyLogDetail}
                                 onChange={(e) => setNewDailyLogDetail(e.target.value)}
-                                className="flex-1 bg-[#0b0f17] border border-[#1e2530] text-xs px-2.5 py-1.5 rounded text-white outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex-1 bg-surface-base border border-border-subtle text-xs px-2.5 py-1.5 rounded text-main outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                               <button
                                 disabled={!hasDailySubmit}
@@ -1732,12 +1810,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'subcontractors' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Manage subcontractors directory, assignments, and labor rates:
                             </p>
                             <div>
                               {hasSubconManage ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (res:subcon_manage)
                                 </span>
                               ) : (
@@ -1748,14 +1826,14 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] p-4 border border-[#1e2530] rounded-xl text-xs space-y-2.5 text-[#a0aec0]">
-                            <div className="text-white font-bold uppercase tracking-wider">Subcontractor Directory State</div>
+                          <div className="bg-surface-1 p-4 border border-border-subtle rounded-xl text-xs space-y-2.5 text-dim">
+                            <div className="text-main font-bold uppercase tracking-wider">Subcontractor Directory State</div>
                             <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
                               {simulatedSubcontractors.map(sub => (
-                                <div key={sub.id} className="flex justify-between items-center p-2 bg-[#0b0f17] border border-[#1e2530] rounded-lg">
+                                <div key={sub.id} className="flex justify-between items-center p-2 bg-surface-base border border-border-subtle rounded-lg">
                                   <div>
-                                    <span className="text-white block font-semibold">{sub.name}</span>
-                                    <span className="text-[10px] text-[#718096] block">{sub.trade}</span>
+                                    <span className="text-main block font-semibold">{sub.name}</span>
+                                    <span className="text-[10px] text-ghost block">{sub.trade}</span>
                                   </div>
                                   <span className="text-primary font-mono font-bold text-[10px]">{sub.status}</span>
                                 </div>
@@ -1763,8 +1841,8 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924]/40 border border-[#1e2530] rounded-xl p-4 space-y-2.5">
-                            <div className="text-[10px] font-mono text-[#a0aec0] uppercase font-bold">Register New Trade Subcontractor</div>
+                          <div className="bg-surface-1/40 border border-border-subtle rounded-xl p-4 space-y-2.5">
+                            <div className="text-[10px] font-mono text-dim uppercase font-bold">Register New Trade Subcontractor</div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                               <input 
                                 type="text"
@@ -1772,7 +1850,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                 value={newSubconName}
                                 disabled={!hasSubconManage}
                                 onChange={(e) => setNewSubconName(e.target.value)}
-                                className="bg-[#0b0f17] border border-[#1e2530] text-xs px-2.5 py-1.5 rounded text-white outline-none focus:border-primary disabled:opacity-50"
+                                className="bg-surface-base border border-border-subtle text-xs px-2.5 py-1.5 rounded text-main outline-none focus:border-primary disabled:opacity-50"
                               />
                               <input 
                                 type="text"
@@ -1780,7 +1858,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                 value={newSubconTrade}
                                 disabled={!hasSubconManage}
                                 onChange={(e) => setNewSubconTrade(e.target.value)}
-                                className="bg-[#0b0f17] border border-[#1e2530] text-xs px-2.5 py-1.5 rounded text-white outline-none focus:border-primary disabled:opacity-50"
+                                className="bg-surface-base border border-border-subtle text-xs px-2.5 py-1.5 rounded text-main outline-none focus:border-primary disabled:opacity-50"
                               />
                               <button
                                 disabled={!hasSubconManage}
@@ -1802,12 +1880,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'approvals' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               View pending financial requisitions, purchase orders, and release actions:
                             </p>
                             <div>
                               {hasApprove ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (appr:approve)
                                 </span>
                               ) : (
@@ -1818,29 +1896,32 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] p-4 border border-[#1e2530] rounded-xl space-y-2.5 text-xs text-[#a0aec0]">
-                            <div className="text-white font-mono text-[10px] uppercase font-bold">Pending Requisitions Queue</div>
+                          <div className="bg-surface-1 p-4 border border-border-subtle rounded-xl space-y-2.5 text-xs text-dim">
+                            <div className="text-main font-mono text-[10px] uppercase font-bold">Pending Requisitions Queue</div>
                             <div className="space-y-2">
                               {simulatedApprovals.length === 0 ? (
-                                <p className="text-xs text-[#718096] text-center py-4 font-mono">No pending workflows items in queue.</p>
+                                <p className="text-xs text-ghost text-center py-4 font-mono">No pending workflows items in queue.</p>
                               ) : (
                                 simulatedApprovals.map(apr => (
-                                  <div key={apr.id} className="flex items-center justify-between p-2.5 bg-[#0b0f17] border border-[#1e2530] rounded-lg">
+                                  <div key={apr.id} className="flex items-center justify-between p-2.5 bg-surface-base border border-border-subtle rounded-lg">
                                     <div className="text-left">
-                                      <span className="text-white font-semibold block">{apr.item}</span>
+                                      <span className="text-main font-semibold block">{apr.item}</span>
                                       <span className="text-[9px] text-red-400 font-mono block">Spend: ${apr.amount.toLocaleString()}</span>
                                     </div>
                                     <button
                                       disabled={!hasApprove}
                                       onClick={() => {
                                         setSimulatedApprovals(prev => prev.filter(item => item.id !== apr.id));
-                                        alert(`Successfully Approved Requisition: ${apr.item} for $${apr.amount}`);
+                                        setSimulatedDailyLogs(prev => [
+                                          { id: Date.now().toString(), detail: `✓ APPROVED REQUISITION: ${apr.item} for $${apr.amount.toLocaleString()}`, reporter: 'SYSTEM' },
+                                          ...prev
+                                        ]);
                                       }}
                                       className={cn(
                                         "py-1 px-2.5 rounded text-[9px] font-black uppercase tracking-wider border transition-colors",
                                         hasApprove 
-                                          ? "bg-[#24ce24]/10 hover:bg-[#24ce24]/20 border-[#24ce24]/30 text-[#24ce24] cursor-pointer" 
-                                          : "bg-transparent border-[#1e2530] text-[#3a4454] cursor-not-allowed"
+                                          ? "bg-primary/10 hover:bg-primary/20 border-primary/30 text-primary cursor-pointer" 
+                                          : "bg-transparent border-border-subtle text-ghost cursor-not-allowed"
                                       )}
                                     >
                                       {hasApprove ? "Digital Release" : "Locked"}
@@ -1856,12 +1937,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'alerts' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               View site climate parameters and critical alarms dispatch list:
                             </p>
                             <div>
                               {hasAlertDismiss ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (alert:dismiss)
                                 </span>
                               ) : (
@@ -1874,13 +1955,13 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
 
                           <div className="space-y-2.5 text-xs">
                             {simulatedAlerts.filter(a => a.active).length === 0 ? (
-                              <p className="text-xs text-[#718096] text-center p-4 font-mono border border-dashed border-[#1e2530] rounded-xl">&gt; All system warnings acknowledged and healthy.</p>
+                               <p className="text-xs text-ghost text-center p-4 font-mono border border-dashed border-border-subtle rounded-xl">&gt; All system warnings acknowledged and healthy.</p>
                             ) : (
                               simulatedAlerts.filter(a => a.active).map(alt => (
-                                <div key={alt.id} className="bg-orange-500/10 border border-orange-500/20 text-orange-400 p-4 rounded-xl leading-relaxed flex justify-between items-start">
+                                <div key={alt.id} className="bg-orange-500/10 border border-orange-500/20 text-orange-450 p-4 rounded-xl leading-relaxed flex justify-between items-start">
                                   <div className="flex-1 pr-3">
                                     <b>System Warning Logged &ndash; SITE A:</b>
-                                    <p className="mt-1 text-xs text-[#a0aec0]">{alt.message}</p>
+                                    <p className="mt-1 text-xs text-dim">{alt.message}</p>
                                   </div>
                                   <button
                                     disabled={!hasAlertDismiss}
@@ -1890,8 +1971,8 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                     className={cn(
                                       "px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wide border",
                                       hasAlertDismiss 
-                                        ? "bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/30 text-orange-400 cursor-pointer" 
-                                        : "bg-transparent border-[#1e2530] text-[#3a4454] cursor-not-allowed"
+                                        ? "bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/30 text-orange-450 cursor-pointer" 
+                                        : "bg-transparent border-border-subtle text-ghost cursor-not-allowed"
                                     )}
                                   >
                                     Acknowledge
@@ -1906,12 +1987,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'procurement' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Review material supply lines and issue Request for Proposals (RFQs):
                             </p>
                             <div>
                               {hasCreateRfq ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (proc:create_rfq)
                                 </span>
                               ) : (
@@ -1922,20 +2003,20 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] p-4 border border-[#1e2530] rounded-xl text-xs space-y-2 text-[#a0aec0]">
-                            <div className="text-white font-bold uppercase tracking-wider">Tenders and RFQs</div>
+                          <div className="bg-surface-1 p-4 border border-border-subtle rounded-xl text-xs space-y-2 text-dim">
+                            <div className="text-main font-bold uppercase tracking-wider">Tenders and RFQs</div>
                             <div className="space-y-2">
                               {simulatedTenders.map(tnd => (
-                                <div key={tnd.id} className="flex justify-between p-2 bg-[#0b0f17] border border-[#1e2530] rounded-lg">
+                                <div key={tnd.id} className="flex justify-between p-2 bg-surface-base border border-border-subtle rounded-lg">
                                   <span>{tnd.title}</span>
-                                  <span className="text-white font-bold">{tnd.status}</span>
+                                  <span className="text-main font-bold">{tnd.status}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
 
-                          <div className="bg-[#131924]/40 border border-[#1e2530] rounded-xl p-4 space-y-2.5">
-                            <div className="text-[10px] font-mono text-[#a0aec0] uppercase font-bold">Issue New RFQ Tender Proposal</div>
+                          <div className="bg-surface-1/40 border border-border-subtle rounded-xl p-4 space-y-2.5">
+                            <div className="text-[10px] font-mono text-dim uppercase font-bold">Issue New RFQ Tender Proposal</div>
                             <div className="flex gap-2">
                               <input 
                                 type="text"
@@ -1943,7 +2024,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                 disabled={!hasCreateRfq}
                                 value={newRfqTitle}
                                 onChange={(e) => setNewRfqTitle(e.target.value)}
-                                className="flex-1 bg-[#0b0f17] border border-[#1e2530] text-xs px-2.5 py-1.5 rounded text-white outline-none focus:border-primary disabled:opacity-50"
+                                className="flex-1 bg-surface-base border border-border-subtle text-xs px-2.5 py-1.5 rounded text-main outline-none focus:border-primary disabled:opacity-50"
                               />
                               <button
                                 disabled={!hasCreateRfq}
@@ -1964,12 +2045,12 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                       {activePreviewModule === 'warehouse' && (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-[#a0aec0]">
+                            <p className="text-xs text-dim">
                               Warehouse storage levels, material receipts, and stock inventory balances:
                             </p>
                             <div>
                               {hasGrn ? (
-                                <span className="text-[9px] text-[#24ce24] bg-[#24ce24]/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-[#24ce24]/20">
+                                <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
                                   ✓ AUTHORIZED (stock:grn_step1)
                                 </span>
                               ) : (
@@ -1980,14 +2061,14 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                             </div>
                           </div>
 
-                          <div className="bg-[#131924] p-4 rounded-xl border border-[#1e2530] text-left space-y-1 text-xs">
-                            <span className="text-[10px] text-[#718096] block uppercase tracking-wider font-mono">Simulated Materials Storage Balance</span>
-                            <span className="text-base font-extrabold text-white font-mono">{simulatedWarehouse.stock.toLocaleString()} Units</span>
+                          <div className="bg-surface-1 p-4 rounded-xl border border-border-subtle text-left space-y-1 text-xs">
+                            <span className="text-[10px] text-ghost block uppercase tracking-wider font-mono">Simulated Materials Storage Balance</span>
+                            <span className="text-base font-extrabold text-main font-mono">{simulatedWarehouse.stock.toLocaleString()} Units</span>
                           </div>
 
-                          <div className="bg-[#131924]/40 border border-[#1e2530] rounded-xl p-4 space-y-2.5">
-                            <div className="text-white text-xs font-bold uppercase tracking-wider">Log Goods Received Note (GRN)</div>
-                            <p className="text-[11px] text-[#a0aec0]">
+                          <div className="bg-surface-1/40 border border-border-subtle rounded-xl p-4 space-y-2.5">
+                            <div className="text-main text-xs font-bold uppercase tracking-wider">Log Goods Received Note (GRN)</div>
+                            <p className="text-[11px] text-dim">
                               Authorized staff can execute a live GRN receipt voucher to record incoming truck deliveries.
                             </p>
                             <button 
@@ -1998,8 +2079,8 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                               className={cn(
                                 "w-full text-center py-2 font-bold text-[10px] uppercase rounded-lg border transition-all",
                                 hasGrn 
-                                  ? "bg-primary hover:bg-primary/90 text-white border-primary cursor-pointer" 
-                                  : "bg-transparent border-[#1e2530] text-[#4a5568] cursor-not-allowed"
+                                  ? "bg-primary hover:brightness-110 text-white border-primary cursor-pointer active:scale-95" 
+                                  : "bg-transparent border-border-subtle text-ghost cursor-not-allowed"
                               )}
                             >
                               {hasGrn ? "Confirm Materials Receipt (+500 Units)" : "GRN Logging Locked"}
@@ -2010,11 +2091,11 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
 
                       {activePreviewModule === 'library' && (
                         <div className="space-y-4">
-                          <p className="text-xs text-[#a0aec0]">
+                          <p className="text-xs text-dim">
                             Corporate reference library of standard trade recipe specifications and structural cost units:
                           </p>
-                          <div className="bg-[#131924] p-4 border border-[#1e2530] rounded-xl space-y-2 text-xs text-[#a0aec0]">
-                            <div className="text-white font-bold">Standard Reference Rates Matrix</div>
+                          <div className="bg-surface-1 p-4 border border-border-subtle rounded-xl space-y-2 text-xs text-dim">
+                            <div className="text-main font-bold">Standard Reference Rates Matrix</div>
                             <div className="space-y-1.5 leading-relaxed font-mono text-[10px]">
                               <div>&gt; Structural Reinforcements steel base : $1,420 / Ton</div>
                               <div>&gt; Reinforced Aggregate Concrete 40MPA : $145 / m³</div>
@@ -2025,10 +2106,10 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
 
                       {activePreviewModule === 'users' && (
                         <div className="space-y-3">
-                          <p className="text-xs text-[#a0aec0]">
+                          <p className="text-xs text-dim">
                             Simulation of policy matrix directory:
                           </p>
-                          <p className="text-xs text-[#24ce24] font-mono leading-relaxed">
+                          <p className="text-xs text-primary font-mono leading-relaxed">
                             ✓ {users.length} Dynamic corporate user profiles mapped to active tenancy directory boundaries correctly.
                           </p>
                         </div>
@@ -2036,7 +2117,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
 
                       {activePreviewModule === 'permissions' && (
                         <div className="space-y-3">
-                          <p className="text-xs text-[#a0aec0]">
+                          <p className="text-xs text-dim">
                             Simulation of policy matrices:
                           </p>
                           <div className="bg-amber-500/5 border border-amber-500/20 text-amber-500 p-4 rounded-xl text-xs leading-relaxed font-mono">
@@ -2047,10 +2128,10 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
 
                       {activePreviewModule === 'approval-config' && (
                         <div className="space-y-3">
-                          <p className="text-xs text-[#a0aec0]">
+                          <p className="text-xs text-dim">
                             Simulation of multi-stage approval structures and global variables:
                           </p>
-                          <div className="bg-[#131924] p-4 border border-[#1e2530] rounded-xl text-xs text-[#a0aec0] font-mono">
+                          <div className="bg-surface-1 p-4 border border-border-subtle rounded-xl text-xs text-dim font-mono">
                             Spends exceeding $10,000 threshold require secondary authorization automatically.
                           </div>
                         </div>

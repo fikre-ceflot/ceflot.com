@@ -35,7 +35,9 @@ import {
   Thermometer,
   Lock,
   WifiOff,
-  CloudLightning
+  CloudLightning,
+  Calendar,
+  CheckSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
@@ -132,6 +134,59 @@ export function SiteApp({ project, tenantId, isEmbedded = false, onClose, forced
   const [notifications, setNotifications] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [upcomingActivities, setUpcomingActivities] = useState<BOQItem[]>([]);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+
+  const liveProgressPct = useMemo(() => {
+    if (!boqItems || boqItems.length === 0) return 0;
+    
+    // Find all leaf nodes
+    const leaves = boqItems.filter(item => {
+      if (!item.item_no) return false;
+      const cleanNo = item.item_no.trim();
+      return !boqItems.some(other => 
+        other.item_no && 
+        other.item_no !== item.item_no && 
+        other.item_no.trim().startsWith(cleanNo + '.')
+      );
+    });
+
+    if (leaves.length === 0) return 0;
+
+    const totalAmount = leaves.reduce((sum, item) => sum + (item.contract_amount || 0), 0);
+    if (totalAmount > 0) {
+      const weightedSum = leaves.reduce((sum, item) => sum + ((item.progress_pct || 0) * (item.contract_amount || 0)), 0);
+      const pct = weightedSum / totalAmount;
+      return Math.round(Math.min(100, Math.max(0, pct)) * 10) / 10;
+    } else {
+      const simpleSum = leaves.reduce((sum, item) => sum + (item.progress_pct || 0), 0);
+      const pct = simpleSum / leaves.length;
+      return Math.round(Math.min(100, Math.max(0, pct)) * 10) / 10;
+    }
+  }, [boqItems]);
+
+  const nextPendingTasks = useMemo(() => {
+    if (!boqItems || boqItems.length === 0) return [];
+    
+    const leafIncompletes = boqItems.filter(item => {
+      if (!item.item_no) return false;
+      const cleanNo = item.item_no.trim();
+      const isLeaf = !boqItems.some(other => 
+        other.item_no && 
+        other.item_no !== item.item_no && 
+        other.item_no.trim().startsWith(cleanNo + '.')
+      );
+      return isLeaf && (item.progress_pct || 0) < 100;
+    });
+
+    return leafIncompletes.sort((a, b) => {
+      if (a.planned_start_date && b.planned_start_date) {
+        return new Date(a.planned_start_date).getTime() - new Date(b.planned_start_date).getTime();
+      }
+      if (a.planned_start_date) return -1;
+      if (b.planned_start_date) return 1;
+      return (a.item_no || '').localeCompare(b.item_no || '');
+    }).slice(0, 3);
+  }, [boqItems]);
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
   const [logLoading, setLogLoading] = useState(false);
   const [collapsedLogs, setCollapsedLogs] = useState<Set<string>>(new Set());
@@ -2575,25 +2630,29 @@ export function SiteApp({ project, tenantId, isEmbedded = false, onClose, forced
        </main>
 
        {/* Floating Navigation Progress Bar (Always Visible at Bottom) */}
-       <footer className="shrink-0 bg-surface-1 border-t border-border-subtle px-4 py-3 sm:pb-8 flex flex-col gap-3">
+       <footer 
+         onClick={() => setShowPendingModal(true)}
+         className="shrink-0 bg-surface-1 border-t border-border-subtle px-4 py-3 sm:pb-8 flex flex-col gap-3 cursor-pointer hover:bg-surface-2 transition-colors select-none group uppercase tracking-tight"
+       >
           <div className="flex items-center justify-between mb-1">
              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-primary">
+                <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                    <LayoutDashboard className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-[11px] font-black text-main uppercase tracking-tight">Project Progress</span>
+                <span className="text-[9px] px-1.5 py-0.25 bg-accent/10 border border-accent/20 rounded font-bold text-accent animate-pulse uppercase tracking-widest sm:inline-block hidden">Click to view pending tasks</span>
              </div>
-             <span className="text-[11px] font-mono font-black text-primary">42.5%</span>
+             <span className="text-[11px] font-mono font-black text-primary">{liveProgressPct}%</span>
           </div>
           <div className="h-2 bg-surface-2 rounded-full overflow-hidden mb-1">
              <motion.div 
                initial={{ width: 0 }}
-               animate={{ width: '42.5%' }}
+               animate={{ width: `${liveProgressPct}%` }}
                className="h-full bg-primary"
              />
           </div>
           <div className="flex items-center gap-4 overflow-x-auto custom-scrollbar no-scrollbar py-1">
-             {upcomingActivities.length > 0 ? upcomingActivities.map((act, i) => (
+             {upcomingActivities.length > 0 ? upcomingActivities.slice(0, 5).map((act, i) => (
                 <div key={i} className="whitespace-nowrap flex items-center gap-2 px-3 py-1.5 bg-surface-2 border border-border-subtle rounded-full text-[9px] font-bold text-ghost shrink-0">
                    <div className="w-1.5 h-1.5 rounded-full bg-accent" />
                    UPCOMING: {cleanRichText(act.description)}
@@ -2603,6 +2662,103 @@ export function SiteApp({ project, tenantId, isEmbedded = false, onClose, forced
              )}
           </div>
        </footer>
+
+       {/* Pending Tasks Modal */}
+       <AnimatePresence>
+         {showPendingModal && (
+           <div 
+             className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+             onClick={() => setShowPendingModal(false)}
+           >
+             <motion.div
+               initial={{ opacity: 0, scale: 0.95, y: 10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.95, y: 10 }}
+               className="w-full max-w-md bg-surface-1 border border-border-subtle rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+               onClick={(e) => e.stopPropagation()}
+             >
+               {/* Header */}
+               <div className="p-5 border-b border-border-subtle flex items-center justify-between bg-surface-2">
+                 <div className="flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+                     <ClipboardList className="w-4 h-4" />
+                   </div>
+                   <div>
+                     <h3 className="text-sm font-bold text-main normal-case">Next Pending Tasks</h3>
+                     <p className="text-[10px] text-ghost font-medium normal-case">Incomplete project execution milestones</p>
+                   </div>
+                 </div>
+                 <button
+                   onClick={() => setShowPendingModal(false)}
+                   className="p-1.5 text-ghost hover:text-main bg-surface-1 hover:bg-surface-3 border border-border-subtle rounded-lg cursor-pointer transition-colors"
+                 >
+                   <X className="w-4 h-4" />
+                 </button>
+               </div>
+
+               {/* List */}
+               <div className="p-6 flex flex-col gap-4 max-h-[350px] overflow-y-auto custom-scrollbar">
+                 {nextPendingTasks.length > 0 ? (
+                   nextPendingTasks.map((task) => (
+                     <div 
+                       key={task.id} 
+                       className="p-4 bg-surface-2 border border-border-subtle rounded-2xl flex flex-col gap-3"
+                     >
+                       <div className="flex items-start justify-between gap-3">
+                         <div className="flex flex-col">
+                           <span className="text-[10px] font-mono font-bold text-primary">{task.item_no}</span>
+                           <span className="text-xs font-semibold text-main mt-0.5 line-clamp-2 normal-case">{cleanRichText(task.description)}</span>
+                         </div>
+                         <span className="text-[10px] text-ghost font-semibold whitespace-nowrap bg-surface-1 px-2 py-0.5 border border-border-subtle rounded-md">
+                           {task.contract_qty ? `${task.contract_qty.toLocaleString()} ${task.unit || 'Units'}` : 'N/A'}
+                         </span>
+                       </div>
+
+                       {/* Progress Bar for specific task */}
+                       <div className="flex flex-col gap-1">
+                         <div className="flex items-center justify-between text-[10px] font-mono text-dim">
+                           <span>Progress</span>
+                           <span className="text-primary font-bold">{Math.round(task.progress_pct || 0)}%</span>
+                         </div>
+                         <div className="h-1.5 bg-surface-1 rounded-full overflow-hidden">
+                           <div 
+                             className="h-full bg-primary" 
+                             style={{ width: `${Math.round(task.progress_pct || 0)}%` }} 
+                           />
+                         </div>
+                       </div>
+
+                       {/* Planned Date */}
+                       {task.planned_start_date && (
+                         <div className="flex items-center gap-1.5 text-[9px] font-medium text-ghost border-t border-border-subtle/50 pt-2 normal-case">
+                           <Calendar className="w-3 h-3" />
+                           <span>Planned Start: {new Date(task.planned_start_date).toLocaleDateString()}</span>
+                         </div>
+                       )}
+                     </div>
+                   ))
+                 ) : (
+                   <div className="text-center py-8 text-dim space-y-2">
+                     <CheckSquare className="w-8 h-8 text-primary mx-auto opacity-45" />
+                     <p className="text-xs font-bold uppercase tracking-wider text-ghost">All activities completed</p>
+                     <p className="text-[10px] text-ghost">There are no pending incomplete tasks for this project.</p>
+                   </div>
+                 )}
+               </div>
+
+               {/* Footer */}
+               <div className="p-4 bg-surface-2 border-t border-border-subtle flex justify-end">
+                 <button
+                   onClick={() => setShowPendingModal(false)}
+                   className="btn btn-secondary text-xs px-5 h-9 rounded-xl cursor-pointer normal-case"
+                 >
+                   Close
+                 </button>
+               </div>
+             </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
 
        {pickerOpen && (
          <ResourcePickerModal 

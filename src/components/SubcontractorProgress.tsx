@@ -21,14 +21,36 @@ interface SubcontractorProgressProps {
 export function SubcontractorProgress({ projectId }: SubcontractorProgressProps) {
   const [progressData, setProgressData] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [allBoqItems, setAllBoqItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const toggleSub = (subId: string) => {
     const next = new Set(expandedSubs);
     if (next.has(subId)) next.delete(subId);
     else next.add(subId);
     setExpandedSubs(next);
+  };
+
+  const toggleSection = (subId: string, itemNo: string) => {
+    const next = new Set(collapsedSections);
+    const key = `${subId}_${itemNo}`;
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setCollapsedSections(next);
+  };
+
+  const isHiddenByCollapse = (subId: string, itemNo: string) => {
+    if (!itemNo) return false;
+    const parts = itemNo.split('.');
+    for (let i = 1; i < parts.length; i++) {
+      const ancestor = parts.slice(0, i).join('.');
+      if (collapsedSections.has(`${subId}_${ancestor}`)) {
+        return true;
+      }
+    }
+    return false;
   };
 
   useEffect(() => {
@@ -38,16 +60,27 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
   async function loadProgress() {
     setLoading(true);
     try {
-      const [data, assignmentsRes] = await Promise.all([
+      const [data, assignmentsRes, boqRes] = await Promise.all([
         fetchSubcontractorProgress(projectId),
         supabase
           .from('subcontractor_assignments')
           .select('*, subcontractor:subcontractor_id(*)')
+          .eq('project_id', projectId),
+        supabase
+          .from('boq_items')
+          .select('id, item_no, description, unit, contract_qty, contract_rate')
           .eq('project_id', projectId)
       ]);
 
-      setProgressData(data || []);
+      const boqMap = new Map((boqRes.data || []).map(b => [b.id, b.item_no]));
+      const enrichedData = (data || []).map(item => ({
+        ...item,
+        item_no: (item as any).item_no || boqMap.get(item.boq_item_id) || ''
+      }));
+
+      setProgressData(enrichedData);
       setAssignments(assignmentsRes.data || []);
+      setAllBoqItems(boqRes.data || []);
     } catch (e: any) {
       console.error('Error loading sub progress:', e.message);
     } finally {
@@ -133,6 +166,91 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
       {groupedData.map((sub) => {
         const isExpanded = expandedSubs.has(sub.id);
         const completionPct = sub.totalAgreed > 0 ? Math.round((sub.totalEarned / sub.totalAgreed) * 100) : 0;
+
+        // Construct tree hierarchical list of activities
+        const subItemsByNo = new Map<string, any>();
+        sub.items.forEach((item: any) => {
+          if (item.item_no) {
+            subItemsByNo.set(item.item_no, item);
+          }
+        });
+
+        // Get relative BOQ items (direct assignments + any ancestor of active assignments)
+        const relevantBoqItems = allBoqItems.filter(boq => {
+          const itemNo = boq.item_no || '';
+          if (!itemNo) return false;
+          if (subItemsByNo.has(itemNo)) return true;
+          for (const assignedNo of subItemsByNo.keys()) {
+            if (assignedNo.startsWith(itemNo + '.')) {
+              return true;
+            }
+          }
+          return false;
+        });
+
+        // Sort by item_no naturally
+        relevantBoqItems.sort((a, b) => {
+          return (a.item_no || '').localeCompare(b.item_no || '', undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        // Transform to rows we can render, matching collapsibility and rolled-up properties
+        const allRows: any[] = [];
+        relevantBoqItems.forEach(boq => {
+          const itemNo = boq.item_no || '';
+          const depth = itemNo.split('.').filter(Boolean).length - 1;
+          
+          const isParent = relevantBoqItems.some(other => 
+            other.item_no !== itemNo && 
+            (other.item_no || '').startsWith(itemNo + '.')
+          );
+
+          // Find descendants belonging to this sub
+          const activeDescendants = sub.items.filter((item: any) => 
+            item.item_no === itemNo || 
+            (item.item_no || '').startsWith(itemNo + '.')
+          );
+
+          const rolledEarned = activeDescendants.reduce((acc: number, d: any) => acc + (d.earned_value || 0), 0);
+          const rolledAgreedAmount = activeDescendants.reduce((acc: number, d: any) => acc + (d.agreed_amount || 0), 0);
+          const progressPct = rolledAgreedAmount > 0 ? (rolledEarned / rolledAgreedAmount) * 100 : 0;
+
+          const matchedItem = subItemsByNo.get(itemNo) || sub.items.find((item: any) => item.boq_item_id === boq.id);
+
+          allRows.push({
+            id: boq.id,
+            item_no: itemNo,
+            description: boq.description,
+            unit: matchedItem ? matchedItem.unit : boq.unit,
+            agreed_qty: matchedItem ? matchedItem.agreed_qty : null,
+            cumulative_progress_qty: matchedItem ? matchedItem.cumulative_progress_qty : null,
+            isParent,
+            depth,
+            progress_pct: isParent ? progressPct : (matchedItem ? matchedItem.progress_pct : 0),
+            earned_value: isParent ? rolledEarned : (matchedItem ? matchedItem.earned_value : 0),
+            matchedItem
+          });
+        });
+
+        // Add any items mapped from database progress but missing valid item_no on BOQ mapping just in case
+        sub.items.forEach((item: any) => {
+          if (!item.item_no && !allRows.some(row => row.id === item.boq_item_id)) {
+            allRows.push({
+              id: item.boq_item_id,
+              item_no: '',
+              description: item.boq_description,
+              unit: item.unit,
+              agreed_qty: item.agreed_qty,
+              cumulative_progress_qty: item.cumulative_progress_qty,
+              isParent: false,
+              depth: 0,
+              progress_pct: item.progress_pct || 0,
+              earned_value: item.earned_value || 0,
+              matchedItem: item
+            });
+          }
+        });
+
+        const visibleRows = allRows.filter(row => !isHiddenByCollapse(sub.id, row.item_no));
         
         return (
           <div 
@@ -193,40 +311,107 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
               <div className="px-6 pb-6 animate-in slide-in-from-top-2 duration-300">
                 <div className="bg-surface-2/50 rounded-2xl border border-border-subtle/50 overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse table-fixed min-w-[800px]">
+                    <table className="w-full text-left border-collapse table-fixed min-w-[900px]">
                       <thead>
                         <tr className="bg-surface-base border-b border-border-subtle sticky top-0 z-10">
                           <th className="px-5 py-3 font-mono text-[9px] font-black uppercase tracking-widest text-ghost bg-surface-base border-b border-border-subtle">Activity Description</th>
                           <th className="px-5 py-3 font-mono text-[9px] font-black uppercase tracking-widest text-ghost text-center bg-surface-base border-b border-border-subtle w-24">Unit</th>
                           <th className="px-5 py-3 font-mono text-[9px] font-black uppercase tracking-widest text-ghost text-right bg-surface-base border-b border-border-subtle w-32">Agreed Qty</th>
                           <th className="px-5 py-3 font-mono text-[9px] font-black uppercase tracking-widest text-ghost text-right bg-surface-base border-b border-border-subtle w-32">Actual Qty</th>
-                          <th className="px-5 py-3 font-mono text-[9px] font-black uppercase tracking-widest text-ghost bg-surface-base border-b border-border-subtle w-44">Progress</th>
+                          <th className="px-5 py-3 font-mono text-[9px] font-black uppercase tracking-widest text-ghost bg-surface-base border-b border-border-subtle w-48">Progress</th>
                           <th className="px-5 py-3 font-mono text-[9px] font-black uppercase tracking-widest text-ghost text-right bg-surface-base border-b border-border-subtle w-36">Earned Value</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border-subtle/20">
-                        {sub.items.map((item: any, idx: number) => (
-                          <tr key={`${sub.id}-${item.boq_item_id}-${idx}`} className="hover:bg-primary/[0.02] transition-colors border-b border-border-subtle/10 group/row">
-                            <td className="px-5 py-3 text-[12px] text-dim/90 font-medium whitespace-normal leading-tight">
-                              {cleanRichText(item.boq_description)}
-                            </td>
-                            <td className="px-5 py-3 text-[11px] text-ghost text-center font-mono border-l border-r border-border-subtle/10">{cleanRichText(item.unit)}</td>
-                            <td className="px-5 py-3 text-[11px] text-dim text-right font-mono border-r border-border-subtle/10">{Number(item.agreed_qty || 0).toLocaleString()}</td>
-                            <td className="px-5 py-3 text-[11px] text-primary text-right font-mono font-bold border-r border-border-subtle/10">{Number(item.cumulative_progress_qty || 0).toLocaleString()}</td>
-                            <td className="px-5 py-3 min-w-[150px] border-r border-border-subtle/10">
-                              <div className="flex flex-col gap-1.5">
-                                <div className="h-1 bg-surface-base rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-primary transition-all duration-500" 
-                                    style={{ width: `${Math.min(100, item.progress_pct || 0)}%` }}
-                                  />
+                        {visibleRows.map((row: any, idx: number) => {
+                          const isOpen = !collapsedSections.has(`${sub.id}_${row.item_no}`);
+                          const bgClass = (() => {
+                            if (!row.isParent) return 'hover:bg-primary/[0.02] transition-colors border-b border-border-subtle/10';
+                            if (row.depth === 0) return 'bg-surface-base/80 font-black border-b border-border-subtle/30 text-main';
+                            if (row.depth === 1) return 'bg-surface-base/55 font-bold border-b border-border-subtle/20 text-main/90';
+                            return 'bg-surface-base/30 font-semibold border-b border-border-subtle/10 text-main/85';
+                          })();
+
+                          return (
+                            <tr key={`${sub.id}-${row.id}-${row.item_no}-${idx}`} className={bgClass}>
+                              <td className="px-5 py-3" style={{ paddingLeft: `${16 + row.depth * 20}px` }}>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {row.isParent ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        toggleSection(sub.id, row.item_no);
+                                      }}
+                                      className="p-1 rounded hover:bg-main/10 text-accent/80 hover:text-accent transition-colors focus:outline-none shrink-0"
+                                    >
+                                      {isOpen ? <ChevronDown className="w-3.5 h-3.5 animate-in fade-in" /> : <ChevronRight className="w-3.5 h-3.5 animate-in fade-in" />}
+                                    </button>
+                                  ) : (
+                                    <div className="w-6 shrink-0" />
+                                  )}
+                                  <div className="flex flex-col min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      {row.item_no && (
+                                        <span className={cn("font-mono font-black text-accent tracking-tighter shrink-0", row.isParent ? "text-[11px]" : "text-[10px] opacity-70")}>
+                                          {row.item_no}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className={cn(
+                                      "leading-tight transition-colors whitespace-normal break-words mt-0.5", 
+                                      row.isParent 
+                                        ? "text-xs text-main font-extrabold" 
+                                        : "text-[11px] text-dim font-medium"
+                                    )}>
+                                      {cleanRichText(row.description)}
+                                    </span>
+                                  </div>
                                 </div>
-                                <span className="text-[9px] font-black text-ghost uppercase tracking-wider">{Math.round(item.progress_pct || 0)}% Complete</span>
-                              </div>
-                            </td>
-                            <td className="px-5 py-3 text-[12px] text-main text-right font-mono font-bold">${Math.round(item.earned_value || 0).toLocaleString()}</td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td className="px-5 py-3 text-[11px] text-center font-mono border-l border-r border-border-subtle/10">
+                                {row.isParent ? (
+                                  <span className="text-ghost/30">—</span>
+                                ) : (
+                                  cleanRichText(row.unit || '—')
+                                )}
+                              </td>
+                              <td className="px-5 py-3 text-[11px] text-dim text-right font-mono border-r border-border-subtle/10">
+                                {row.isParent ? (
+                                  <span className="text-ghost/30">—</span>
+                                ) : (
+                                  Number(row.agreed_qty || 0).toLocaleString()
+                                )}
+                              </td>
+                              <td className="px-5 py-3 text-[11px] text-primary text-right font-mono font-bold border-r border-border-subtle/10">
+                                {row.isParent ? (
+                                  <span className="text-ghost/30">—</span>
+                                ) : (
+                                  Number(row.cumulative_progress_qty || 0).toLocaleString()
+                                )}
+                              </td>
+                              <td className="px-5 py-3 min-w-[150px] border-r border-border-subtle/10">
+                                <div className="flex flex-col gap-1.5">
+                                  <div className="h-1 bg-surface-base rounded-full overflow-hidden">
+                                    <div 
+                                      className={cn(
+                                        "h-full transition-all duration-500",
+                                        row.isParent ? "bg-accent" : "bg-primary"
+                                      )}
+                                      style={{ width: `${Math.min(100, row.progress_pct || 0)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] font-black text-ghost uppercase tracking-wider">
+                                    {Math.round(row.progress_pct || 0)}% {row.isParent ? 'Rollup' : 'Complete'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3 text-[12px] text-main text-right font-mono font-bold">
+                                ${Math.round(row.earned_value || 0).toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

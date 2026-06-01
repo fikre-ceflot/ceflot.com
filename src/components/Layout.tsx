@@ -148,6 +148,7 @@ export function Layout({
   
   // Filter items based on current context and search query
   const filteredNavItems = React.useMemo(() => {
+    // Basic permissions filter
     let items = NAV_ITEMS.filter(item => {
       if (item.id === 'god' && !user.is_platform_god) return false;
       
@@ -161,52 +162,93 @@ export function Layout({
       } else {
         if (item.capability && !hasCapability(item.capability)) return false;
       }
-
-      // Always show Home
-      if (item.id === 'home') return true;
-
-      // If we are on the project selection page (activeProject is null and not home),
-      // show home and all tools in the same section as the pending target.
-      if (!activeProject && activePanel === 'project-selection') {
-        if (item.id === 'home') return true;
-        
-        const targetModule = pendingPanel || activePanel;
-        const targetItem = NAV_ITEMS.find(i => i.id === targetModule);
-        
-        if (targetItem && targetItem.section && item.section === targetItem.section) {
-          return true;
-        }
-
-        return item.id === pendingPanel;
-      }
-
-      if (!activeProject && activePanel !== 'home') {
-        const activeItem = NAV_ITEMS.find(i => i.id === activePanel);
-        if (activeItem?.section === 'ADMIN' && item.section === 'ADMIN') {
-          return true;
-        }
-        if (activeItem?.section === 'GOD' && item.section === 'GOD') {
-          return true;
-        }
-        if (activeItem?.section === 'DASHBOARD' && item.section === 'DASHBOARD') {
-          return true;
-        }
-        return item.id === activePanel;
-      }
-      const activeItem = NAV_ITEMS.find(i => i.id === activePanel);
-      const activeSection = activeItem?.section;
-
-      // If the item is in the same section as the active panel, show it
-      if (item.section === activeSection) return true;
-
-      // Special case: Admin items should often be visible if you have permission
-      if (item.section === 'ADMIN') return true;
-
-      // Always show the current active panel if not already covered
-      if (item.id === activePanel) return true;
-
-      return false;
+      return true;
     });
+
+    // Determine the clicked card's context panel ID
+    const targetPanel = (!activeProject && activePanel === 'project-selection' && pendingPanel)
+      ? pendingPanel
+      : activePanel;
+
+    // Helper mapping of clicked home page card IDs to their associated sidebar subtool IDs
+    const getCardNavIds = (activeId: string): string[] => {
+      const base = ['home'];
+      
+      if (activeId === 'dashboard') {
+        return [...base, 'dashboard'];
+      }
+      if (activeId === 'client-portal') {
+        return [...base, 'client-portal'];
+      }
+      if (activeId === 'intelligence') {
+        return [...base, 'intelligence'];
+      }
+      if (activeId === 'library') {
+        return [...base, 'library'];
+      }
+      
+      // Project Setup Card
+      if (activeId === 'project-setup' || activeId === 'governance') {
+        return [...base, 'project-setup', 'governance'];
+      }
+      
+      // Project Planning Card
+      if (activeId === 'planning' || activeId === 'schedule' || activeId === 'budget') {
+        return [...base, 'planning', 'schedule', 'budget'];
+      }
+      
+      // Operations Control Card
+      if (activeId === 'operations-hub' || activeId === 'field-app') {
+        return [...base, 'operations-hub'];
+      }
+      
+      // Contracts Card
+      if (activeId === 'variations' || activeId === 'subcontractors') {
+        return [...base, 'variations', 'subcontractors'];
+      }
+      
+      // Procurement Card
+      if (activeId === 'procurement' || activeId === 'warehouse') {
+        return [...base, 'procurement', 'warehouse'];
+      }
+      
+      // User Management Card
+      if (activeId === 'users' || activeId === 'permissions') {
+        return [...base, 'users', 'permissions'];
+      }
+      
+      // Settings Card
+      if (activeId === 'approval-config') {
+        return [...base, 'approval-config'];
+      }
+      
+      // Standalone Approvals
+      if (activeId === 'approvals') {
+        return [...base, 'approvals'];
+      }
+      
+      // Standalone Alerts
+      if (activeId === 'alerts') {
+        return [...base, 'alerts'];
+      }
+
+      // Audit Logs
+      if (activeId === 'audit') {
+        return [...base, 'audit'];
+      }
+
+      // Platform God
+      if (activeId === 'god') {
+        return [...base, 'god'];
+      }
+
+      return [...base, activeId];
+    };
+
+    const allowedCardNavIds = getCardNavIds(targetPanel);
+
+    // Apply the clicked card filter
+    items = items.filter(item => allowedCardNavIds.includes(item.id));
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();

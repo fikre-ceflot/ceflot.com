@@ -12,14 +12,20 @@ interface DirectorDashboardProps {
   counts: any;
   onSelectProject: (id: string) => void;
   onSelectModule: (id: string) => void;
+  tenantId?: string;
 }
 
 export function DirectorDashboard({ 
   projects, 
   counts, 
   onSelectProject, 
-  onSelectModule 
+  onSelectModule,
+  tenantId
 }: DirectorDashboardProps) {
+  // Dynamic parameters computed based on actual active projects list
+  const primaryProjectName = projects[0]?.name || 'Project Alpha';
+  const urgentCount = projects.filter(p => p.status?.toLowerCase().includes('delay') || p.status?.toLowerCase().includes('behind')).length;
+
   return (
     <div className="flex flex-col gap-8">
       {/* Header Section */}
@@ -59,7 +65,7 @@ export function DirectorDashboard({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
-        <RecentActivity />
+        <RecentActivity tenantId={tenantId} />
 
         {/* AI Insights Panel */}
         <DashboardPanel 
@@ -76,7 +82,7 @@ export function DirectorDashboard({
               <div className="flex flex-col gap-2">
                 <h4 className="text-sm font-bold text-main">Portfolio Risk Assessment</h4>
                 <p className="text-xs text-ghost leading-relaxed">
-                  Based on current site logs and variation trends, <span className="text-main font-bold">Project Alpha</span> is showing a 12% increase in resource consumption over the last 7 days. This may impact the Q3 delivery schedule if not addressed.
+                  Based on active site logs and variation trends, <span className="text-main font-bold">{primaryProjectName}</span> is being closely monitored. {urgentCount > 0 ? `Portfolio monitors detect ${urgentCount} projects behind schedule.` : 'All active projects in your portfolio are currently operating within nominal scheduling baselines.'} Sourcing cycles are recommended to optimize delivery.
                 </p>
               </div>
             </div>
@@ -90,11 +96,11 @@ export function DirectorDashboard({
                 <ul className="flex flex-col gap-2">
                   <li className="text-[11px] text-ghost flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-primary" />
-                    Bulk purchase of Grade 42.5 Cement could save 8% across 3 projects.
+                    Bulk purchase of Grade 42.5 Cement could save 8% across portfolio.
                   </li>
                   <li className="text-[11px] text-ghost flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-primary" />
-                    Subcontractor 'BuildRight' is consistently 15% faster than average.
+                    Review high performance subcontractors based on active logs.
                   </li>
                 </ul>
               </div>
@@ -107,11 +113,11 @@ export function DirectorDashboard({
                 <ul className="flex flex-col gap-2">
                   <li className="text-[11px] text-ghost flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-warning" />
-                    2 Variations pending approval for over 14 days in 'City Mall'.
+                    Clear any variations pending approval for over 14 days.
                   </li>
                   <li className="text-[11px] text-ghost flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-warning" />
-                    Weather forecast predicts heavy rain; prepare site drainage.
+                    Analyze severe meteorological events inside weather dashboards.
                   </li>
                 </ul>
               </div>
