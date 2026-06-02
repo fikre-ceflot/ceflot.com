@@ -48,9 +48,20 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
-  const [activeProject, setActiveProject] = useState<string | null>(null);
-  const [activePanel, setActivePanel] = useState('home');
-  const [panelHistory, setPanelHistory] = useState<string[]>(['home']);
+  const [activeProject, setActiveProject] = useState<string | null>(() => {
+    return localStorage.getItem('ceflot-active-project') || null;
+  });
+  const [activePanel, setActivePanel] = useState(() => {
+    return localStorage.getItem('ceflot-active-panel') || 'home';
+  });
+  const [panelHistory, setPanelHistory] = useState<string[]>(() => {
+    const saved = localStorage.getItem('ceflot-panel-history');
+    try {
+      return saved ? JSON.parse(saved) : ['home'];
+    } catch {
+      return ['home'];
+    }
+  });
   const [pendingPanel, setPendingPanel] = useState<string | null>(null);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -68,6 +79,22 @@ export default function App() {
   });
 
   const currentProject = projects.find(p => p.id === activeProject);
+
+  useEffect(() => {
+    if (activeProject) {
+      localStorage.setItem('ceflot-active-project', activeProject);
+    } else {
+      localStorage.removeItem('ceflot-active-project');
+    }
+  }, [activeProject]);
+
+  useEffect(() => {
+    localStorage.setItem('ceflot-active-panel', activePanel);
+  }, [activePanel]);
+
+  useEffect(() => {
+    localStorage.setItem('ceflot-panel-history', JSON.stringify(panelHistory));
+  }, [panelHistory]);
 
   useEffect(() => {
     if (profile) {
@@ -152,12 +179,15 @@ export default function App() {
         console.warn('SignOut failed gracefully:', errsignOut);
       }
       Object.keys(localStorage).forEach(key => {
-        if (key.includes('supabase') || key.includes('sb-') || key.includes('auth-token')) {
+        if (key.includes('supabase') || key.includes('sb-') || key.includes('auth-token') || key.includes('ceflot-')) {
           localStorage.removeItem(key);
         }
       });
       setSession(null);
       setProfile(null);
+      setActivePanel('home');
+      setActiveProject(null);
+      setPanelHistory(['home']);
       setLoading(false);
     };
 
@@ -170,7 +200,7 @@ export default function App() {
         }
         setSession(session);
         if (session) {
-          loadProfile(session.user.id);
+          loadProfile(session.user.id, session);
         } else {
           setLoading(false);
         }
@@ -190,7 +220,7 @@ export default function App() {
 
       setSession(session);
       if (session) {
-        loadProfile(session.user.id);
+        loadProfile(session.user.id, session);
       } else {
         setProfile(null);
         setLoading(false);
@@ -200,7 +230,42 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadProfile = async (userId: string) => {
+  const autoCreateProfile = async (userId: string, emailStr: string, fullName: string, tenantId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .insert([{
+          id: userId,
+          email: emailStr,
+          full_name: fullName,
+          tenant_id: tenantId,
+          role: 'tenant_admin'
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+      
+      // Load tenant info
+      const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('id', tenantId)
+        .single();
+      
+      if (tenantData) setTenant(tenantData);
+      await loadProjects(tenantId, false);
+    } catch (e: any) {
+      console.error('Error auto-creating profile:', e.message);
+      setAuthError('Error auto-creating profile: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadProfile = async (userId: string, currentSession?: any) => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -210,9 +275,11 @@ export default function App() {
 
       if (error) {
         if (error.code === 'PGRST116') { // No rows found
-          console.warn('No profile found for user, showing setup screen');
-          setProfile(null);
-          setLoading(false);
+          console.warn('No profile found for user, auto-creating a default profile');
+          const userEmail = currentSession?.user?.email || session?.user?.email || '';
+          const defaultFullName = userEmail ? userEmail.split('@')[0] : 'User';
+          const defaultTenant = 'c1784ed8-7f42-47f3-85d1-f1de64734573'; // Sunshine TE Co. LTD.
+          await autoCreateProfile(userId, userEmail, defaultFullName, defaultTenant);
           return;
         }
         if (error.message?.includes('fetch')) {
@@ -233,7 +300,7 @@ export default function App() {
       
       if (tenantData) setTenant(tenantData);
 
-      loadProjects(data.tenant_id, !!data.is_platform_god);
+      await loadProjects(data.tenant_id, !!data.is_platform_god);
     } catch (e: any) {
       console.error('Error loading profile:', e.message);
       setAuthError('Error loading profile: ' + e.message);
@@ -491,6 +558,12 @@ export default function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    localStorage.removeItem('ceflot-active-project');
+    localStorage.removeItem('ceflot-active-panel');
+    localStorage.removeItem('ceflot-panel-history');
+    setActivePanel('home');
+    setActiveProject(null);
+    setPanelHistory(['home']);
   };
 
   if (!isSupabaseConfigured) {
