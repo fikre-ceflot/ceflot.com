@@ -12,6 +12,7 @@ import {
   Sliders, 
   Settings, 
   Zap,
+  HelpCircle,
   LogOut,
   Calculator,
   Package,
@@ -85,6 +86,8 @@ const NAV_ITEMS: { section: string; id: string; label: string; icon: any; capabi
   { section: 'SUPPLY CHAIN', id: 'warehouse', label: 'Supply hub', icon: Package, capability: 'stock:view' },
 
   { section: 'REFERENCE', id: 'library', label: 'Library', icon: BookOpen, capability: 'trade:view_global' },
+  { section: 'REFERENCE', id: 'guide', label: 'Guide', icon: BookOpen, capability: null },
+  { section: 'REFERENCE', id: 'help', label: 'Support', icon: HelpCircle, capability: null },
 
   { section: 'ADMIN', id: 'users',          label: 'Team',    icon: UserPlus, capability: 'admin:view_users' },
   { section: 'ADMIN', id: 'permissions',    label: 'Role permissions',   icon: ShieldCheck, capability: 'admin:view_roles' },
@@ -185,6 +188,9 @@ export function Layout({
       }
       if (activeId === 'library') {
         return [...base, 'library'];
+      }
+      if (activeId === 'guide' || activeId === 'help') {
+        return [...base, 'guide', 'help'];
       }
       
       // Project Setup Card

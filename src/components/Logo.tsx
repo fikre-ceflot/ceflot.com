@@ -45,199 +45,132 @@ export const CeflotLogo = ({
         {/* Embedded SVG Style block to drive the synchronized high-performance fluid comet animations */}
         <style>{`
           @keyframes sparkAnimation1 {
-            0% { transform: scale(0.2); opacity: 0; filter: drop-shadow(0 0 2px #10b981); }
-            1% { transform: scale(1.6); opacity: 0.95; filter: drop-shadow(0 0 8px #10b981) drop-shadow(0 0 15px #22d3ee); }
-            3% { transform: scale(2.4); opacity: 1; filter: drop-shadow(0 0 15px #22d3ee) drop-shadow(0 0 30px #ffffff); }
-            5% { transform: scale(2.8); opacity: 1; filter: drop-shadow(0 0 18px #22d3ee) drop-shadow(0 0 35px #ffffff); }
-            8% { transform: scale(0.5); opacity: 0; }
-            100% { transform: scale(0.2); opacity: 0; }
+            0% { transform: scale(0.1); opacity: 0; }
+            3% { transform: scale(1.4); opacity: 0.9; filter: drop-shadow(0 0 3px #22d3ee) drop-shadow(0 0 6px #ffffff); }
+            11% { transform: scale(0.1); opacity: 0; }
+            100% { transform: scale(0.1); opacity: 0; }
           }
           @keyframes sparkAnimation2 {
-            0%, 34% { transform: scale(0.2); opacity: 0; filter: drop-shadow(0 0 2px #10b981); }
-            35% { transform: scale(1.6); opacity: 0.95; filter: drop-shadow(0 0 8px #10b981) drop-shadow(0 0 15px #22d3ee); }
-            37% { transform: scale(2.4); opacity: 1; filter: drop-shadow(0 0 15px #22d3ee) drop-shadow(0 0 30px #ffffff); }
-            39% { transform: scale(2.8); opacity: 1; filter: drop-shadow(0 0 18px #22d3ee) drop-shadow(0 0 35px #ffffff); }
-            42% { transform: scale(0.5); opacity: 0; }
-            100% { transform: scale(0.2); opacity: 0; }
-          }
-          @keyframes sparkAnimation3 {
-            0%, 69% { transform: scale(0.2); opacity: 0; filter: drop-shadow(0 0 2px #10b981); }
-            70% { transform: scale(1.6); opacity: 0.95; filter: drop-shadow(0 0 8px #10b981) drop-shadow(0 0 15px #22d3ee); }
-            72% { transform: scale(2.4); opacity: 1; filter: drop-shadow(0 0 15px #22d3ee) drop-shadow(0 0 30px #ffffff); }
-            74% { transform: scale(2.8); opacity: 1; filter: drop-shadow(0 0 18px #22d3ee) drop-shadow(0 0 35px #ffffff); }
-            77% { transform: scale(0.5); opacity: 0; }
-            100% { transform: scale(0.2); opacity: 0; }
+            0%, 51% { transform: scale(0.1); opacity: 0; }
+            54.4% { transform: scale(1.4); opacity: 0.9; filter: drop-shadow(0 0 3px #22d3ee) drop-shadow(0 0 6px #ffffff); }
+            62% { transform: scale(0.1); opacity: 0; }
+            100% { transform: scale(0.1); opacity: 0; }
           }
 
           @keyframes cometFlow1 {
+            /* Path 1: 0% to 84.4% active (continuous flow) */
             0% {
-              stroke-dashoffset: 100;
+              stroke-dashoffset: 155;
               stroke-width: 0px;
-              filter: drop-shadow(0 0 0px transparent);
               opacity: 0;
+              filter: drop-shadow(0 0 0px transparent);
             }
-            1% {
-              stroke-dashoffset: 100;
+            2.2% {
+              stroke-dashoffset: 155;
               stroke-width: 3.5px;
-              filter: drop-shadow(0 0 6px #22d3ee) drop-shadow(0 0 12px #10b981);
               opacity: 1;
+              filter: drop-shadow(0 0 6px #22d3ee) drop-shadow(0 0 12px #0ea5e9);
             }
-            18% {
-              stroke-width: 7.5px;
-              filter: drop-shadow(0 0 20px #22d3ee) drop-shadow(0 0 12px #10b981) drop-shadow(0 0 30px #ffffff);
-            }
-            35% {
-              stroke-dashoffset: 0;
-              stroke-width: 4px;
-              filter: drop-shadow(0 0 8px #10b981);
+            33.3% {
+              stroke-width: 5.5px;
               opacity: 1;
+              filter: drop-shadow(0 0 12px #22d3ee) drop-shadow(0 0 20px #0ea5e9) drop-shadow(0 0 30px #ffffff);
             }
-            39% {
-              stroke-dashoffset: -25;
-              stroke-width: 0px;
-              filter: drop-shadow(0 0 0px transparent);
-              opacity: 0;
+            55.6% {
+              stroke-dashoffset: 90;
+              stroke-width: 4.5px;
+              opacity: 1;
+              filter: drop-shadow(0 0 10px #22d3ee);
             }
-            100% {
-              stroke-dashoffset: -25;
+            71.1% {
+              stroke-dashoffset: 60;
+              stroke-width: 2.0px;
+              opacity: 0.4;
+              filter: drop-shadow(0 0 3px #22d3ee);
+            }
+            80.0% {
+              stroke-dashoffset: 40;
+              stroke-width: 0.8px;
+              opacity: 0.1;
+              filter: drop-shadow(0 0 1px #22d3ee);
+            }
+            84.4%, 100% {
+              stroke-dashoffset: 25;
               stroke-width: 0px;
-              filter: drop-shadow(0 0 0px transparent);
               opacity: 0;
+              filter: drop-shadow(0 0 0px transparent);
             }
           }
 
           @keyframes cometFlow2 {
-            0%, 34% {
-              stroke-dashoffset: 100;
+            /* Path 2: 51.1% to 100% active (seamless repeat trigger) */
+            0%, 51.1% {
+              stroke-dashoffset: 155;
               stroke-width: 0px;
-              filter: drop-shadow(0 0 0px transparent);
               opacity: 0;
+              filter: drop-shadow(0 0 0px transparent);
             }
-            35% {
-              stroke-dashoffset: 100;
+            53.3% {
+              stroke-dashoffset: 155;
               stroke-width: 3.5px;
-              filter: drop-shadow(0 0 6px #22d3ee) drop-shadow(0 0 12px #10b981);
               opacity: 1;
+              filter: drop-shadow(0 0 6px #22d3ee) drop-shadow(0 0 12px #0ea5e9);
             }
-            53% {
-              stroke-width: 7.5px;
-              filter: drop-shadow(0 0 20px #22d3ee) drop-shadow(0 0 12px #10b981) drop-shadow(0 0 30px #ffffff);
-            }
-            70% {
-              stroke-dashoffset: 0;
-              stroke-width: 4px;
-              filter: drop-shadow(0 0 8px #10b981);
+            66.6% {
+              stroke-width: 5.5px;
               opacity: 1;
+              filter: drop-shadow(0 0 12px #22d3ee) drop-shadow(0 0 20px #0ea5e9) drop-shadow(0 0 30px #ffffff);
             }
-            74% {
-              stroke-dashoffset: -25;
-              stroke-width: 0px;
-              filter: drop-shadow(0 0 0px transparent);
-              opacity: 0;
+            82.2% {
+              stroke-dashoffset: 90;
+              stroke-width: 4.5px;
+              opacity: 1;
+              filter: drop-shadow(0 0 10px #22d3ee);
+            }
+            91.1% {
+              stroke-dashoffset: 60;
+              stroke-width: 2.0px;
+              opacity: 0.4;
+              filter: drop-shadow(0 0 3px #22d3ee);
+            }
+            97.7% {
+              stroke-dashoffset: 40;
+              stroke-width: 0.8px;
+              opacity: 0.1;
+              filter: drop-shadow(0 0 1px #22d3ee);
             }
             100% {
-              stroke-dashoffset: -25;
+              stroke-dashoffset: 25;
               stroke-width: 0px;
-              filter: drop-shadow(0 0 0px transparent);
               opacity: 0;
-            }
-          }
-
-          @keyframes cometFlow3 {
-            0%, 69% {
-              stroke-dashoffset: 100;
-              stroke-width: 0px;
               filter: drop-shadow(0 0 0px transparent);
-              opacity: 0;
             }
-            70% {
-              stroke-dashoffset: 100;
-              stroke-width: 3.5px;
-              filter: drop-shadow(0 0 6px #22d3ee) drop-shadow(0 0 12px #10b981);
-              opacity: 1;
-            }
-            82% {
-              stroke-width: 7.5px;
-              filter: drop-shadow(0 0 20px #22d3ee) drop-shadow(0 0 12px #10b981) drop-shadow(0 0 30px #ffffff);
-            }
-            93% {
-              stroke-dashoffset: 0;
-              stroke-width: 4px;
-              filter: drop-shadow(0 0 8px #10b981);
-              opacity: 1;
-            }
-            98% {
-              stroke-dashoffset: -25;
-              stroke-width: 0px;
-              filter: drop-shadow(0 0 0px transparent);
-              opacity: 0;
-            }
-            100% {
-              stroke-dashoffset: -25;
-              stroke-width: 0px;
-              filter: drop-shadow(0 0 0px transparent);
-              opacity: 0;
-            }
-          }
-
-          @keyframes coreFlow1 {
-            0% { stroke-dashoffset: 100; opacity: 0; }
-            1% { stroke-dashoffset: 100; opacity: 1; }
-            35% { stroke-dashoffset: 0; opacity: 1; }
-            39% { stroke-dashoffset: -25; opacity: 0; }
-            100% { stroke-dashoffset: -25; opacity: 0; }
-          }
-          @keyframes coreFlow2 {
-            0%, 34% { stroke-dashoffset: 100; opacity: 0; }
-            35% { stroke-dashoffset: 100; opacity: 1; }
-            70% { stroke-dashoffset: 0; opacity: 1; }
-            74% { stroke-dashoffset: -25; opacity: 0; }
-            100% { stroke-dashoffset: -25; opacity: 0; }
-          }
-          @keyframes coreFlow3 {
-            0%, 69% { stroke-dashoffset: 100; opacity: 0; }
-            70% { stroke-dashoffset: 100; opacity: 1; }
-            93% { stroke-dashoffset: 0; opacity: 1; }
-            98% { stroke-dashoffset: -25; opacity: 0; }
-            100% { stroke-dashoffset: -25; opacity: 0; }
           }
 
           .ignition-spark-1 {
-            transform-origin: 80.5px 59.2px;
-            animation: sparkAnimation1 6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+            transform-origin: 32.39px 53.91px;
+            animation: sparkAnimation1 2.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
           }
           .ignition-spark-2 {
-            transform-origin: 112.0px 59.2px;
-            animation: sparkAnimation2 6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
-          }
-          .ignition-spark-3 {
-            transform-origin: 112.0px 59.2px;
-            animation: sparkAnimation3 6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+            transform-origin: 141.07px 46.75px;
+            animation: sparkAnimation2 2.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
           }
 
           .comet-glowing-trail-1 {
-            stroke-dasharray: 25, 75;
-            animation: cometFlow1 6s linear infinite;
+            stroke-dasharray: 25, 105;
+            animation: cometFlow1 2.2s linear infinite;
           }
           .comet-glowing-core-1 {
-            stroke-dasharray: 2, 98;
-            animation: coreFlow1 6s linear infinite;
+            stroke-dasharray: 0, 23, 3, 104;
+            animation: cometFlow1 2.2s linear infinite;
           }
           .comet-glowing-trail-2 {
-            stroke-dasharray: 25, 75;
-            animation: cometFlow2 6s linear infinite;
+            stroke-dasharray: 25, 105;
+            animation: cometFlow2 2.2s linear infinite;
           }
           .comet-glowing-core-2 {
-            stroke-dasharray: 2, 98;
-            animation: coreFlow2 6s linear infinite;
-          }
-          .comet-glowing-trail-3 {
-            stroke-dasharray: 25, 75;
-            animation: cometFlow3 6s linear infinite;
-          }
-          .comet-glowing-core-3 {
-            stroke-dasharray: 2, 98;
-            animation: coreFlow3 6s linear infinite;
+            stroke-dasharray: 0, 23, 3, 104;
+            animation: cometFlow2 2.2s linear infinite;
           }
         `}</style>
       </defs>
@@ -265,38 +198,29 @@ export const CeflotLogo = ({
 
         {/* Dynamic, Sequential Multi-Comet Sequential Flow representing the double-infinity division */}
         {active && (
-          <g style={{ mixBlendMode: 'plus-lighter' }}>
+          <g style={{ mixBlendMode: 'plus-lighter' }} transform="translate(6.57, 10.39)">
 
             {/* ========================================================= */}
-            {/* COMET 1: UPPER INFINITY LOOP (Guided by Image 1)         */}
+            {/* COMET 1 (Stage 1): THE EXPANSIVE INTEGRATED SERPENTINE LOOP */}
             {/* ========================================================= */}
             
             {/* Static trace baseline guide */}
             <path 
               style={{ opacity: 0.05, filter: 'url(#logoGlow)' }}
-              stroke="#10b981"
+              stroke="#22d3ee"
               strokeWidth="2.0"
               fill="none"
-              d="M 80.5,59.2 C 75.0,32.0 64.0,32.0 42.5,32.0 C 24.0,31.0 13.5,50.0 13.5,76.0 C 13.5,100.0 29.5,109.5 47.0,100.0 C 60.0,92.5 71.5,74.5 80.5,59.2 C 88.0,46.0 95.0,32.0 95.0,22.0 C 95.0,12.0 86.0,11.5 77.0,14.5 C 68.0,17.5 64.0,32.0 75.0,59.2"
-            />
-
-            {/* Spark Fire starting node at upper infinity midpoint cross */}
-            <circle 
-              cx="80.5" 
-              cy="59.2" 
-              r="2.5" 
-              fill="#ffffff" 
-              className="ignition-spark-1"
+              d="M32.39,53.91c-7.09.6-19.35,2.41-24.15,7.83-22.3,25.19,21.3,52.36,34.31,21,7.66-18.47,16.34-48.99,21.12-62.88,7.85-22.84,37.67-16.67,34.57,7.85-2.3,18.22-19.58,29.94-26.66,42.3-14.53,25.37,22.52,42.74,32.73,16.57,10.97-28.1,15.86-64.39,24.62-75.48,11.5-14.56,28.85-10.45,36.02,3.88,6.59,13.18-2.55,28.66-23.88,31.77"
             />
 
             {/* Glowing Custom Comet Trail */}
             <path 
               className="comet-glowing-trail-1"
-              stroke="url(#laserGrad)" 
+              stroke="#22d3ee" 
               strokeLinecap="round"
               fill="none"
               pathLength="100"
-              d="M 80.5,59.2 C 75.0,32.0 64.0,32.0 42.5,32.0 C 24.0,31.0 13.5,50.0 13.5,76.0 C 13.5,100.0 29.5,109.5 47.0,100.0 C 60.0,92.5 71.5,74.5 80.5,59.2 C 88.0,46.0 95.0,32.0 95.0,22.0 C 95.0,12.0 86.0,11.5 77.0,14.5 C 68.0,17.5 64.0,32.0 75.0,59.2"
+              d="M32.39,53.91c-7.09.6-19.35,2.41-24.15,7.83-22.3,25.19,21.3,52.36,34.31,21,7.66-18.47,16.34-48.99,21.12-62.88,7.85-22.84,37.67-16.67,34.57,7.85-2.3,18.22-19.58,29.94-26.66,42.3-14.53,25.37,22.52,42.74,32.73,16.57,10.97-28.1,15.86-64.39,24.62-75.48,11.5-14.56,28.85-10.45,36.02,3.88,6.59,13.18-2.55,28.66-23.88,31.77"
             />
 
             {/* Sharp white core */}
@@ -307,40 +231,40 @@ export const CeflotLogo = ({
               strokeLinecap="round"
               fill="none"
               pathLength="100"
-              d="M 80.5,59.2 C 75.0,32.0 64.0,32.0 42.5,32.0 C 24.0,31.0 13.5,50.0 13.5,76.0 C 13.5,100.0 29.5,109.5 47.0,100.0 C 60.0,92.5 71.5,74.5 80.5,59.2 C 88.0,46.0 95.0,32.0 95.0,22.0 C 95.0,12.0 86.0,11.5 77.0,14.5 C 68.0,17.5 64.0,32.0 75.0,59.2"
+              d="M32.39,53.91c-7.09.6-19.35,2.41-24.15,7.83-22.3,25.19,21.3,52.36,34.31,21,7.66-18.47,16.34-48.99,21.12-62.88,7.85-22.84,37.67-16.67,34.57,7.85-2.3,18.22-19.58,29.94-26.66,42.3-14.53,25.37,22.52,42.74,32.73,16.57,10.97-28.1,15.86-64.39,24.62-75.48,11.5-14.56,28.85-10.45,36.02,3.88,6.59,13.18-2.55,28.66-23.88,31.77"
+            />
+
+            {/* Spark Fire starting node on top of start point */}
+            <circle 
+              cx="32.39" 
+              cy="53.91" 
+              r="2.5" 
+              fill="#ffffff" 
+              className="ignition-spark-1"
             />
 
 
             {/* ========================================================= */}
-            {/* COMET 2: LOWER INFINITY LOOP (Guided by Image 2)         */}
+            {/* COMET 2 (Stage 2): THE RETURNING DIAGONAL CONNECTOR STRIP */}
             {/* ========================================================= */}
 
             {/* Static trace baseline guide */}
             <path 
               style={{ opacity: 0.05, filter: 'url(#logoGlow)' }}
-              stroke="#10b981"
+              stroke="#22d3ee"
               strokeWidth="2.0"
               fill="none"
-              d="M 112.0,59.2 C 123.0,32.0 119.0,17.5 110.0,14.5 C 101.0,11.5 92.0,12.0 92.0,22.0 C 92.0,32.0 99.0,46.0 106.5,59.2 C 115.5,74.5 127.0,92.5 140.0,100.0 C 157.5,109.5 173.5,100.0 173.5,76.0 C 173.5,50.0 163.0,31.0 144.5,32.0 C 127.0,32.0 115.5,46.0 112.0,59.2"
-            />
-
-            {/* Spark Fire starting node at lower-right infinity midpoint cross */}
-            <circle 
-              cx="112.0" 
-              cy="59.2" 
-              r="2.5" 
-              fill="#ffffff" 
-              className="ignition-spark-2"
+              d="M141.07,46.75 L68.76,48.92"
             />
 
             {/* Glowing Custom Comet Trail */}
             <path 
               className="comet-glowing-trail-2"
-              stroke="url(#laserGrad)" 
+              stroke="#22d3ee" 
               strokeLinecap="round"
               fill="none"
               pathLength="100"
-              d="M 112.0,59.2 C 123.0,32.0 119.0,17.5 110.0,14.5 C 101.0,11.5 92.0,12.0 92.0,22.0 C 92.0,32.0 99.0,46.0 106.5,59.2 C 115.5,74.5 127.0,92.5 140.0,100.0 C 157.5,109.5 173.5,100.0 173.5,76.0 C 173.5,50.0 163.0,31.0 144.5,32.0 C 127.0,32.0 115.5,46.0 112.0,59.2"
+              d="M141.07,46.75 L68.76,48.92"
             />
 
             {/* Sharp white core */}
@@ -351,51 +275,16 @@ export const CeflotLogo = ({
               strokeLinecap="round"
               fill="none"
               pathLength="100"
-              d="M 112.0,59.2 C 123.0,32.0 119.0,17.5 110.0,14.5 C 101.0,11.5 92.0,12.0 92.0,22.0 C 92.0,32.0 99.0,46.0 106.5,59.2 C 115.5,74.5 127.0,92.5 140.0,100.0 C 157.5,109.5 173.5,100.0 173.5,76.0 C 173.5,50.0 163.0,31.0 144.5,32.0 C 127.0,32.0 115.5,46.0 112.0,59.2"
+              d="M141.07,46.75 L68.76,48.92"
             />
 
-
-            {/* ========================================================= */}
-            {/* COMET 3: DIAGONAL CONNECTOR BRIDGE (Guided by Image 3)   */}
-            {/* ========================================================= */}
-
-            {/* Static trace baseline guide */}
-            <path 
-              style={{ opacity: 0.05, filter: 'url(#logoGlow)' }}
-              stroke="#10b981"
-              strokeWidth="2.0"
-              fill="none"
-              d="M 112.0,59.2 L 80.5,59.2"
-            />
-
-            {/* Spark Fire starting node at lower-right midpoint to bridge over to upper */}
+            {/* Spark Fire starting node on top of second path start point */}
             <circle 
-              cx="112.0" 
-              cy="59.2" 
+              cx="141.07" 
+              cy="46.75" 
               r="2.5" 
               fill="#ffffff" 
-              className="ignition-spark-3"
-            />
-
-            {/* Glowing Custom Comet Trail */}
-            <path 
-              className="comet-glowing-trail-3"
-              stroke="url(#laserGrad)" 
-              strokeLinecap="round"
-              fill="none"
-              pathLength="100"
-              d="M 112.0,59.2 L 80.5,59.2"
-            />
-
-            {/* Sharp white core */}
-            <path 
-              className="comet-glowing-core-3"
-              stroke="#ffffff" 
-              strokeWidth="2.0"
-              strokeLinecap="round"
-              fill="none"
-              pathLength="100"
-              d="M 112.0,59.2 L 80.5,59.2"
+              className="ignition-spark-2"
             />
 
           </g>
@@ -404,3 +293,171 @@ export const CeflotLogo = ({
     </svg>
   );
 };
+
+export const CeflotBackgroundFlare = ({ 
+  intensity = 0.15,
+  className = "absolute bottom-[-100px] right-[-100px] w-[500px] h-[500px]"
+}: { 
+  intensity?: number; 
+  className?: string;
+}) => {
+  return (
+    <div 
+      id="ceflot-bg-flare-root"
+      className={`${className} pointer-events-none overflow-hidden select-none z-0`}
+      style={{ opacity: intensity }}
+    >
+      <div 
+        className="w-full h-full flex items-center justify-center opacity-75 mix-blend-screen"
+        style={{ 
+          willChange: 'transform',
+          transform: 'rotate(45deg)'
+        }}
+      >
+        <svg 
+          id="ceflot-bg-flare-svg"
+          xmlns="http://www.w3.org/2000/svg" 
+          viewBox="0 0 182.65 116.39"
+          className="w-full h-full"
+          style={{ overflow: 'visible' }}
+        >
+          <defs>
+            <style>{`
+              @keyframes bgCometFlow1 {
+                /* Path 1: 0% to 84.4% active (50% slow majestic drift, ultra-faint trail) */
+                0% {
+                  stroke-dashoffset: 155;
+                  stroke-width: 0px;
+                  opacity: 0;
+                }
+                2.2% {
+                  stroke-dashoffset: 155;
+                  stroke-width: 1.0px;
+                  opacity: 0.15;
+                }
+                33.3% {
+                  stroke-width: 1.8px;
+                  opacity: 0.20;
+                }
+                55.6% {
+                  stroke-dashoffset: 90;
+                  stroke-width: 1.5px;
+                  opacity: 0.15;
+                }
+                71.1% {
+                  stroke-dashoffset: 60;
+                  stroke-width: 0.8px;
+                  opacity: 0.05;
+                }
+                80% {
+                  stroke-dashoffset: 40;
+                  stroke-width: 0.4px;
+                  opacity: 0.01;
+                }
+                84.4%, 100% {
+                  stroke-dashoffset: 25;
+                  stroke-width: 0px;
+                  opacity: 0;
+                }
+              }
+
+              @keyframes bgCometFlow2 {
+                /* Path 2: 51.1% to 100% active (50% slow majestic drift, ultra-faint trail) */
+                0%, 51.1% {
+                  stroke-dashoffset: 155;
+                  stroke-width: 0px;
+                  opacity: 0;
+                }
+                53.3% {
+                  stroke-dashoffset: 155;
+                  stroke-width: 1.0px;
+                  opacity: 0.15;
+                }
+                66.6% {
+                  stroke-width: 1.8px;
+                  opacity: 0.20;
+                }
+                82.2% {
+                  stroke-dashoffset: 90;
+                  stroke-width: 1.5px;
+                  opacity: 0.15;
+                }
+                91.1% {
+                  stroke-dashoffset: 60;
+                  stroke-width: 0.8px;
+                  opacity: 0.05;
+                }
+                97.7% {
+                  stroke-dashoffset: 40;
+                  stroke-width: 0.4px;
+                  opacity: 0.01;
+                }
+                100% {
+                  stroke-dashoffset: 25;
+                  stroke-width: 0px;
+                  opacity: 0;
+                }
+              }
+
+              .bg-comet-trail-1 {
+                stroke-dasharray: 25, 105;
+                animation: bgCometFlow1 4.4s linear infinite;
+              }
+              .bg-comet-core-1 {
+                stroke-dasharray: 0, 23, 3, 104;
+                animation: bgCometFlow1 4.4s linear infinite;
+              }
+              .bg-comet-trail-2 {
+                stroke-dasharray: 25, 105;
+                animation: bgCometFlow2 4.4s linear infinite;
+              }
+              .bg-comet-core-2 {
+                stroke-dasharray: 0, 23, 3, 104;
+                animation: bgCometFlow2 4.4s linear infinite;
+              }
+            `}</style>
+          </defs>
+
+          <g style={{ mixBlendMode: 'plus-lighter' }} transform="translate(6.57, 10.39)">
+            {/* COMPONENT FLARE 1 */}
+            <path 
+              className="bg-comet-trail-1"
+              stroke="#22d3ee" 
+              strokeLinecap="round"
+              fill="none"
+              pathLength="100"
+              d="M32.39,53.91c-7.09.6-19.35,2.41-24.15,7.83-22.3,25.19,21.3,52.36,34.31,21,7.66-18.47,16.34-48.99,21.12-62.88,7.85-22.84,37.67-16.67,34.57,7.85-2.3,18.22-19.58,29.94-26.66,42.3-14.53,25.37,22.52,42.74,32.73,16.57,10.97-28.1,15.86-64.39,24.62-75.48,11.5-14.56,28.85-10.45,36.02,3.88,6.59,13.18-2.55,28.66-23.88,31.77"
+            />
+            <path 
+              className="bg-comet-core-1"
+              stroke="#ffffff" 
+              strokeLinecap="round"
+              fill="none"
+              pathLength="100"
+              d="M32.39,53.91c-7.09.6-19.35,2.41-24.15,7.83-22.3,25.19,21.3,52.36,34.31,21,7.66-18.47,16.34-48.99,21.12-62.88,7.85-22.84,37.67-16.67,34.57,7.85-2.3,18.22-19.58,29.94-26.66,42.3-14.53,25.37,22.52,42.74,32.73,16.57,10.97-28.1,15.86-64.39,24.62-75.48,11.5-14.56,28.85-10.45,36.02,3.88,6.59,13.18-2.55,28.66-23.88,31.77"
+            />
+
+            {/* COMPONENT FLARE 2 */}
+            <path 
+              className="bg-comet-trail-2"
+              stroke="#22d3ee" 
+              strokeLinecap="round"
+              fill="none"
+              pathLength="100"
+              d="M141.07,46.75 L68.76,48.92"
+            />
+            <path 
+              className="bg-comet-core-2"
+              stroke="#ffffff" 
+              strokeLinecap="round"
+              fill="none"
+              pathLength="100"
+              d="M141.07,46.75 L68.76,48.92"
+            />
+          </g>
+        </svg>
+      </div>
+    </div>
+  );
+};
+

@@ -46,7 +46,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, cleanRichText } from '../lib/utils';
-import { CeflotLogo } from './Logo';
+import { CeflotLogo, CeflotBackgroundFlare } from './Logo';
 import { supabase } from '../lib/supabase';
 
 import { usePermissions, Capability } from '../hooks/usePermissions';
@@ -142,8 +142,7 @@ const MODULE_GROUPS = [
     modules: [
       { id: 'variations', title: 'Contracts', description: 'Variations, EoT claims and subcontractors', icon: FileText, color: 'text-main', subTools: ['Variations', 'EoT Claims', 'Subcon Portal'], capability: 'fin:var_view' as Capability },
       { id: 'procurement', title: 'Procurement', description: 'Purchase orders and material tracking', icon: ShoppingCart, color: 'text-primary', subTools: ['Purchase Orders', 'Inventory', 'Deliveries'], capability: 'proc:view_demand' as Capability },
-      { id: 'guide', title: 'A) Platform Guide', description: 'Interactive walkthrough of core tools, modules, and system capabilities.', icon: BookOpen, color: 'text-warning', subTools: ['Core Walkthroughs', 'Interactive Cards', 'Popup Inspector'] },
-      { id: 'help', title: 'B) Corporate Support', description: 'Submit system challenges, send errors, open requests, and track response tickets.', icon: HelpCircle, color: 'text-dim', subTools: ['Report Error', 'System Challenge', 'Active Tickets'] },
+      { id: 'guide', title: 'Guide & Support', description: 'Interactive platform walkthroughs, custom corporate support, and active workflow guidelines.', icon: BookOpen, color: 'text-warning', subTools: ['Platform Guide', 'Corporate Support', 'FAQ Guidebook'] },
     ]
   },
   {
@@ -196,6 +195,9 @@ const SUBTOOL_MAPPING: Record<string, string> = {
   'Material Catalog': 'library',
   'Trade Rates': 'library',
   'Standard Specs': 'library',
+  'Platform Guide': 'guide',
+  'Corporate Support': 'help',
+  'FAQ Guidebook': 'guide',
   'Initialization': 'project-setup',
   'Team Setup': 'project-setup',
   'Governance & SoT': 'governance',
@@ -1181,6 +1183,7 @@ export function Home({
         <div className="flex-1 p-2 lg:p-6 flex flex-col overflow-hidden bg-surface-base relative">
           {/* Logo Watermark Background Overlay */}
           <div className="absolute inset-0 logo-pattern-bg pointer-events-none opacity-50 z-0" />
+          <CeflotBackgroundFlare intensity={0.08} className="absolute bottom-[-160px] right-[-160px] w-[500px] h-[500px]" />
 
           {/* Mobile Tasks Trigger - Only on Portrait/Small screens */}
           <div className="lg:hidden flex items-center justify-between mb-4 relative z-10 px-2">

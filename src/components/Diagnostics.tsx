@@ -264,6 +264,10 @@ export function Diagnostics({
 }: DiagnosticsProps) {
   const [activeSubTab, setActiveSubTab] = useState<'docs' | 'support' | 'audit' | 'modules' | 'supabase' | 'ai' | 'simulation'>(initialSubTab);
   
+  React.useEffect(() => {
+    setActiveSubTab(initialSubTab);
+  }, [initialSubTab]);
+  
   // Corporate Support Desk State
   const [supportTickets, setSupportTickets] = useState<any[]>([
     {
@@ -845,36 +849,41 @@ export function Diagnostics({
         </div>
       </div>
 
-      {/* Interactive Diagnostics Inner Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-border-subtle pb-3">
-        {[
-          { id: 'docs', label: 'Platform Guide & Docs', icon: BookOpen, show: true },
-          { id: 'support', label: 'Corporate Support Desk', icon: HelpCircle, show: true },
-          { id: 'audit', label: 'Action Trail & Logs', icon: Terminal, show: isGodMode },
-          { id: 'modules', label: 'Module Trace Map', icon: Layers, show: isGodMode },
-          { id: 'supabase', label: 'Live Tables & Schema', icon: Database, show: isGodMode },
-          { id: 'ai', label: 'Cognitive Assistant Diagnostics', icon: Sparkles, show: isGodMode },
-          { id: 'simulation', label: 'Multi-Tenant Simulator', icon: Globe, show: isGodMode }
-        ].filter(tab => tab.show).map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id as any)}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer",
-              activeSubTab === tab.id 
-                ? "bg-primary text-black border-primary" 
-                : "text-dim hover:text-main bg-surface-1/40 hover:bg-surface-1 border-border-subtle/50"
-            )}
-            id={`diag-tab-${tab.id}`}
-          >
-            <tab.icon className="w-3.5 h-3.5" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Interactive Diagnostics Direct Layout - Full Width */}
+      <div className="w-full flex flex-col gap-6">
+        
+        {/* If God Mode, let them optionally have a clean top tab row to access system-level dev diagnostics */}
+        {isGodMode && (
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-border-subtle pb-3 select-none">
+            {[
+              { id: 'docs', label: 'Guide', icon: BookOpen },
+              { id: 'support', label: 'Support Desk', icon: HelpCircle },
+              { id: 'audit', label: 'Action Trail', icon: Terminal },
+              { id: 'modules', label: 'Module Trace Map', icon: Layers },
+              { id: 'supabase', label: 'Live Tables & Schema', icon: Database },
+              { id: 'ai', label: 'Cognitive Assistant', icon: Sparkles },
+              { id: 'simulation', label: 'Multi-Tenant Simulator', icon: Globe }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id as any)}
+                className={cn(
+                  "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer",
+                  activeSubTab === tab.id 
+                    ? "bg-primary text-black border-primary font-black shadow-sm" 
+                    : "text-dim hover:text-main bg-transparent hover:bg-surface-1 border-transparent"
+                )}
+                id={`diag-tab-header-${tab.id}`}
+              >
+                <tab.icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
-      {/* Tab Panels */}
-      <div className="flex-1 col-span-full">
+        {/* Content Area - Full Width */}
+        <div className="w-full flex flex-col gap-6">
         
         {/* TAB 0: Platform Guide & Docs */}
         {activeSubTab === 'docs' && (() => {
@@ -1764,7 +1773,8 @@ export function Diagnostics({
             </div>
           </div>
         )}
-      </div>
+        </div> {/* Closes full width content container */}
+      </div> {/* Closes Direct Layout container */}
 
       {/* Diagnostics Panel Footer block */}
       <footer className="border-t border-border-subtle/50 pt-4 flex flex-col md:flex-row md:items-center justify-between gap-4 select-none">

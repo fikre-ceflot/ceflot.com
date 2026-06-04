@@ -32,7 +32,7 @@ import {
   FileText
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { CeflotLogo } from './Logo';
+import { CeflotLogo, CeflotBackgroundFlare } from './Logo';
 
 interface LandingPageProps {
   onLoginSuccess: (session: any) => void;
@@ -303,6 +303,7 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans overflow-x-hidden relative selection:bg-primary/30 selection:text-primary">
+      <CeflotBackgroundFlare intensity={0.12} className="absolute bottom-[-160px] right-[-160px] w-[500px] h-[500px]" />
       
       {/* Giant Twisted Double-Infinity Scroll Path Tracer */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden h-[300vh]">
