@@ -145,23 +145,26 @@ export function Alerts({ tenantId, project }: AlertsProps) {
       <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 px-1">
         <div className="flex flex-col gap-0.5 md:mt-auto">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">System Monitoring</span>
+            <span className="text-[9px] font-semibold text-ghost uppercase tracking-[0.2em]">System Monitoring</span>
           </div>
-          <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">{project?.name || 'Critical System Alerts'}</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-main -ml-0.5">{project?.name || 'Critical System Alerts'}</h1>
           <div className="flex items-center gap-3 mt-1.5">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-              <span className="text-danger font-black uppercase tracking-widest decoration-danger/30 underline-offset-4">Alert Dashboard</span>
+            <div className="flex items-center gap-2 text-[10px] font-medium text-ghost">
+              <span className="text-danger font-semibold uppercase tracking-wider">Alert Dashboard</span>
               <span className="w-1 h-1 rounded-full bg-border-subtle" />
               <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">{alerts.filter(a => !a.is_read).length} Unread</span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-5">
-          <div className="flex flex-col items-end min-w-[120px]">
-            <span className="text-[8px] font-bold text-ghost uppercase tracking-[0.2em] mb-1 opacity-60">Reference ID</span>
-            <div className="px-3 py-1.5 rounded-lg bg-surface-2 border border-border-subtle flex items-center justify-center w-full">
-              <span className="text-xs font-black text-danger tracking-widest">{project?.project_code || 'GLOBAL'}</span>
+        <div className="flex items-center gap-4 ml-auto flex-wrap">
+          {/* Dynamic Helpful Information Card (Aligned Right) */}
+          <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+            <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono text-danger">SYSTEM MONITORING STATUS</div>
+            <div className="flex items-center gap-2 justify-end">
+              <span className="px-1.5 py-0.25 rounded bg-danger/10 border border-danger/20 text-[9px] font-semibold text-danger select-none uppercase tracking-wider font-mono">ALERT OUTFLOW</span>
+              <div className="h-1 w-1 rounded-full bg-border-subtle" />
+              <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono font-black">ID: {project?.project_code || 'GLOBAL'} | {alerts.filter(a => !a.is_read).length} Open Alerts</span>
             </div>
           </div>
 

@@ -505,19 +505,29 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
       <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-4 px-1">
         <div className="flex flex-col gap-0.5 md:mt-auto">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Governance & Source of Truth (SoT)</span>
+            <span className="text-[9px] font-semibold text-ghost uppercase tracking-[0.2em]">Governance & Source of Truth (SoT)</span>
           </div>
-          <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">{project?.name || 'Pending Approvals'}</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-main -ml-0.5">{project?.name || 'Pending Approvals'}</h1>
           <div className="flex items-center gap-3 mt-1.5">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-              <span className="text-primary font-black uppercase tracking-widest decoration-primary/30 underline-offset-4 font-mono">Workflow Queue</span>
+            <div className="flex items-center gap-2 text-[10px] font-medium text-ghost">
+              <span className="text-primary font-semibold uppercase tracking-wider font-mono">Workflow Queue</span>
               <span className="w-1 h-1 rounded-full bg-border-subtle" />
               <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">{requests.filter(a => a.status === 'pending').length} Active Items</span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-4 w-full md:w-auto">
+        <div className="flex items-center gap-4 ml-auto flex-wrap w-full md:w-auto">
+          {/* Dynamic Helpful Information Card (Aligned Right) */}
+          <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+            <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">GOVERNANCE & WORKFLOW AUDIT</div>
+            <div className="flex items-center gap-2 justify-end">
+              <span className="px-1.5 py-0.25 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-semibold text-emerald-500 select-none uppercase tracking-wider font-mono">ACTIVE CONTROL</span>
+              <div className="h-1 w-1 rounded-full bg-border-subtle" />
+              <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">{requests.filter(a => a.status === 'pending').length} Actions Pending</span>
+            </div>
+          </div>
+
           <div className="flex items-center gap-2 bg-surface-1 border border-border-subtle p-1 rounded-xl w-full justify-between md:w-auto">
             <div className="flex gap-1">
               <button 

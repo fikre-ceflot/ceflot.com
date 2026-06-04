@@ -15,7 +15,20 @@ if (!isSupabaseConfigured) {
   console.warn('Supabase configuration is missing or invalid. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.');
 }
 
-export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder');
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseKey || 'placeholder',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      lock: async (name, acquireTimeout, fn) => {
+        return await fn();
+      }
+    }
+  }
+);
 
 // Helper to check if Supabase is reachable
 export async function checkNetwork() {

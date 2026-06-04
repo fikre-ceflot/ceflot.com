@@ -91,8 +91,9 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
     description: 400,
     qty: 100,
     contract: 120,
-    no_days: 80,
-    predecessors: 120,
+    actual_qty: 100,
+    actual_cost: 120,
+    actual_profit: 120,
     internal: 120,
     margin: 120,
     trade: 220,
@@ -105,7 +106,7 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
   };
 
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set([
-    'item_no', 'description', 'qty', 'contract', 'trade_code', 'trade_name', 'internal', 'margin', 'status'
+    'item_no', 'description', 'qty', 'contract', 'actual_qty', 'actual_cost', 'actual_profit', 'internal', 'margin', 'status'
   ]));
   const [showColumnPicker, setShowColumnPicker] = useState(false);
 
@@ -114,8 +115,9 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
     description: 'Description',
     qty: 'Qty',
     contract: 'Contract Total',
-    no_days: 'No. Days',
-    predecessors: 'Pred.',
+    actual_qty: 'Actual Qty',
+    actual_cost: 'Actual Cost',
+    actual_profit: 'Actual Profit',
     internal: 'Budget',
     margin: 'Margin',
     trade_code: 'Trade Code',
@@ -388,12 +390,15 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
         const internalUnitCost = uniqueResources.reduce((sum: number, res: any) => {
           const qty = res.consumption_rate * (1 + (res.waste_factor_pct || 0) / 100);
           
-          const typeKey = (res.resource_type || '').toLowerCase();
+          const rawType = (res.resource_type || '').toLowerCase();
+          const typeKey = rawType === 'labor' ? 'labour' : rawType;
           const lookupKey = (res.resource_name || '').toLowerCase().trim();
           const ck = (res.resource_code || '').toLowerCase().trim();
           const rateByCode = libraryResources[`${typeKey}_rate_code_${ck}`];
+          const rateByFlatCode = libraryResources[`flat_code_${ck}`];
           const rateByName = libraryResources[`${typeKey}_rate_${lookupKey}`];
-          const libRate = rateByCode ?? rateByName ?? 0;
+          const fallbackLibRates = libraryRates[res.resource_name] || libraryRates[res.resource_code] || 0;
+          const libRate = rateByCode ?? rateByFlatCode ?? rateByName ?? fallbackLibRates ?? 0;
           
           const localStorageOverride = localStorage.getItem(`rate_override_${res.id}`);
           const stagedRate = res.id === resourceId ? rate : stagedRates[res.id];
@@ -474,7 +479,8 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
 
       const newUnitCost = uniqueResources.reduce((sum: number, res: any) => {
         const q = res.consumption_rate * (1 + (res.waste_factor_pct || 0) / 100);
-        const typeKey = (res.resource_type || '').toLowerCase();
+        const rawType = (res.resource_type || '').toLowerCase();
+        const typeKey = rawType === 'labor' ? 'labour' : rawType;
         const lookupKey = (res.resource_name || '').toLowerCase().trim();
         const libRate = Number(libraryResources[`${typeKey}_rate_${lookupKey}`]) || 0;
         const rate = (res.is_manual && res.effective_rate != null)
@@ -802,12 +808,12 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
           .eq('project_id', project.id)
           .order('item_sequence', { ascending: true }),
         tradeQuery,
-        supabase.from('materials').select('*').eq('is_active', true),
-        supabase.from('labour_grades').select('*').eq('is_active', true),
-        supabase.from('equipment_items').select('*').eq('is_active', true),
-        supabase.from('vehicles').select('*').eq('is_active', true),
-        supabase.from('fuel_types').select('*').eq('is_active', true),
-        supabase.from('subcontractor_categories').select('*').eq('is_active', true),
+        supabase.from('materials').select('*'),
+        supabase.from('labour_grades').select('*'),
+        supabase.from('equipment_items').select('*'),
+        supabase.from('vehicles').select('*'),
+        supabase.from('fuel_types').select('*'),
+        supabase.from('subcontractor_categories').select('*'),
         supabase.from('subcontractor_assignments').select('*').eq('project_id', project.id),
         supabase.from('subcontractors').select('id, name, company_name')
       ]);
@@ -827,64 +833,136 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
          materials?.forEach(m => {
           const name = m.material_name || m.name || '';
           const key = (name || '').toLowerCase().trim();
+          const rateVal = m.base_rate || (m as any).unit_rate || (m as any).rate || 0;
           libMap[`material_${key}`] = m.category || 'Uncategorized Materials';
           libMap[`material_code_${key}`] = m.material_code || m.code;
-          libMap[`material_rate_${key}`] = m.base_rate ?? (m as any).unit_rate ?? (m as any).rate ?? 0;
-          libMap[`material_rate_code_${(m.material_code || '').toLowerCase().trim()}`] = m.base_rate ?? (m as any).unit_rate ?? (m as any).rate ?? 0;
+          libMap[`material_rate_${key}`] = rateVal;
+          libMap[`material_rate_code_${(m.material_code || '').toLowerCase().trim()}`] = rateVal;
           libMap[`material_unit_${key}`] = m.unit || 'PCS';
+          
+          const codeKey = (m.material_code || m.code || '').toLowerCase().trim();
+          if (codeKey) {
+            libMap[`flat_code_${codeKey}`] = rateVal;
+          }
         });
         labours?.forEach(l => {
           const name = l.title || l.name || '';
           const key = (name || '').toLowerCase().trim();
+          const rateVal = l.base_rate || (l as any).daily_rate || l.hourly_rate || (l as any).rate || 0;
           libMap[`labour_${key}`] = (l as any).category || 'Uncategorized Labour';
           libMap[`labour_code_${key}`] = l.grade_code || l.code || (l as any).id;
-          libMap[`labour_rate_${key}`] = l.base_rate ?? (l as any).daily_rate ?? (l as any).rate ?? 0;
-          libMap[`labour_rate_code_${(l.grade_code || l.code || '').toLowerCase().trim()}`] = l.base_rate ?? (l as any).daily_rate ?? (l as any).rate ?? 0;
+          libMap[`labour_rate_${key}`] = rateVal;
+          libMap[`labour_rate_code_${(l.grade_code || l.code || '').toLowerCase().trim()}`] = rateVal;
           libMap[`labour_unit_${key}`] = l.unit || 'DAY';
+
+          const codeKey = (l.grade_code || l.code || '').toLowerCase().trim();
+          if (codeKey) {
+            libMap[`flat_code_${codeKey}`] = rateVal;
+          }
         });
         equip?.forEach(e => {
           const name = e.name || '';
           const key = (name || '').toLowerCase().trim();
+          const rateVal = e.base_rate || (e as any).rental_rate_day || (e as any).hourly_rate || (e as any).rate || 0;
           libMap[`equipment_${key}`] = (e as any).category || 'Uncategorized Equipment';
           libMap[`equipment_code_${key}`] = e.equipment_code || e.code || (e as any).id;
-          libMap[`equipment_rate_${key}`] = e.base_rate ?? (e as any).hourly_rate ?? (e as any).rate ?? 0;
-          libMap[`equipment_rate_code_${(e.equipment_code || e.code || '').toLowerCase().trim()}`] = e.base_rate ?? (e as any).hourly_rate ?? (e as any).rate ?? 0;
+          libMap[`equipment_rate_${key}`] = rateVal;
+          libMap[`equipment_rate_code_${(e.equipment_code || e.code || '').toLowerCase().trim()}`] = rateVal;
           libMap[`equipment_unit_${key}`] = e.unit || 'DAY';
+
+          const codeKey = (e.equipment_code || e.code || '').toLowerCase().trim();
+          if (codeKey) {
+            libMap[`flat_code_${codeKey}`] = rateVal;
+          }
         });
         vehicles?.forEach(v => {
           const name = v.name || '';
           const key = (name || '').toLowerCase().trim();
+          const rateVal = v.base_rate || (v as any).rate_value || (v as any).daily_rate || (v as any).rate || 0;
           libMap[`vehicle_${key}`] = (v as any).category || 'Uncategorized Logistics';
           libMap[`vehicle_code_${key}`] = v.vehicle_code || v.code || (v as any).id;
-          libMap[`vehicle_rate_${key}`] = v.base_rate ?? (v as any).daily_rate ?? (v as any).rate ?? 0;
-          libMap[`vehicle_rate_code_${(v.vehicle_code || v.code || '').toLowerCase().trim()}`] = v.base_rate ?? (v as any).daily_rate ?? (v as any).rate ?? 0;
+          libMap[`vehicle_rate_${key}`] = rateVal;
+          libMap[`vehicle_rate_code_${(v.vehicle_code || v.code || '').toLowerCase().trim()}`] = rateVal;
           libMap[`vehicle_unit_${key}`] = v.unit || 'km';
+
+          const codeKey = (v.vehicle_code || v.code || '').toLowerCase().trim();
+          if (codeKey) {
+            libMap[`flat_code_${codeKey}`] = rateVal;
+          }
         });
         fuels?.forEach(f => {
           const name = f.name || '';
           const key = (name || '').toLowerCase().trim();
+          const rateVal = f.base_rate || (f as any).unit_price || (f as any).rate || 0;
           libMap[`fuel_${key}`] = 'Fuels & Energy';
           libMap[`fuel_code_${key}`] = f.fuel_code || f.code;
-          libMap[`fuel_rate_${key}`] = f.base_rate ?? (f as any).rate ?? 0;
-          libMap[`fuel_rate_code_${(f.fuel_code || f.code || '').toLowerCase().trim()}`] = f.base_rate ?? (f as any).rate ?? 0;
+          libMap[`fuel_rate_${key}`] = rateVal;
+          libMap[`fuel_rate_code_${(f.fuel_code || f.code || '').toLowerCase().trim()}`] = rateVal;
           libMap[`fuel_unit_${key}`] = f.unit || 'L';
+
+          const codeKey = (f.fuel_code || f.code || '').toLowerCase().trim();
+          if (codeKey) {
+            libMap[`flat_code_${codeKey}`] = rateVal;
+          }
         });
         subs?.forEach(s => {
           const name = s.name || '';
           const key = (name || '').toLowerCase().trim();
+          const rateVal = s.base_rate || (s as any).rate || s.rate || 0;
           libMap[`subcontractor_${key}`] = 'Subcontracting';
           libMap[`subcontractor_code_${key}`] = s.category_code || s.code || (s as any).id;
-          libMap[`subcontractor_rate_${key}`] = s.base_rate ?? (s as any).rate ?? 0;
-          libMap[`subcontractor_rate_code_${(s.category_code || s.code || '').toLowerCase().trim()}`] = s.base_rate ?? (s as any).rate ?? 0;
+          libMap[`subcontractor_rate_${key}`] = rateVal;
+          libMap[`subcontractor_rate_code_${(s.category_code || s.code || '').toLowerCase().trim()}`] = rateVal;
           libMap[`subcontractor_unit_${key}`] = s.unit || 'JOB';
+
+          const codeKey = (s.category_code || s.code || '').toLowerCase().trim();
+          if (codeKey) {
+            libMap[`flat_code_${codeKey}`] = rateVal;
+          }
         });
        const ratesMap: Record<string, number> = {};
-       materials?.forEach(m => { ratesMap[m.material_name || m.name || ''] = m.base_rate ?? 0; });
-       labours?.forEach(l => { ratesMap[l.title || l.name || ''] = l.base_rate ?? 0; });
-       equip?.forEach(e => { ratesMap[e.name || ''] = e.base_rate ?? 0; });
-       vehicles?.forEach(v => { ratesMap[v.name || ''] = v.base_rate ?? 0; });
-       fuels?.forEach(f => { ratesMap[f.name || ''] = f.base_rate ?? 0; });
-       subs?.forEach(s => { ratesMap[s.name || ''] = s.base_rate ?? 0; });
+       materials?.forEach(m => {
+         const rateVal = m.base_rate || (m as any).unit_rate || (m as any).rate || 0;
+         ratesMap[m.material_name || m.name || ''] = rateVal;
+         if (m.material_code) {
+           ratesMap[(m.material_code || '').toLowerCase().trim()] = rateVal;
+         }
+       });
+       labours?.forEach(l => {
+         const rateVal = l.base_rate || (l as any).daily_rate || l.hourly_rate || (l as any).rate || 0;
+         ratesMap[l.title || l.name || ''] = rateVal;
+         if (l.grade_code) {
+           ratesMap[(l.grade_code || '').toLowerCase().trim()] = rateVal;
+         }
+       });
+       equip?.forEach(e => {
+         const rateVal = e.base_rate || (e as any).rental_rate_day || (e as any).hourly_rate || (e as any).rate || 0;
+         ratesMap[e.name || ''] = rateVal;
+         if (e.equipment_code) {
+           ratesMap[(e.equipment_code || '').toLowerCase().trim()] = rateVal;
+         }
+       });
+       vehicles?.forEach(v => {
+         const rateVal = v.base_rate || (v as any).rate_value || (v as any).daily_rate || (v as any).rate || 0;
+         ratesMap[v.name || ''] = rateVal;
+         if (v.vehicle_code) {
+           ratesMap[(v.vehicle_code || '').toLowerCase().trim()] = rateVal;
+         }
+       });
+       fuels?.forEach(f => {
+         const rateVal = f.base_rate || (f as any).unit_price || (f as any).rate || 0;
+         ratesMap[f.name || ''] = rateVal;
+         if (f.fuel_code) {
+           ratesMap[(f.fuel_code || '').toLowerCase().trim()] = rateVal;
+         }
+       });
+       subs?.forEach(s => {
+         const rateVal = s.base_rate || (s as any).rate || s.rate || 0;
+         ratesMap[s.name || ''] = rateVal;
+         if (s.category_code) {
+           ratesMap[(s.category_code || '').toLowerCase().trim()] = rateVal;
+         }
+       });
 
        setLibraryResources(libMap);
        setLibraryRates(ratesMap);
@@ -981,8 +1059,7 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
 
         const itemResources = resData?.filter(r => 
           r.boq_item_id === item.id &&
-          !r.is_excluded &&
-          (r.is_manual || !item.trade_code || r.source_trade_code === item.trade_code || !r.source_trade_code)
+          !r.is_excluded
         ) || [];
         
         // Deduplicate resources by name (SSOT) to prevent calculation ballooning from DB duplicates
@@ -995,18 +1072,21 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
 
         const qtyToUse = item.surveyed_qty || item.contract_qty || 0;
         
-        const totalInternalCost = uniqueResources.reduce((sum: number, res: any) => {
+        let totalInternalCost = uniqueResources.reduce((sum: number, res: any) => {
           const factorWithWaste = res.consumption_rate * (1 + (res.waste_factor_pct || 0) / 100);
           // Use rounded quantity for consistency with sidebar and manual calculations
           const itemTotalQty = Math.round(factorWithWaste * qtyToUse * 10000) / 10000;
           
-          const typeKey = (res.resource_type || '').toLowerCase().trim();
+          const rawType = (res.resource_type || '').toLowerCase().trim();
+          const typeKey = rawType === 'labor' ? 'labour' : (rawType === 'materials' ? 'material' : rawType);
           const nk = (res.resource_name || '').toLowerCase().trim();
           const ck = (res.resource_code || '').toLowerCase().trim();
           
           const rateByCode = libMap[`${typeKey}_rate_code_${ck}`];
+          const rateByFlatCode = libMap[`flat_code_${ck}`];
           const rateByName = libMap[`${typeKey}_rate_${nk}`];
-          const libRate = rateByCode ?? rateByName ?? 0;
+          const fallbackLibRates = libraryRates[res.resource_name] || libraryRates[res.resource_code] || 0;
+          const libRate = rateByCode ?? rateByFlatCode ?? rateByName ?? fallbackLibRates ?? 0;
           
           const localStorageOverride = localStorage.getItem(`rate_override_${res.id}`);
           const stagedRate = stagedRates[res.id];
@@ -1021,6 +1101,15 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
           return sum + (itemTotalQty * Number(rateToUse));
         }, 0);
 
+        // FALLBACK: if we have zero resource-based cost but there's a stored internal amount/rate in the database, use that!
+        const databaseInternalAmount = item.internal_amount != null 
+          ? Number(item.internal_amount) 
+          : (item.internal_rate != null ? Number(item.internal_rate) * qtyToUse : 0);
+        
+        if (totalInternalCost === 0 && databaseInternalAmount > 0) {
+          totalInternalCost = databaseInternalAmount;
+        }
+
         const internalUnitCost = qtyToUse > 0 ? totalInternalCost / qtyToUse : 0;
         
         return {
@@ -1028,7 +1117,7 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
           internal_unit_cost: internalUnitCost,
           total_internal_cost: totalInternalCost,
           margin: item.contract_amount - totalInternalCost,
-          has_recipe: itemResources.length > 0 || item.recipe_confirmed
+          has_recipe: itemResources.length > 0 || item.recipe_confirmed || databaseInternalAmount > 0
         };
       });
 
@@ -1252,8 +1341,8 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
       // EXCLUDE internal resources if the item is subcontracted
       if (boqItem.is_subcontracted) return false;
 
-      // Allow manual items OR items that match the trade link
-      const isCorrectTrade = res.is_manual || (boqItem.trade_code && (res.source_trade_code === boqItem.trade_code || !res.source_trade_code));
+      // Include any resource assigned to this BOQ item!
+      const isCorrectTrade = true;
       if (!isCorrectTrade) return false;
 
       return true;
@@ -1264,9 +1353,15 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
       // PREL items are always operational demands even if not "confirmed" yet
       if (!boqItem?.recipe_confirmed && boqItem?.trade_code !== 'PREL') return;
 
-      const typeKey = (res.resource_type || '').toLowerCase();
+      const rawType = (res.resource_type || '').toLowerCase();
+      const typeKey = rawType === 'labor' ? 'labour' : rawType;
       const lookupKey = (res.resource_name || '').toLowerCase().trim();
-      const libRate = libraryResources[`${typeKey}_rate_${lookupKey}`] || libraryRates[res.resource_name];
+      const ck = (res.resource_code || '').toLowerCase().trim();
+      const libRate = libraryResources[`${typeKey}_rate_code_${ck}`] || 
+                      libraryResources[`flat_code_${ck}`] || 
+                      libraryResources[`${typeKey}_rate_${lookupKey}`] || 
+                      libraryRates[res.resource_name] || 
+                      libraryRates[res.resource_code] || 0;
       
       const rateToUse = (res.is_manual && res.effective_rate !== null && res.effective_rate !== undefined) 
         ? res.effective_rate 
@@ -1497,9 +1592,15 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
       const boqItem = items.find(i => i.id === res.boq_item_id);
       if (!boqItem?.recipe_confirmed) return;
 
-      const typeKey = (res.resource_type || '').toLowerCase();
+      const rawType = (res.resource_type || '').toLowerCase();
+      const typeKey = rawType === 'labor' ? 'labour' : rawType;
       const lookupKey = (res.resource_name || '').toLowerCase().trim();
-      const libRate = libraryResources[`${typeKey}_rate_${lookupKey}`];
+      const ck = (res.resource_code || '').toLowerCase().trim();
+      const libRate = libraryResources[`${typeKey}_rate_code_${ck}`] || 
+                      libraryResources[`flat_code_${ck}`] || 
+                      libraryResources[`${typeKey}_rate_${lookupKey}`] || 
+                      libraryRates[res.resource_name] || 
+                      libraryRates[res.resource_code] || 0;
       
       const rateToUse = (res.is_manual && res.effective_rate !== undefined) 
         ? res.effective_rate 
@@ -1613,36 +1714,38 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
         <div className="flex flex-col gap-5 mb-5 mt-1 border-b border-border-subtle pb-5">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
-              <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Commercial & Financial Integration</span>
-              <h1 className="text-xl font-black text-main leading-none mt-1 tracking-tight select-none">
+              <span className="text-[9px] font-semibold text-ghost uppercase tracking-[0.2em]">Commercial & Financial Integration</span>
+              <h1 className="text-lg font-semibold text-main leading-none mt-1.5 tracking-tight select-none">
                 {project.name}
               </h1>
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-primary font-black text-[9px] uppercase tracking-wider">Cost & Budget Dashboard</span>
+                <span className="text-primary font-semibold text-[9px] uppercase tracking-wider">Cost & Budget Dashboard</span>
                 <span className="w-1 h-1 rounded-full bg-border-subtle" />
-                <span className="px-1.5 py-0.5 rounded bg-surface-2 border border-border-subtle text-[10px] font-bold text-ghost">
+                <span className="px-1.5 py-0.5 rounded bg-surface-2 border border-border-subtle text-[10px] font-medium text-ghost">
                   {items.length} Tracked Lines
                 </span>
                 <span className="w-1 h-1 rounded-full bg-border-subtle" />
-                <span className="text-[10px] font-mono text-dim uppercase tracking-wider font-bold">
+                <span className="text-[10px] font-mono text-dim uppercase tracking-wider font-semibold">
                   Status: {project.status || 'Active'}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col items-end">
-                <span className="text-[8px] font-bold text-ghost uppercase tracking-[0.2em] mb-1 opacity-70">Reference ID</span>
-                <div className="px-3 py-1.5 rounded-xl bg-surface-2 border border-border-subtle flex items-center justify-center">
-                  <span className="text-xs font-black text-primary tracking-widest leading-none">
-                    {project.project_code}
-                  </span>
+            <div className="flex items-center gap-4 ml-auto flex-wrap">
+              {/* Dynamic Helpful Information Card (Aligned Right) */}
+              <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+                <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">FINANCIAL & COMMERCIAL CONTROL</div>
+                <div className="flex items-center gap-2 justify-end">
+                  <span className="px-1.5 py-0.25 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-semibold text-emerald-500 select-none uppercase tracking-wider font-mono">INTEGRATED</span>
+                  <div className="h-1 w-1 rounded-full bg-border-subtle" />
+                  <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">CODE: {project.project_code} | {items.length} Cost Lines</span>
                 </div>
               </div>
+
               <button 
                 onClick={startSyncAll}
                 disabled={isSyncing}
-                className="btn btn-secondary h-9 w-9 p-0 rounded-xl mt-4 shrink-0"
+                className="btn btn-secondary h-10 w-10 p-0 rounded-xl shrink-0"
                 title="Synchronize all ledgers and items"
               >
                 <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
@@ -2023,15 +2126,15 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                       </div>
                     </th>
                   )}
-                  {visibleColumns.has('no_days') && (
-                    <th style={{ width: colWidths.no_days }} className="font-mono text-[9px] font-black uppercase tracking-widest text-ghost px-4 py-2.5 text-center relative group select-none bg-surface-base border-b border-border-subtle">
-                      <span>No. Days</span>
+                  {visibleColumns.has('actual_qty') && (
+                    <th style={{ width: colWidths.actual_qty }} className="font-mono text-[9px] font-black uppercase tracking-widest text-ghost px-4 py-2.5 text-right relative group select-none bg-surface-base border-b border-border-subtle">
+                      <span>Actual Qty</span>
                       <div 
                         className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-20 group/resizer"
                         onMouseDown={(e) => {
                           const startX = e.pageX;
-                          const startWidth = colWidths.no_days;
-                          const onMouseMove = (moveEvent: MouseEvent) => handleResize('no_days', startWidth + (moveEvent.pageX - startX));
+                          const startWidth = colWidths.actual_qty;
+                          const onMouseMove = (moveEvent: MouseEvent) => handleResize('actual_qty', startWidth + (moveEvent.pageX - startX));
                           const onMouseUp = () => {
                             document.removeEventListener('mousemove', onMouseMove);
                             document.removeEventListener('mouseup', onMouseUp);
@@ -2044,15 +2147,36 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                       </div>
                     </th>
                   )}
-                  {visibleColumns.has('predecessors') && (
-                    <th style={{ width: colWidths.predecessors }} className="font-mono text-[9px] font-black uppercase tracking-widest text-ghost px-4 py-2.5 relative group select-none bg-surface-base border-b border-border-subtle">
-                      <span>Predecessors</span>
+                  {visibleColumns.has('actual_cost') && (
+                    <th style={{ width: colWidths.actual_cost }} className="font-mono text-[9px] font-black uppercase tracking-widest text-ghost px-4 py-2.5 text-right relative group select-none bg-surface-base border-b border-border-subtle">
+                      <span>Actual Cost</span>
                       <div 
                         className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-20 group/resizer"
                         onMouseDown={(e) => {
                           const startX = e.pageX;
-                          const startWidth = colWidths.predecessors;
-                          const onMouseMove = (moveEvent: MouseEvent) => handleResize('predecessors', startWidth + (moveEvent.pageX - startX));
+                          const startWidth = colWidths.actual_cost;
+                          const onMouseMove = (moveEvent: MouseEvent) => handleResize('actual_cost', startWidth + (moveEvent.pageX - startX));
+                          const onMouseUp = () => {
+                            document.removeEventListener('mousemove', onMouseMove);
+                            document.removeEventListener('mouseup', onMouseUp);
+                          };
+                          document.addEventListener('mousemove', onMouseMove);
+                          document.addEventListener('mouseup', onMouseUp);
+                        }}
+                      >
+                        <div className="absolute right-0 top-0 bottom-0 w-px bg-border-subtle group-hover/resizer:bg-primary transition-all opacity-40 group-hover/resizer:opacity-100" />
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.has('actual_profit') && (
+                    <th style={{ width: colWidths.actual_profit }} className="font-mono text-[9px] font-black uppercase tracking-widest text-ghost px-4 py-2.5 text-right relative group select-none bg-surface-base border-b border-border-subtle">
+                      <span>Actual Profit</span>
+                      <div 
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-20 group/resizer"
+                        onMouseDown={(e) => {
+                          const startX = e.pageX;
+                          const startWidth = colWidths.actual_profit;
+                          const onMouseMove = (moveEvent: MouseEvent) => handleResize('actual_profit', startWidth + (moveEvent.pageX - startX));
                           const onMouseUp = () => {
                             document.removeEventListener('mousemove', onMouseMove);
                             document.removeEventListener('mouseup', onMouseUp);
@@ -2300,14 +2424,37 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                              )}
                            </td>
                            )}
-                           {visibleColumns.has('no_days') && (
-                           <td className={cn("px-4 py-1.5 text-center font-mono text-dim border-r border-border-subtle/20", isFullscreen ? "text-[14px]" : "text-[12px]")}>
-                             {!isHeader && <span className="font-black">{calculateDuration(item.planned_start_date, item.planned_end_date) || '—'}</span>}
+                           {visibleColumns.has('actual_qty') && (
+                           <td className={cn("px-4 py-1.5 text-right font-mono text-dim border-r border-border-subtle/20", isFullscreen ? "text-[14px]" : "text-[12px]")}>
+                             {!isHeader && <span className="font-black">{(item.actual_qty || 0).toLocaleString()}</span>}
                            </td>
                            )}
-                           {visibleColumns.has('predecessors') && (
-                           <td className="px-4 py-1.5 text-[9px] font-mono text-dim leading-tight whitespace-normal break-words border-r border-border-subtle/20 uppercase tracking-tighter">
-                             {!isHeader && (getPredecessorsString(item.id) || '—')}
+                           {visibleColumns.has('actual_cost') && (
+                           <td className={cn("px-4 py-1.5 text-right font-mono text-dim border-r border-border-subtle/20", isFullscreen ? "text-[14px]" : "text-[12px]")}>
+                             {!isHeader && (fmt((item.actual_qty || 0) * (item.internal_unit_cost || 0)))}
+                            </td>
+                            )}
+                            {visibleColumns.has('actual_profit') && (
+                            <td className={cn("px-4 py-1.5 text-right font-mono border-r border-border-subtle/20", isFullscreen ? "text-[14px]" : "text-[12px]")}>
+                              {!isHeader && (
+                                (() => {
+                                  const contractAmt = item.contract_amount || 0;
+                                  const actCost = (item.actual_qty || 0) * (item.internal_unit_cost || 0);
+                                  const actProfit = contractAmt - actCost;
+                                  const actProfitPct = contractAmt > 0 ? (actProfit / contractAmt) * 100 : 0;
+                                  return (
+                                    <div className={cn(
+                                      "flex flex-col items-end",
+                                      actProfit >= 0 ? "text-primary" : "text-danger"
+                                    )}>
+                                      <span className="font-black">{fmt(actProfit)}</span>
+                                      <span className="text-[8px] font-black opacity-70">
+                                        {actProfitPct.toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  );
+                                })()
+                              )}
                            </td>
                            )}
                            {visibleColumns.has('trade_code') && (
@@ -3379,9 +3526,7 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                       {(() => {
                         const itemRes = resources.filter(r =>
                           r.boq_item_id === selectedItemDetail.id &&
-                          !r.is_excluded &&
-                          (r.is_manual || !selectedItemDetail.trade_code ||
-                            r.source_trade_code === selectedItemDetail.trade_code || !r.source_trade_code)
+                          !r.is_excluded
                         );
                         // Deduplicate (SSOT)
                         const uniqueMap = new Map();
@@ -3392,10 +3537,19 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                         
                         const itemQty = selectedItemDetail.surveyed_qty || selectedItemDetail.contract_qty || 0;
                         const total = cleanRes.reduce((sum, res) => {
-                          const typeKey = (res.resource_type || '').toLowerCase();
+                          const rawType = (res.resource_type || '').toLowerCase().trim();
+                          const typeKey = rawType === 'labor' ? 'labour' : (rawType === 'materials' ? 'material' : rawType);
                           const lookupKey = (res.resource_name || '').toLowerCase().trim();
                           const libraryRate = libraryResources[`${typeKey}_rate_${lookupKey}`] || 0;
-                          const currentRate = (res.is_manual && res.effective_rate != null) ? Number(res.effective_rate) : (Number(libraryRate) || 0);
+                          
+                          const localStorageOverride = localStorage.getItem(`rate_override_${res.id}`);
+                          const stagedRate = stagedRates[res.id];
+                          const currentRate = stagedRate !== undefined 
+                            ? stagedRate 
+                            : (localStorageOverride !== null 
+                              ? parseFloat(localStorageOverride) 
+                              : ((res.is_manual && res.effective_rate != null) ? Number(res.effective_rate) : (Number(libraryRate) || 0)));
+                          
                           const factorWithWaste = res.consumption_rate * (1 + (res.waste_factor_pct || 0) / 100);
                           // Use rounded quantity for consistent math display
                           const rowQty = Math.round(factorWithWaste * itemQty * 10000) / 10000;
@@ -3424,9 +3578,7 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                   {(() => {
                     const itemRes = resources.filter(r =>
                       r.boq_item_id === selectedItemDetail.id &&
-                      !r.is_excluded &&
-                      (r.is_manual || !selectedItemDetail.trade_code ||
-                        r.source_trade_code === selectedItemDetail.trade_code || !r.source_trade_code)
+                      !r.is_excluded
                     );
                     
                     // Deduplicate resources by resource_name just in case there are duplicates
@@ -3513,13 +3665,16 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                               const factorWithWaste = res.consumption_rate * (1 + (res.waste_factor_pct || 0) / 100);
                               const totalQty = Math.round(factorWithWaste * itemQty * 10000) / 10000;
                               
-                              const typeKey = (res.resource_type || '').toLowerCase().trim();
+                              const rawType = (res.resource_type || '').toLowerCase().trim();
+                              const typeKey = rawType === 'labor' ? 'labour' : (rawType === 'materials' ? 'material' : rawType);
                               const nk = (res.resource_name || '').toLowerCase().trim();
                               const ck = (res.resource_code || '').toLowerCase().trim();
                               
                               const rateByCode = libraryResources[`${typeKey}_rate_code_${ck}`];
+                              const rateByFlatCode = libraryResources[`flat_code_${ck}`];
                               const rateByName = libraryResources[`${typeKey}_rate_${nk}`];
-                              const libraryRate = Number(rateByCode ?? rateByName ?? 0);
+                              const fallbackLibRates = libraryRates[res.resource_name] || libraryRates[res.resource_code] || 0;
+                              const libraryRate = Number(rateByCode ?? rateByFlatCode ?? rateByName ?? fallbackLibRates ?? 0);
                               
                               const localStorageOverride = localStorage.getItem(`rate_override_${res.id}`);
                               const stagedRate = stagedRates[res.id];
@@ -3790,7 +3945,38 @@ type TabType = 'internal-budget' | 'resource-demands' | 'subcontractor-contracts
                   <div className="text-right space-y-1">
                     <div className="text-[10px] font-mono text-ghost uppercase text-right">Total Internal Budget</div>
                     <div className="text-2xl font-bold font-mono tracking-tighter text-accent">
-                      {fmt(selectedItemDetail.total_internal_cost)}
+                      {(() => {
+                        const itemRes = resources.filter(r =>
+                          r.boq_item_id === selectedItemDetail.id &&
+                          !r.is_excluded
+                        );
+                        const uniqueMap = new Map();
+                        itemRes.forEach(r => {
+                          if (!uniqueMap.has(r.resource_name)) uniqueMap.set(r.resource_name, r);
+                        });
+                        const cleanRes = Array.from(uniqueMap.values()) as any[];
+                        
+                        const itemQty = selectedItemDetail.surveyed_qty || selectedItemDetail.contract_qty || 0;
+                        const dynamicTotal = cleanRes.reduce((sum, res) => {
+                          const rawType = (res.resource_type || '').toLowerCase().trim();
+                          const typeKey = rawType === 'labor' ? 'labour' : (rawType === 'materials' ? 'material' : rawType);
+                          const lookupKey = (res.resource_name || '').toLowerCase().trim();
+                          const libraryRate = libraryResources[`${typeKey}_rate_${lookupKey}`] || 0;
+                          
+                          const localStorageOverride = localStorage.getItem(`rate_override_${res.id}`);
+                          const stagedRate = stagedRates[res.id];
+                          const currentRate = stagedRate !== undefined 
+                            ? stagedRate 
+                            : (localStorageOverride !== null 
+                              ? parseFloat(localStorageOverride) 
+                              : ((res.is_manual && res.effective_rate != null) ? Number(res.effective_rate) : (Number(libraryRate) || 0)));
+                          
+                          const factorWithWaste = res.consumption_rate * (1 + (res.waste_factor_pct || 0) / 100);
+                          const rowQty = Math.round(factorWithWaste * itemQty * 10000) / 10000;
+                          return sum + (rowQty * currentRate);
+                        }, 0);
+                        return fmt(dynamicTotal);
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -4166,6 +4352,7 @@ function CostFactorCalculator({ baseRate, onApply }: CostFactorCalculatorProps) 
   );
 }
 
-function fmt(val: number, prefix: string = '$ ') {
-  return prefix + (val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmt(val: number, prefix: string = '$ \u00A0 \u00A0 \u00A0 ') {
+  const p = (prefix === '$ ' || prefix === '$ \u00A0 ') ? '$ \u00A0 \u00A0 \u00A0 ' : prefix;
+  return p + (val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

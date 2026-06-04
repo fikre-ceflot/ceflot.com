@@ -7,15 +7,17 @@ import { cn } from '../../lib/utils';
 interface ProjectHealthGridProps {
   projects: Project[];
   onSelectProject: (id: string) => void;
+  isGodMode?: boolean;
 }
 
-export function ProjectHealthGrid({ projects, onSelectProject }: ProjectHealthGridProps) {
+export function ProjectHealthGrid({ projects, onSelectProject, isGodMode = false }: ProjectHealthGridProps) {
   return (
     <DashboardPanel 
       title="Project Health & Performance" 
       subtitle="Portfolio Execution Status"
       icon={Activity}
       className="lg:col-span-2"
+      isGodMode={isGodMode}
     >
       <div className="flex flex-col gap-4">
         {projects.length === 0 ? (

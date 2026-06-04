@@ -755,6 +755,7 @@ export default function App() {
           onSelectProject={handleProjectSelect}
           onSelectModule={handleModuleSelect}
           tenantId={profile?.tenant_id}
+          isGodMode={!!profile?.is_platform_god}
         />
       )}
       {activePanel === 'intelligence' && (
@@ -938,13 +939,14 @@ export default function App() {
         <RoleManagement userRole={profile.role} isPlatformGod={profile.is_platform_god} />
       )}
 
-      {(activePanel === 'help' || activePanel === 'audit') && (
+      {(activePanel === 'help' || activePanel === 'guide' || activePanel === 'audit') && (
         <Diagnostics 
           tenantId={profile.tenant_id}
           userRole={profile.role}
           userName={profile.full_name}
           isGodMode={!!profile.is_platform_god}
           onNavigateToModule={handleModuleSelect}
+          initialSubTab={activePanel === 'guide' ? 'docs' : activePanel === 'help' ? 'support' : 'audit'}
           onRefreshCounts={() => {
             if (profile) {
               loadProjects(profile.tenant_id, !!profile.is_platform_god);

@@ -1442,7 +1442,7 @@ export function ResourceLibrary({ userRole, tenantId, isGodMode }: ResourceLibra
                                             )
                                           ) : (
                                             col.key.includes('rate') ? (
-                                              <span className="font-mono font-black py-0.5">${(res[col.key] || 0).toLocaleString()}</span>
+                                              <span className="font-mono font-black py-0.5 flex items-center justify-end gap-x-3 w-full"><span className="select-none">$</span><span>{(res[col.key] || 0).toLocaleString()}</span></span>
                                             ) : col.key === 'description' || col.key === 'material_name' || col.key === 'name' || col.key === 'title' || col.key === 'category_name' || col.key === 'category' ? (
                                                <span className="text-[11px] font-black text-main uppercase py-0.5">{cleanRichText(res[col.key]) || '-'}</span>
                                             ) : (

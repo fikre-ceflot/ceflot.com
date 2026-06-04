@@ -723,14 +723,14 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
       <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-surface-1 border border-border-subtle p-5 rounded-2xl">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 text-[9px] font-mono tracking-widest font-black uppercase text-accent bg-accent/15 border border-accent/20 rounded-md">
+            <span className="px-2.5 py-0.5 text-[9px] font-mono tracking-wider font-semibold uppercase text-accent bg-accent/15 border border-accent/20 rounded-md">
               Specialized Bidding Tool v2.0
             </span>
             <span className="text-[10px] text-ghost font-medium">|</span>
             <span className="text-[10px] text-ghost font-semibold">Active: {selectedPackage?.title || 'None Selected'}</span>
           </div>
 
-          <h1 className="text-xl font-black text-main tracking-tight flex items-center gap-2">
+          <h1 className="text-lg font-semibold text-main tracking-tight flex items-center gap-2 mt-1.5">
             <Scale className="w-5 h-5 text-primary" />
             Specialty RFQ & Excel Comparative Matrix
           </h1>
@@ -739,8 +739,19 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
           </p>
         </div>
 
-        {/* Global tab Switcher */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <div className="flex items-center gap-4 ml-auto flex-wrap shrink-0">
+          {/* Dynamic Helpful Information Card (Aligned Right) */}
+          <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+            <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">PROCUREMENT DEMAND HUB</div>
+            <div className="flex items-center gap-2 justify-end">
+              <span className="px-1.5 py-0.25 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-semibold text-amber-500 select-none uppercase tracking-wider font-mono">STANDARDIZED</span>
+              <div className="h-1 w-1 rounded-full bg-border-subtle" />
+              <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">ACTIVE PKG: {selectedPackage?.title || 'ALL PACKAGES'}</span>
+            </div>
+          </div>
+
+          {/* Global tab Switcher */}
+          <div className="flex flex-wrap items-center gap-2">
           <button
             id="tab-entry-matrix"
             onClick={() => setActiveTab('matrix')}
@@ -800,7 +811,8 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
             Savings Analytics
           </button>
         </div>
-      </header>
+      </div>
+    </header>
 
       {/* Main Container Workspace */}
       <div className="flex-1 overflow-auto min-h-0 pr-1">
@@ -890,7 +902,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   <div className="bg-surface-1 border border-border-subtle rounded-xl p-4 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] font-mono text-ghost uppercase block">Estimated Internal Budget</span>
+                      <span className="text-[10px] font-mono text-ghost uppercase block">Estimated Internal Budget (USD)</span>
                       <span className="text-lg font-black text-main mt-0.5">${getInternalEstimatedCost().toLocaleString()}</span>
                     </div>
                     <Layers className="w-5 h-5 text-ghost/40" />
@@ -1071,11 +1083,14 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
 
                               {/* Target benchmark unit cost */}
                               <td className="p-3 text-right text-ghost w-28">
-                                <div className="flex items-center justify-end gap-1 select-none">
-                                  <span className="text-[9px] text-ghost/40">$</span>
+                                <div className="flex items-center justify-end gap-x-3 w-full select-none">
+                                  <span className="select-none font-mono text-main font-medium">$</span>
                                   <span className="text-main font-medium">{item.estimatedRate.toFixed(2)}</span>
                                 </div>
-                                <div className="text-[9px] text-ghost/50 mt-0.5">${internalRefCost.toLocaleString()} total</div>
+                                <div className="flex items-center justify-end gap-x-3 w-full text-[9px] text-ghost mt-0.5 select-none">
+                                  <span className="select-none font-mono text-ghost">$</span>
+                                  <span>{internalRefCost.toLocaleString()} total</span>
+                                </div>
                               </td>
 
                               {/* Supplier bid fields */}
@@ -1102,7 +1117,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
                                         "flex items-center gap-1.5 bg-surface-base border rounded px-2 py-1 w-32 focus-within:border-primary/60 transition-colors",
                                         isCheapestVendor ? "border-emerald-500/50" : "border-border-subtle/50"
                                       )}>
-                                        <span className="text-ghost text-[10px] select-none">$</span>
+                                        <span className="text-main text-xs font-bold font-mono select-none">$</span>
                                         <input
                                           type="number"
                                           step="0.01"
@@ -1117,7 +1132,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
                                       {/* Micro metrics underneath input */}
                                       {bid.unitRate > 0 && (
                                         <div className="flex flex-col items-end gap-0.5 text-[9px] text-ghost/70">
-                                          <span className="font-bold text-main/90">${totalSupplierPrice.toLocaleString()} total</span>
+                                          <span className="font-bold text-main/90 flex items-center justify-end gap-x-3 w-full"><span className="select-none font-mono">$</span><span>{totalSupplierPrice.toLocaleString()} total</span></span>
                                           
                                           <div className="flex items-center gap-1 mt-0.5 text-[8px] tracking-tight">
                                             {/* Delivery days input */}
@@ -1391,7 +1406,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
                         <div className="text-right">
                           <span className="text-[10px] text-ghost font-mono block uppercase">Target Budget</span>
                           <span className="text-xs font-black text-main block mt-0.5">
-                            ${totalEstCost.toLocaleString()}
+                            <span className="text-ghost text-[10px]/normal select-none font-normal mr-3">$</span>{totalEstCost.toLocaleString()}
                           </span>
                         </div>
 
@@ -1454,7 +1469,12 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
                         <td className="p-3.5 font-bold text-main">{po.po_number || 'PO-MOCK-392'}</td>
                         <td className="p-3.5 text-ghost">{new Date(po.created_at || Date.now()).toLocaleDateString()}</td>
                         <td className="p-3.5 text-ghost font-sans">{project.project_name}</td>
-                        <td className="p-3.5 text-right text-accent font-extrabold">${(po.total_amount || po.total_value || 0).toLocaleString()}</td>
+                        <td className="p-3.5 text-right text-accent font-extrabold">
+                          <div className="flex items-center justify-end gap-x-3 w-full">
+                            <span className="select-none font-mono">$</span>
+                            <span>{(po.total_amount || po.total_value || 0).toLocaleString()}</span>
+                          </div>
+                        </td>
                         <td className="p-3.5 text-center">
                           <span className="px-2 py-0.5 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-md uppercase font-black text-[8px] tracking-wide">
                             {po.status || 'draft'}
@@ -1500,7 +1520,7 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
               
               <div className="bg-surface-1 border border-border-subtle p-5 rounded-2xl flex flex-col justify-between">
                 <div>
-                  <span className="text-[10px] font-mono text-ghost uppercase tracking-wider block">Estimated Base Budget</span>
+                  <span className="text-[10px] font-mono text-ghost uppercase tracking-wider block">Estimated Base Budget (USD)</span>
                   <p className="text-2xl font-black text-main mt-1">${getInternalEstimatedCost().toLocaleString()}</p>
                 </div>
                 <div className="text-[10px] text-ghost prose mt-3">Calculated standard engineer cost references for this material package group.</div>
@@ -1508,21 +1528,21 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
 
               <div className="bg-surface-1 border border-border-subtle p-5 rounded-2xl flex flex-col justify-between">
                 <div>
-                  <span className="text-[10px] font-mono text-ghost uppercase tracking-wider block">Lowest Single Vendor Deal</span>
+                  <span className="text-[10px] font-mono text-ghost uppercase tracking-wider block">Lowest Single Vendor Deal (USD)</span>
                   {selectedPackage ? (
                     (() => {
-                      const minimumQuoted = selectedPackage.suppliers.map(s => getSupplierTotalCost(s.id)).filter(v => v > 0);
-                      const bestDeal = minimumQuoted.length > 0 ? Math.min(...minimumQuoted) : getInternalEstimatedCost();
-                      const bestSupplier = selectedPackage.suppliers.find(s => getSupplierTotalCost(s.id) === bestDeal);
+                       const minimumQuoted = selectedPackage.suppliers.map(s => getSupplierTotalCost(s.id)).filter(v => v > 0);
+                       const bestDeal = minimumQuoted.length > 0 ? Math.min(...minimumQuoted) : getInternalEstimatedCost();
+                       const bestSupplier = selectedPackage.suppliers.find(s => getSupplierTotalCost(s.id) === bestDeal);
                       
-                      return (
-                        <>
-                          <p className="text-2xl font-black text-emerald-400 mt-1">${bestDeal.toLocaleString()}</p>
-                          <div className="text-[10px] text-accent font-semibold mt-2">
-                            Lowest quote by: {bestSupplier?.name || 'No bids registered'}
-                          </div>
-                        </>
-                      );
+                       return (
+                         <>
+                           <p className="text-2xl font-black text-emerald-400 mt-1">${bestDeal.toLocaleString()}</p>
+                           <div className="text-[10px] text-accent font-semibold mt-2">
+                             Lowest quote by: {bestSupplier?.name || 'No bids registered'}
+                           </div>
+                         </>
+                       );
                     })()
                   ) : <p className="text-2xl font-bold mt-1">$0</p>}
                 </div>
@@ -1530,22 +1550,22 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
 
               <div className="bg-surface-1 border border-border-subtle p-5 rounded-2xl flex flex-col justify-between">
                 <div>
-                  <span className="text-[10px] font-mono text-ghost uppercase tracking-wider block">Total Potential Cherry-Picked Savings</span>
+                  <span className="text-[10px] font-mono text-ghost uppercase tracking-wider block">Total Potential Cherry-Picked Savings (USD)</span>
                   {selectedPackage ? (
                     (() => {
-                      const opt = getOptimalCherryPickedTotal();
-                      const target = getInternalEstimatedCost();
-                      const netSave = target - opt;
-                      const pctSave = target > 0 ? (netSave / target) * 100 : 0;
+                       const opt = getOptimalCherryPickedTotal();
+                       const target = getInternalEstimatedCost();
+                       const netSave = target - opt;
+                       const pctSave = target > 0 ? (netSave / target) * 100 : 0;
                       
-                      return (
-                        <>
-                          <p className="text-2xl font-black text-rose-400 mt-1">${Math.max(0, netSave).toLocaleString()}</p>
-                          <div className="text-[10px] text-ghost/90 mt-2">
-                            Achieve up to <span className="text-emerald-400 font-extrabold">{pctSave.toFixed(0)}% savings</span> by cherry-picking individual lowest items across competing providers.
-                          </div>
-                        </>
-                      );
+                       return (
+                         <>
+                           <p className="text-2xl font-black text-rose-400 mt-1">${Math.max(0, netSave).toLocaleString()}</p>
+                           <div className="text-[10px] text-ghost/90 mt-2">
+                             Achieve up to <span className="text-emerald-400 font-extrabold">{pctSave.toFixed(0)}% savings</span> by cherry-picking individual lowest items across competing providers.
+                           </div>
+                         </>
+                       );
                     })()
                   ) : <p className="text-2xl font-bold mt-1">$0</p>}
                 </div>

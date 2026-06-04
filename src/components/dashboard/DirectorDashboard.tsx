@@ -13,6 +13,7 @@ interface DirectorDashboardProps {
   onSelectProject: (id: string) => void;
   onSelectModule: (id: string) => void;
   tenantId?: string;
+  isGodMode?: boolean;
 }
 
 export function DirectorDashboard({ 
@@ -20,7 +21,8 @@ export function DirectorDashboard({
   counts, 
   onSelectProject, 
   onSelectModule,
-  tenantId
+  tenantId,
+  isGodMode = false
 }: DirectorDashboardProps) {
   // Dynamic parameters computed based on actual active projects list
   const primaryProjectName = projects[0]?.name || 'Project Alpha';
@@ -57,15 +59,16 @@ export function DirectorDashboard({
         <ProjectHealthGrid 
           projects={projects} 
           onSelectProject={onSelectProject} 
+          isGodMode={isGodMode}
         />
 
         {/* Right Column: Financials */}
-        <CrossProjectFinancials />
+        <CrossProjectFinancials isGodMode={isGodMode} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
-        <RecentActivity tenantId={tenantId} />
+        <RecentActivity tenantId={tenantId} isGodMode={isGodMode} />
 
         {/* AI Insights Panel */}
         <DashboardPanel 
@@ -73,6 +76,7 @@ export function DirectorDashboard({
           subtitle="AI-Powered Portfolio Analysis"
           icon={Sparkles}
           className="lg:col-span-2 border-accent/20 bg-gradient-to-br from-surface-1 to-surface-2"
+          isGodMode={isGodMode}
         >
           <div className="flex flex-col gap-6">
             <div className="flex items-start gap-4 p-4 bg-accent/5 border border-accent/10 rounded-xl">

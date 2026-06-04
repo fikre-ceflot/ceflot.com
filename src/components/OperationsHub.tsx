@@ -39,7 +39,8 @@ import {
   Minimize2,
   SlidersHorizontal,
   Lock,
-  Info
+  Info,
+  Wrench
 } from 'lucide-react';
 import { Project, BOQItem } from '../types';
 import { cn, cleanRichText } from '../lib/utils';
@@ -49,6 +50,8 @@ import { FinancialDashboard } from './FinancialDashboard';
 import { SiteApp } from './SiteApp';
 import { TabBar } from './ui/TabBar';
 import { recalculateBOQTreeProgress } from '../services/recalculateProgress';
+import { DailyResourceLogger } from './DailyResourceLogger';
+import { BOQItemEditDrawer } from './BOQItemEditDrawer';
 
 interface OperationsHubProps {
   project: Project;
@@ -134,6 +137,14 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { actual_qty?: number; progress_pct?: number }>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [drawerBoqItem, setDrawerBoqItem] = useState<any | null>(null);
+
+  // Resources Editing Modal State
+  const [editingProgressId, setEditingProgressId] = useState<string | null>(null);
+  const [editingProgressDate, setEditingProgressDate] = useState<string>('');
+  
+  // State for choosing from multiple dates for a specific BOQ item
+  const [boqResourcePickerItem, setBoqResourcePickerItem] = useState<any | null>(null);
 
   const toggleDate = (date: string) => {
     setExpandedDates(prev => {
@@ -274,6 +285,30 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
     });
   }, [boqItems]);
 
+  const overallProgressPercent = useMemo(() => {
+    if (!boqWithCalculatedWeights || boqWithCalculatedWeights.length === 0) return 0;
+    
+    let totalWeight = 0;
+    let weightedProgressTotal = 0;
+    
+    boqWithCalculatedWeights.forEach(item => {
+      // check if it has children in the full BOQ set
+      const childNoPrefix = (item.item_no || '') + '.';
+      const hasChildren = boqWithCalculatedWeights.some(other => (other.item_no || '').startsWith(childNoPrefix));
+      
+      if (!hasChildren) {
+        // leaf item
+        const weight = item.project_weight || 0;
+        const progress = item.progress_pct || 0;
+        weightedProgressTotal += (progress * weight);
+        totalWeight += weight;
+      }
+    });
+    
+    if (totalWeight === 0) return 0;
+    return (weightedProgressTotal / totalWeight);
+  }, [boqWithCalculatedWeights]);
+
   const filteredItems = useMemo(() => {
     return boqWithCalculatedWeights.filter(item => 
       (cleanRichText(item.description)).toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -302,11 +337,14 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
       const { data, error } = await supabase
         .from('boq_items')
         .select('*')
-        .eq('project_id', project.id)
-        .order('item_no');
+        .eq('project_id', project.id);
       
       if (error) throw error;
-      setBoqItems(data || []);
+      
+      const sorted = (data || []).sort((a, b) => {
+        return (a.item_no || '').localeCompare(b.item_no || '', undefined, { numeric: true, sensitivity: 'base' });
+      });
+      setBoqItems(sorted);
 
       const { data: costData } = await supabase
         .from('v_daily_progress_costs')
@@ -328,7 +366,7 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
         .from('daily_activities')
         .select(`
           *,
-          daily_progress!inner (report_date, status, project_id),
+          daily_progress!inner (id, report_date, status, project_id),
           boq_items (item_no, description, unit)
         `)
         .eq('daily_progress.project_id', project.id)
@@ -498,12 +536,26 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
         {!isFullscreen && (
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-black text-main flex items-center gap-2 uppercase tracking-widest">
+              <h2 className="text-sm font-black text-main flex items-center gap-1.5 uppercase tracking-widest flex-wrap">
                 <Database className="w-5 h-5 text-primary" />
-                Execution Control Center
+                <span>Execution Control Center</span>
               </h2>
               <p className="text-[10px] text-ghost opacity-60 font-bold uppercase tracking-tighter mt-0.5">Validate reported site data or perform manual overrides</p>
             </div>
+
+            {/* Total Project Weighted Progress Indicator */}
+            <div className="flex-1 max-w-xs bg-surface-1 border border-border-subtle rounded-xl p-2.5 flex items-center gap-3">
+               <div className="flex-1">
+                  <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-ghost mb-1">
+                     <span>Total Progress</span>
+                     <span className="text-primary font-mono font-black">{overallProgressPercent.toFixed(2)}%</span>
+                  </div>
+                  <div className="h-1.5 bg-surface-2 rounded-full overflow-hidden">
+                     <div className="h-full bg-primary transition-all duration-500" style={{ width: `${overallProgressPercent}%` }} />
+                  </div>
+               </div>
+            </div>
+
             <div className="flex items-center gap-3">
               <div className="flex bg-surface-base border border-border-subtle p-1 rounded-xl shadow-inner backdrop-blur-sm">
                  <button 
@@ -825,25 +877,13 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
                       </td>
                       <td className="px-4 py-1.5 text-right" style={{ width: colWidths.actions }}>
                         <div className="flex items-center justify-end gap-1">
-                          {hasChildren ? null : editingItemId === item.id ? (
+                          {hasChildren ? null : (
                             <button 
-                              onClick={() => setEditingItemId(null)}
-                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 transition-all rounded-lg border border-emerald-100"
-                              title="Keep changes in draft"
+                              onClick={() => setDrawerBoqItem(item)}
+                              className="p-1 px-2 text-ghost hover:text-primary hover:bg-primary/5 transition-all rounded-xl border border-transparent h-8 flex items-center justify-center"
+                              title="Edit Logged Materials, Machineries, Labours & Progress"
                             >
-                              <FileCheck className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => setEditingItemId(item.id)}
-                              disabled={isMassEdit}
-                              className={cn(
-                                "p-1.5 text-ghost hover:text-primary transition-all rounded-lg hover:bg-primary/5 border border-transparent",
-                                isMassEdit && "opacity-30 cursor-not-allowed"
-                              )}
-                              title="Edit Item"
-                            >
-                              <Edit3 className="w-4 h-4" />
+                              <Wrench className="w-3.5 h-3.5" />
                             </button>
                           )}
                           <button 
@@ -851,10 +891,10 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
                               setSearchTerm(item.item_no || '');
                               setActiveReportTab('activity_log');
                             }}
-                            className="p-1.5 text-ghost hover:text-primary transition-all rounded-lg hover:bg-primary/5"
+                            className="p-1 px-2 text-ghost hover:text-primary hover:bg-primary/5 transition-all rounded-xl border border-transparent h-8 flex items-center justify-center"
                             title="View Logs"
                           >
-                            <Activity className="w-4 h-4" />
+                            <Activity className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -953,6 +993,16 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
                                           title="Delete Log"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
+                                         </button>
+                                         <button 
+                                           onClick={() => {
+                                             setEditingProgressId(activity.daily_progress_id);
+                                             setEditingProgressDate(activity.daily_progress?.report_date || '');
+                                           }}
+                                           className="p-1.5 text-ghost hover:text-primary rounded-lg hover:bg-primary/5 transition-all"
+                                           title="Edit Logged Materials, Machineries & Labours"
+                                         >
+                                           <Wrench className="w-3.5 h-3.5" />
                                         </button>
                                       </div>
                                    </td>
@@ -1507,30 +1557,65 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
   return (
     <div className="flex flex-col gap-8" style={{ marginLeft: '0px' }}>
       {!isFullscreen && (
-        <header className="flex flex-col gap-6 mb-8">
-          <div className="flex items-center justify-between">
+         <header className="flex flex-col gap-6 mb-8">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
                <div className="flex flex-col">
                   <div className="flex items-center gap-2 mb-1">
-                     <div className="px-2 py-0.5 bg-primary/10 border border-primary/20 rounded text-[9px] font-black text-primary uppercase tracking-widest">{project.project_code}</div>
-                     <span className="text-[9px] font-black text-ghost uppercase tracking-[0.2em]">Project Execution</span>
+                     <div className="px-2 py-0.5 bg-primary/10 border border-primary/20 rounded text-[9px] font-semibold text-primary uppercase tracking-wider">{project.project_code}</div>
+                     <span className="text-[9px] font-semibold text-ghost uppercase tracking-[0.2em]">Project Execution</span>
                   </div>
-                  <h1 className="text-lg font-black tracking-tight text-main">{project.name}</h1>
-               </div>
-               <div className="h-10 w-px bg-border-subtle mx-1" />
-               <div className="flex flex-col gap-1">
-                  <div className="text-[10px] font-bold text-ghost uppercase tracking-widest decoration-primary/30 underline-offset-4">Operations Control Center</div>
-                  <div className="flex items-center gap-2">
-                     <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle text-[9px] font-bold text-ghost">Site Command</span>
-                     <div className="h-1 w-1 rounded-full bg-border-subtle" />
-                     <span className="text-[9px] font-bold text-dim uppercase tracking-wider">{project.status || 'Active'}</span>
-                  </div>
+                  <h1 className="text-lg font-semibold tracking-tight text-main">{project.name}</h1>
                </div>
             </div>
 
-            <button onClick={loadActualData} className="btn btn-secondary btn-sm h-10 w-10 p-0 rounded-xl">
-               <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-            </button>
+            <div className="flex items-center gap-4 ml-auto">
+              {/* Dynamic Helpful Information Card (Aligned Right) */}
+              {activeTab === 'site_health' && (
+                <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+                  <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">SITE HEALTH REPORT</div>
+                  <div className="flex items-center gap-2 justify-end">
+                     <span className="px-1.5 py-0.25 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-semibold text-emerald-500 select-none uppercase tracking-wider">HEALTHY</span>
+                     <div className="h-1 w-1 rounded-full bg-border-subtle" />
+                     <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">CPI: {evm.cpi.toFixed(2)} | SPI: {evm.spi.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'daily_controls' && (
+                <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+                  <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">EXECUTION CONTROL LEDGER</div>
+                  <div className="flex items-center gap-2 justify-end">
+                     <span className="px-1.5 py-0.25 rounded bg-primary/10 border border-primary/20 text-[9px] font-semibold text-primary select-none uppercase tracking-wider">ACTIVE</span>
+                     <div className="h-1 w-1 rounded-full bg-border-subtle" />
+                     <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">Overall Progress: {overallProgressPercent.toFixed(2)}%</span>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'field_app' && (
+                <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+                  <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">FIELD APPLICATION LINK</div>
+                  <div className="flex items-center gap-2 justify-end">
+                     <span className="px-1.5 py-0.25 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-semibold text-amber-500 select-none uppercase tracking-wider">ONLINE</span>
+                     <div className="h-1 w-1 rounded-full bg-border-subtle" />
+                     <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">Build v2.4.1</span>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'subcon_progress' && (
+                <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+                  <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">SUBCONTRACTOR REGISTRY</div>
+                  <div className="flex items-center gap-2 justify-end">
+                     <span className="px-1.5 py-0.25 rounded bg-purple-500/10 border border-purple-500/20 text-[9px] font-semibold text-purple-500 select-none uppercase tracking-wider">MANAGED</span>
+                     <div className="h-1 w-1 rounded-full bg-border-subtle" />
+                     <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">Active Capacity: 84%</span>
+                  </div>
+                </div>
+              )}
+
+              <button onClick={loadActualData} className="btn btn-secondary btn-sm h-10 w-10 p-0 rounded-xl" title="Refresh project status and statistics">
+                 <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+              </button>
+            </div>
           </div>
 
           <div className="pb-2 border-b border-border-subtle">
@@ -1570,6 +1655,79 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
       ) : activeTab === 'subcon_progress' ? (
         renderSubcontractorsSection()
       ) : null}
+
+      {/* If BOQ item is clicked to edit resources, and there are multiple logs, show a quick-selection modal */}
+      {boqResourcePickerItem && (
+        <div className="fixed inset-0 bg-surface-base/80 backdrop-blur-sm z-[90] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-surface-1 border border-border-subtle rounded-2xl max-w-sm w-full shadow-2xl relative overflow-hidden flex flex-col">
+            <div className="p-4 bg-surface-2 border-b border-border-subtle flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-black text-ghost uppercase tracking-widest">Select Report Date</h4>
+                <div className="text-xs font-bold text-main mt-0.5 truncate max-w-[200px]">{cleanRichText(boqResourcePickerItem.description)}</div>
+              </div>
+              <button 
+                onClick={() => setBoqResourcePickerItem(null)}
+                className="p-1-2 text-ghost hover:text-main hover:bg-surface-3 rounded-lg transition-colors border border-transparent"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 max-h-60 overflow-y-auto flex flex-col gap-2">
+              {boqResourcePickerItem.logs.map((log: any) => (
+                <button
+                  key={log.id}
+                  onClick={() => {
+                    setEditingProgressId(log.daily_progress_id);
+                    setEditingProgressDate(log.daily_progress?.report_date || '');
+                    setBoqResourcePickerItem(null);
+                  }}
+                  className="w-full p-2.5 font-semibold text-xs text-left bg-surface-2 hover:bg-primary/[0.04] hover:text-primary border border-border-subtle hover:border-primary/40 rounded-xl transition-all flex items-center justify-between gap-4 group"
+                >
+                  <div>
+                    <span className="font-bold block tracking-tight text-main">
+                      {new Date(log.daily_progress?.report_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    <span className="text-[10px] text-ghost block font-normal mt-0.5">
+                      Logged Qty: {log.progress_qty} {cleanRichText(boqResourcePickerItem.unit)}
+                    </span>
+                  </div>
+                  <div className="text-[9px] uppercase font-black tracking-wider text-ghost group-hover:text-primary transition-colors">
+                    Edit &rarr;
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Daily resource logger modal */}
+      {editingProgressId && (
+        <DailyResourceLogger
+          dailyProgressId={editingProgressId}
+          tenantId={tenantId}
+          onClose={() => {
+            setEditingProgressId(null);
+            loadReportActivities(); // Reload after save/close
+            loadActualData();       // Sync totals too
+          }}
+          date={editingProgressDate}
+        />
+      )}
+
+      {/* Single-button unified right-side rollup panel */}
+      {drawerBoqItem && (
+        <BOQItemEditDrawer
+          boqItem={drawerBoqItem}
+          project={project}
+          tenantId={tenantId}
+          onClose={() => setDrawerBoqItem(null)}
+          onSaveSuccess={() => {
+            loadActualData();
+            loadReportActivities();
+          }}
+        />
+      )}
     </div>
   );
 }

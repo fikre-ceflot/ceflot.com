@@ -359,8 +359,14 @@ export function PaymentCertificateManager({ projectId, tenantId }: PaymentCertif
                       </span>
                     </td>
                     <td className="px-6 py-3 text-right border-r border-border-subtle/20">
-                      <div className="text-[11px] font-mono font-black text-main leading-tight">${(cert.net_amount || 0).toLocaleString()}</div>
-                      <div className="text-[9px] text-ghost font-black uppercase tracking-widest">Gross: ${(cert.gross_amount || 0).toLocaleString()}</div>
+                      <div className="text-[11px] font-mono font-black text-main leading-tight flex items-center justify-end gap-x-3 w-full">
+                        <span className="select-none font-mono">$</span>
+                        <span>{(cert.net_amount || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="text-[9px] text-ghost font-black uppercase tracking-widest flex items-center justify-between w-full mt-1">
+                        <span>Gross:</span>
+                        <span>$ {(cert.gross_amount || 0).toLocaleString()}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
@@ -627,8 +633,18 @@ function CertificateDetail({ cert, onBack }: { cert: any, onBack: () => void }) 
                         <td className="px-4 py-1.5 text-[11px] text-dim text-right font-mono border-r border-border-subtle/20">{(item.previous_qty || 0).toLocaleString()}</td>
                         <td className="px-4 py-1.5 text-[11px] text-main text-right font-mono border-r border-border-subtle/20">{(item.total_qty_to_date || 0).toLocaleString()}</td>
                         <td className="px-4 py-1.5 text-[11px] text-primary text-right font-mono font-bold border-r border-border-subtle/20">{currentQty.toLocaleString()}</td>
-                        <td className="px-4 py-1.5 text-[11px] text-dim text-right font-mono border-r border-border-subtle/20">${(item.rate || 0).toLocaleString()}</td>
-                        <td className="px-4 py-1.5 text-[11px] text-main text-right font-mono font-bold">${amount.toLocaleString()}</td>
+                        <td className="px-4 py-1.5 text-[11px] text-dim text-right font-mono border-r border-border-subtle/20">
+                          <div className="flex items-center justify-end gap-x-3 w-full">
+                            <span className="select-none font-mono">$</span>
+                            <span>{(item.rate || 0).toLocaleString()}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-1.5 text-[11px] text-main text-right font-mono font-bold">
+                          <div className="flex items-center justify-end gap-x-3 w-full">
+                            <span className="select-none font-mono">$</span>
+                            <span>{amount.toLocaleString()}</span>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}

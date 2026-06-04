@@ -2616,27 +2616,30 @@ export function Schedule({ project }: ScheduleProps) {
         )}>
           <div className="flex flex-col gap-0.5 md:mt-auto">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Project Schedule</span>
+              <span className="text-[9px] font-semibold text-ghost uppercase tracking-[0.2em]">Project Schedule</span>
             </div>
-            <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">{project.name}</h1>
+            <h1 className="text-lg font-semibold tracking-tight text-main -ml-0.5">{project.name}</h1>
             <div className="flex items-center gap-3 mt-1.5">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-                <span className="text-primary font-black uppercase tracking-widest decoration-primary/30 underline-offset-4">Schedule Dashboard</span>
+              <div className="flex items-center gap-2 text-[10px] font-medium text-ghost">
+                <span className="text-primary font-semibold uppercase tracking-wider">Schedule Dashboard</span>
                 <span className="w-1 h-1 rounded-full bg-border-subtle" />
                 <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">
                   {tasks.length} {tasks.length === 1 ? 'Task' : 'Tasks'}
                 </span>
               </div>
               <div className="h-1 w-1 rounded-full bg-border-subtle" />
-              <span className="text-[10px] font-bold text-dim uppercase tracking-wider">{project.status || 'Active'}</span>
+              <span className="text-[10px] font-semibold text-dim uppercase tracking-wider">{project.status || 'Active'}</span>
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-5 h-full">
-            <div className="flex flex-col items-end min-w-[120px]">
-              <span className="text-[8px] font-bold text-ghost uppercase tracking-[0.2em] mb-1 opacity-60">Reference ID</span>
-              <div className="px-3 py-1.5 rounded-lg bg-surface-2 border border-border-subtle flex items-center justify-center w-full">
-                <span className="text-xs font-black text-primary tracking-widest">{project.project_code}</span>
+          <div className="flex items-center gap-4 ml-auto flex-wrap">
+            {/* Dynamic Helpful Information Card (Aligned Right) */}
+            <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+              <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">CRITICAL PATH METHOD (CPM) SCHEDULE</div>
+              <div className="flex items-center gap-2 justify-end">
+                <span className="px-1.5 py-0.25 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-semibold text-amber-500 select-none uppercase tracking-wider font-mono">TRACKING</span>
+                <div className="h-1 w-1 rounded-full bg-border-subtle" />
+                <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">CODE: {project.project_code} | {tasks.length} Nodes</span>
               </div>
             </div>
 

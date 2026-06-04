@@ -20,24 +20,8 @@ export interface SubcontractorProgressItem {
  */
 export async function fetchSubcontractorProgress(projectId: string): Promise<SubcontractorProgressItem[]> {
   try {
-    // 1. First, try the view (optimized path)
-    const { data: viewData, error: viewError } = await supabase
-      .from('v_subcontractor_progress')
-      .select('*')
-      .eq('project_id', projectId);
-
-    if (!viewError) return viewData as SubcontractorProgressItem[];
-    
-    // If it's a specific "not found" error, proceed to fallback.
-    // Otherwise, throw if it's a real permission or network error.
-    if (!viewError.message.includes('not found') && !viewError.message.includes('schema cache')) {
-      throw viewError;
-    }
-
-    console.warn('v_subcontractor_progress view not found, falling back to manual join');
-
-    // 2. FALLBACK MANUAL JOIN
-    // This implements the logic of the view in SQL but in JS
+    // We always use the robust manual client-side join calculation to guarantee 100% accuracy,
+    // avoiding the v_subcontractor_progress database view which has stale constraints/bugs.
     
     // A. Fetch base data
     const [
@@ -51,7 +35,7 @@ export async function fetchSubcontractorProgress(projectId: string): Promise<Sub
       supabase.from('daily_activities').select(`
         *,
         daily_progress!inner(status, project_id)
-      `).eq('daily_progress.project_id', projectId).in('daily_progress.status', ['submitted', 'reviewed']),
+      `).eq('daily_progress.project_id', projectId).in('daily_progress.status', ['draft', 'submitted', 'reviewed']),
       supabase.from('subcontractors').select('*')
     ]);
 
@@ -60,8 +44,14 @@ export async function fetchSubcontractorProgress(projectId: string): Promise<Sub
     // B. Calculate progress per sub+item
     const subProgressMap = new Map<string, number>(); // key: subId_boqId
     activities?.forEach(act => {
-      if (!act.subcontractor_id || !act.boq_item_id) return;
-      const key = `${act.subcontractor_id}_${act.boq_item_id}`;
+      // Find subcontractor: either act.subcontractor_id, or look it up from subcontractor_assignments using act.boq_item_id
+      let subId = act.subcontractor_id;
+      if (!subId) {
+        const matchingAssign = assignments?.find(a => a.boq_item_id === act.boq_item_id);
+        subId = matchingAssign?.subcontractor_id;
+      }
+      if (!subId || !act.boq_item_id) return;
+      const key = `${subId}_${act.boq_item_id}`;
       subProgressMap.set(key, (subProgressMap.get(key) || 0) + (Number(act.progress_qty) || 0));
     });
 
@@ -73,21 +63,22 @@ export async function fetchSubcontractorProgress(projectId: string): Promise<Sub
         const assignment = assignments?.find(a => a.subcontractor_id === s.id && a.boq_item_id === bi.id);
         const cumulativeQty = subProgressMap.get(`${s.id}_${bi.id}`) || 0;
 
-        // View logic: WHERE sp.cumulative_progress_qty > 0 OR sa.id IS NOT NULL;
+        // Where cumulative progress exists OR they are assigned to this items
         if (cumulativeQty > 0 || assignment) {
-          const agreedQty = assignment?.contract_qty ?? bi.contract_qty;
-          const agreedRate = assignment?.contract_rate ?? bi.contract_rate;
+          const agreedQty = assignment?.contract_qty ?? bi.contract_qty ?? 0;
+          const agreedRate = assignment?.contract_rate ?? bi.contract_rate ?? 0;
+          const finalAgreedQty = Number(agreedQty) > 0 ? Number(agreedQty) : (Number(bi.contract_qty) || 0);
           
           results.push({
             subcontractor_name: s.company_name,
             boq_item_id: bi.id,
             boq_description: bi.description,
             unit: bi.unit,
-            agreed_qty: Number(agreedQty),
+            agreed_qty: finalAgreedQty,
             cumulative_progress_qty: Number(cumulativeQty),
-            progress_pct: agreedQty > 0 ? (cumulativeQty / agreedQty) * 100 : 0,
+            progress_pct: finalAgreedQty > 0 ? (cumulativeQty / finalAgreedQty) * 100 : 0,
             earned_value: cumulativeQty * Number(agreedRate),
-            agreed_amount: Number(agreedQty) * Number(agreedRate),
+            agreed_amount: finalAgreedQty * Number(agreedRate),
             agreed_rate: Number(agreedRate),
             project_id: projectId,
             tenant_id: bi.tenant_id

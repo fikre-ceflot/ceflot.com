@@ -29,6 +29,7 @@ export function Variations({ project, tenantId }: VariationsProps) {
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -36,6 +37,21 @@ export function Variations({ project, tenantId }: VariationsProps) {
     impact_days: 0,
     reference_no: `VO-${Math.floor(Math.random() * 10000)}`
   });
+
+  const updateVariationStatus = async (voId: string, status: 'approved' | 'rejected' | 'pending_approval') => {
+    try {
+      const { error } = await supabase
+        .from('variations')
+        .update({ status })
+        .eq('id', voId);
+      if (error) throw error;
+      alert(`Variation Order status successfully updated to ${status.replace('_', ' ')}!`);
+      loadVariations();
+      setActiveMenuId(null);
+    } catch (err: any) {
+      alert(`Error updating variation status: ${err.message}`);
+    }
+  };
 
   useEffect(() => {
     loadVariations();
@@ -93,12 +109,12 @@ export function Variations({ project, tenantId }: VariationsProps) {
       <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 px-1">
         <div className="flex flex-col gap-0.5 md:mt-auto">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Contractual Claims Hub</span>
+            <span className="text-[9px] font-semibold text-ghost uppercase tracking-[0.2em]">Contractual Claims Hub</span>
           </div>
-          <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">{cleanRichText(project.name)}</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-main -ml-0.5">{cleanRichText(project.name)}</h1>
           <div className="flex items-center gap-3 mt-1.5">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-              <span className="text-primary font-black uppercase tracking-widest decoration-primary/30 underline-offset-4">
+            <div className="flex items-center gap-2 text-[10px] font-medium text-ghost">
+              <span className="text-primary font-semibold uppercase tracking-wider">
                 {activeSubtab === 'variations' ? 'Variation Orders' : 'Extension of Time (EoT)'}
               </span>
               <span className="w-1 h-1 rounded-full bg-border-subtle" />
@@ -109,7 +125,18 @@ export function Variations({ project, tenantId }: VariationsProps) {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
+        <div className="flex items-center gap-4 ml-auto flex-wrap">
+          {/* Dynamic Helpful Information Card (Aligned Right) */}
+          <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+            <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">CONTRACT CLAIMS & CLAUSE CENTRAL</div>
+            <div className="flex items-center gap-2 justify-end">
+              <span className="px-1.5 py-0.25 rounded bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 text-[9px] font-semibold text-[var(--color-primary)] select-none uppercase tracking-wider font-mono">AUTHORIZED</span>
+              <div className="h-1 w-1 rounded-full bg-border-subtle" />
+              <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">CODE: {project.project_code} | {variations.length} Tracked Claims</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
           {/* Inline Toggle */}
           <div className="flex bg-surface-2 p-1 rounded-xl border border-border-subtle shadow-inner">
             <button 
@@ -144,7 +171,8 @@ export function Variations({ project, tenantId }: VariationsProps) {
             </button>
           )}
         </div>
-      </header>
+      </div>
+    </header>
 
       {activeSubtab === 'eot' ? (
         <EoTClaims project={project} embedded={true} />
@@ -262,7 +290,7 @@ export function Variations({ project, tenantId }: VariationsProps) {
                 <div className="flex items-center gap-6">
                   <div className="flex flex-col items-end">
                     <div className="text-[10px] font-mono uppercase tracking-widest text-ghost">Estimated Cost</div>
-                    <div className="text-sm font-bold text-primary">USD {vo.estimated_cost.toLocaleString()}</div>
+                    <div className="text-sm font-bold text-primary">${vo.estimated_cost.toLocaleString()}</div>
                   </div>
                   <div className="flex flex-col items-end">
                     <div className="text-[10px] font-mono uppercase tracking-widest text-ghost">Schedule Impact</div>
@@ -277,9 +305,92 @@ export function Variations({ project, tenantId }: VariationsProps) {
                   )}>
                     {vo.status.replace('_', ' ')}
                   </div>
-                  <button className="p-1.5 text-ghost hover:bg-surface-2 hover:text-main rounded-md transition-colors">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
+                  <div className="relative">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuId(activeMenuId === vo.id ? null : vo.id);
+                      }}
+                      className={cn(
+                        "p-1.5 text-ghost hover:bg-surface-2 hover:text-main rounded-md transition-colors",
+                        activeMenuId === vo.id && "bg-surface-2 text-main"
+                      )}
+                      title="Actions"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+
+                    {activeMenuId === vo.id && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-[120] bg-transparent" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuId(null);
+                          }}
+                        />
+                        <div 
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-8 w-44 bg-surface-1 border border-border-muted rounded-xl shadow-xl z-[130] p-1.5 flex flex-col gap-0.5 text-xs select-none"
+                        >
+                          <button 
+                            onClick={() => {
+                              setSelectedVariation(vo);
+                              setActiveMenuId(null);
+                            }}
+                            className="w-full text-left px-2.5 py-1.5 hover:bg-surface-2 hover:text-main rounded-lg text-ghost transition-colors flex items-center gap-2 font-semibold"
+                          >
+                            <span>Read Full Log</span>
+                          </button>
+                          
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(vo.reference_no);
+                              alert(`Reference code "${vo.reference_no}" successfully copied!`);
+                              setActiveMenuId(null);
+                            }}
+                            className="w-full text-left px-2.5 py-1.5 hover:bg-surface-2 hover:text-main rounded-lg text-ghost transition-colors flex items-center gap-2 font-semibold"
+                          >
+                            <span>Copy Ref Code</span>
+                          </button>
+
+                          <button 
+                            onClick={() => {
+                              alert(`Drafted claim invoice for ${vo.reference_no} comprising an estimated $${vo.estimated_cost.toLocaleString()}.`);
+                              setActiveMenuId(null);
+                            }}
+                            className="w-full text-left px-2.5 py-1.5 hover:bg-surface-2 hover:text-main rounded-lg text-ghost transition-colors flex items-center gap-2 font-semibold border-b border-border-subtle pb-1.5 mb-1"
+                          >
+                            <span>Draft Invoice</span>
+                          </button>
+
+                          {vo.status === 'pending_approval' || vo.status === 'draft' ? (
+                            <>
+                              <button 
+                                onClick={() => updateVariationStatus(vo.id, 'approved')}
+                                className="w-full text-left px-2.5 py-1.5 hover:bg-primary/20 text-primary hover:text-primary font-bold rounded-lg transition-colors flex items-center gap-2"
+                              >
+                                <span>Approve (Simulated Client)</span>
+                              </button>
+                              <button 
+                                onClick={() => updateVariationStatus(vo.id, 'rejected')}
+                                className="w-full text-left px-2.5 py-1.5 hover:bg-danger/20 text-danger hover:text-danger font-bold rounded-lg transition-colors flex items-center gap-2"
+                              >
+                                <span>Reject Claims</span>
+                              </button>
+                            </>
+                          ) : (
+                            <button 
+                              onClick={() => updateVariationStatus(vo.id, 'pending_approval')}
+                              className="w-full text-left px-2.5 py-1.5 hover:bg-accent/20 text-accent font-bold rounded-lg transition-colors flex items-center gap-2"
+                            >
+                              <span>Reset to Pending</span>
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="px-5 py-3 bg-surface-2 border-t border-border-subtle flex items-center justify-between">

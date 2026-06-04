@@ -496,11 +496,11 @@ export default function WarehouseManager({ tenantId, userRole, project }: Wareho
       <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 px-1">
         <div className="flex flex-col gap-0.5 md:mt-auto">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Supply Chain Operations</span>
+            <span className="text-[9px] font-semibold text-ghost uppercase tracking-[0.2em]">Supply Chain Operations</span>
           </div>
           
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-main tracking-tight select-none">Supply Hub Control</h1>
+            <h1 className="text-lg font-semibold text-main tracking-tight select-none">Supply Hub Control</h1>
             
             {/* Real-time Store Selector Toggle */}
             <select
@@ -522,15 +522,15 @@ export default function WarehouseManager({ tenantId, userRole, project }: Wareho
           </p>
 
           <div className="flex items-center gap-3 mt-3">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-              <span className="text-accent font-black uppercase tracking-widest decoration-accent/30 underline-offset-4">Inventory View</span>
+            <div className="flex items-center gap-2 text-[10px] font-medium text-ghost">
+              <span className="text-accent font-semibold uppercase tracking-wider">Inventory View</span>
               <span className="w-1 h-1 rounded-full bg-border-subtle" />
               <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">{stats.totalItems} Active Types</span>
             </div>
             {selectedProjectId !== 'central' && (
               <>
                 <div className="h-1 w-1 rounded-full bg-border-subtle" />
-                <span className="bg-primary/15 text-primary text-[9px] px-2 py-0.5 border border-primary/20 rounded font-black font-mono">
+                <span className="bg-primary/15 text-primary text-[9px] px-2 py-0.5 border border-primary/20 rounded font-semibold font-mono">
                   SITE ID: {activeSiteStore?.project_code || 'LOCAL_STORE'}
                 </span>
               </>
@@ -538,7 +538,17 @@ export default function WarehouseManager({ tenantId, userRole, project }: Wareho
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-5">
+        <div className="flex items-center gap-4 ml-auto flex-wrap">
+          {/* Dynamic Helpful Information Card (Aligned Right) */}
+          <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+            <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">SUPPLY CHAIN CONTROL</div>
+            <div className="flex items-center gap-2 justify-end">
+              <span className="px-1.5 py-0.25 rounded bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 text-[9px] font-semibold text-[var(--color-primary)] select-none uppercase tracking-wider font-mono">SYNCHRONIZED</span>
+              <div className="h-1 w-1 rounded-full bg-border-subtle" />
+              <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">Hub: {selectedProjectId.toUpperCase()} | {stats.totalItems} Categories</span>
+            </div>
+          </div>
+
           <div className="flex items-center gap-4">
             <button
               onClick={handleExport}

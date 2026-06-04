@@ -25,6 +25,9 @@ import {
   LogOut,
   Plus,
   MoreHorizontal,
+  Pin,
+  Copy,
+  ExternalLink,
   RefreshCw,
   Search,
   X,
@@ -139,7 +142,8 @@ const MODULE_GROUPS = [
     modules: [
       { id: 'variations', title: 'Contracts', description: 'Variations, EoT claims and subcontractors', icon: FileText, color: 'text-main', subTools: ['Variations', 'EoT Claims', 'Subcon Portal'], capability: 'fin:var_view' as Capability },
       { id: 'procurement', title: 'Procurement', description: 'Purchase orders and material tracking', icon: ShoppingCart, color: 'text-primary', subTools: ['Purchase Orders', 'Inventory', 'Deliveries'], capability: 'proc:view_demand' as Capability },
-      { id: 'help', title: 'Support & Docs', description: 'Platform documentation and help center', icon: HelpCircle, color: 'text-dim', subTools: ['User Guide', 'Video Tutorials', 'Support Ticket'] },
+      { id: 'guide', title: 'A) Platform Guide', description: 'Interactive walkthrough of core tools, modules, and system capabilities.', icon: BookOpen, color: 'text-warning', subTools: ['Core Walkthroughs', 'Interactive Cards', 'Popup Inspector'] },
+      { id: 'help', title: 'B) Corporate Support', description: 'Submit system challenges, send errors, open requests, and track response tickets.', icon: HelpCircle, color: 'text-dim', subTools: ['Report Error', 'System Challenge', 'Active Tickets'] },
     ]
   },
   {
@@ -359,6 +363,27 @@ export function Home({
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const [homeSearchQuery, setHomeSearchQuery] = useState('');
+  const [activeModuleMenu, setActiveModuleMenu] = useState<string | null>(null);
+  const [pinnedModules, setPinnedModules] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('pinned_modules');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [selectedModuleInfo, setSelectedModuleInfo] = useState<any | null>(null);
+
+  const togglePinModule = (moduleId: string) => {
+    setPinnedModules(prev => {
+      const next = prev.includes(moduleId)
+        ? prev.filter(id => id !== moduleId)
+        : [...prev, moduleId];
+      localStorage.setItem('pinned_modules', JSON.stringify(next));
+      return next;
+    });
+    setActiveModuleMenu(null);
+  };
 
   // Filter groups and modules based on capabilities
   const filteredGroups = useMemo(() => {
@@ -1455,8 +1480,52 @@ export function Home({
                 )}
               </div>
             ) : (
-              /* Regular dashboard module groups list with enriched sizing for big screens */
-              filteredGroups.map((group, groupIdx) => {
+              <>
+                {/* Pinned Quick Access Section */}
+                {pinnedModules.length > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 bg-accent/[0.03] border border-border-subtle rounded-2xl p-4 shadow-xs"
+                  >
+                    <div className="flex items-center justify-between mb-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-amber-500 font-bold text-xs select-none">📌</span>
+                        <h4 className="text-[10px] font-black tracking-widest text-main uppercase">
+                          Quick Access Tools
+                        </h4>
+                      </div>
+                      <button 
+                        onClick={() => setPinnedModules([])}
+                        className="text-[9px] font-semibold text-ghost hover:text-danger hover:underline transition-colors"
+                      >
+                        Clear All Pins
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                      {MODULE_GROUPS.flatMap(g => g.modules)
+                        .filter(m => pinnedModules.includes(m.id))
+                        .map(module => (
+                          <button
+                            key={`pin-${module.id}`}
+                            onClick={() => handleModuleClick(module.id)}
+                            className="flex items-center gap-2.5 bg-surface-1 border border-border-subtle rounded-xl p-2.5 text-left hover:border-accent hover:shadow-md transition-all duration-200 group text-xs font-semibold cursor-pointer"
+                          >
+                            <div className={cn("p-1.5 rounded-lg bg-surface-2 group-hover:bg-accent group-hover:text-surface-base transition-all", module.color)}>
+                              <module.icon className="w-4 h-4" />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-main group-hover:text-accent font-bold truncate leading-tight">{module.title}</span>
+                              <span className="text-[8px] text-dim truncate font-mono opacity-60">Launcher</span>
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Regular dashboard module groups list with enriched sizing for big screens */}
+                {filteredGroups.map((group, groupIdx) => {
                 const isProminent = group.title === 'Project' || group.title === 'Support';
                 const isDashboard = group.title === 'Dashboard';
                 const isAdmin = group.title === 'Admin';
@@ -1509,7 +1578,8 @@ export function Home({
                           onMouseEnter={() => setHoveredModule(module.id)}
                           onMouseLeave={() => setHoveredModule(null)}
                           className={cn(
-                            "group relative flex flex-col bg-surface-1 border border-border-subtle rounded-xl p-2.5 lg:p-3 xl:p-4 text-left transition-all duration-300 hover:shadow-xl overflow-hidden w-full cursor-pointer",
+                            "group relative flex flex-col bg-surface-1 border border-border-subtle rounded-xl p-2.5 lg:p-3 xl:p-4 text-left transition-all duration-300 hover:shadow-xl w-full cursor-pointer",
+                            activeModuleMenu !== module.id ? "overflow-hidden" : "overflow-visible bg-surface-2/60 border-accent/35 shadow-xl z-30",
                             isProminent 
                               ? "hover:border-primary hover:bg-surface-2 h-[155px] lg:h-[180px] xl:h-[200px] hover:shadow-primary/5 shadow-sm" 
                               : cn(
@@ -1519,15 +1589,66 @@ export function Home({
                           )}
                         >
                           {/* Three-dot context menu */}
-                          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                          <div className={cn(
+                            "absolute top-1.5 right-1.5 transition-opacity z-25",
+                            activeModuleMenu === module.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                          )}>
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setActiveModuleMenu(activeModuleMenu === module.id ? null : module.id);
                               }}
-                              className="p-1 hover:bg-surface-3 rounded-md text-ghost hover:text-main transition-colors"
+                              className="p-1 hover:bg-surface-3 rounded-md text-ghost hover:text-main transition-colors select-none"
+                              title="Module Options"
                             >
                               <MoreHorizontal className="w-2.5 h-2.5" />
                             </button>
+
+                            {activeModuleMenu === module.id && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-30 bg-transparent cursor-default" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveModuleMenu(null);
+                                  }}
+                                />
+                                <div 
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute right-0 top-6 w-[190px] bg-surface-1 border border-border-muted rounded-xl shadow-xl z-40 p-1.5 flex flex-col gap-0.5 text-[10px] select-none text-left cursor-default animate-in fade-in slide-in-from-top-1 duration-150"
+                                >
+                                  <button 
+                                    onClick={() => {
+                                      setSelectedModuleInfo(module);
+                                      setActiveModuleMenu(null);
+                                    }}
+                                    className="w-full text-left px-2 py-1 hover:bg-surface-2 hover:text-main rounded-md text-ghost transition-colors flex items-center gap-2 font-semibold"
+                                  >
+                                    <Info className="w-3.5 h-3.5 text-primary" />
+                                    <span>Quick Reference Spec</span>
+                                  </button>
+                                  
+                                  <button 
+                                    onClick={() => togglePinModule(module.id)}
+                                    className="w-full text-left px-2 py-1 hover:bg-surface-2 hover:text-main rounded-md text-ghost transition-colors flex items-center gap-2 font-semibold"
+                                  >
+                                    <Pin className={cn("w-3.5 h-3.5", pinnedModules.includes(module.id) ? "text-warning fill-warning" : "text-ghost")} />
+                                    <span>{pinnedModules.includes(module.id) ? "Unpin from Toolbar" : "Pin to Fast Toolbar"}</span>
+                                  </button>
+
+                                  <button 
+                                    onClick={() => {
+                                      setActiveModuleMenu(null);
+                                      handleModuleClick(module.id);
+                                    }}
+                                    className="w-full text-left px-2 py-1 hover:bg-primary/25 text-main font-bold bg-primary/10 hover:bg-primary/15 rounded-md transition-colors flex items-center gap-2 border-t border-border-subtle mt-1 pt-1.5"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5 text-primary" />
+                                    <span>Launch Module</span>
+                                  </button>
+                                </div>
+                              </>
+                            )}
                           </div>
 
                           <div className={cn(
@@ -1608,8 +1729,9 @@ export function Home({
                     </div>
                   </motion.div>
                 );
-              })
-            )}
+              })}
+            </>
+          )}
 
             {/* Live Cockpit Insights Footer - Condense to premium two lines to free up space for taller cards */}
             {!homeSearchQuery.trim() && (
@@ -1644,6 +1766,110 @@ export function Home({
           </div>
         </div>
       </div>
+
+      {selectedModuleInfo && (
+        <div className="fixed inset-0 z-[200] overflow-hidden flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-black/75 backdrop-blur-xs" 
+            onClick={() => setSelectedModuleInfo(null)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            className="relative bg-surface-1 border border-border-muted rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden z-50 flex flex-col"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center gap-3.5 px-6 py-4 border-b border-border-subtle bg-surface-base">
+              <div className={cn("w-10 h-10 rounded-xl bg-surface-2 flex items-center justify-center shadow-sm flex-shrink-0", selectedModuleInfo.color)}>
+                <selectedModuleInfo.icon className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="flex flex-col flex-1 min-w-0">
+                <h4 className="text-sm font-black text-main tracking-tight uppercase flex items-center gap-2">
+                  {selectedModuleInfo.title} Spec Reference
+                </h4>
+                <p className="text-[10px] text-dim font-mono uppercase tracking-wider">{selectedModuleInfo.id === 'god' ? 'Root System Level' : 'Standard Business Module'}</p>
+              </div>
+              <button 
+                onClick={() => setSelectedModuleInfo(null)}
+                className="p-1.5 text-ghost hover:text-main rounded-lg hover:bg-surface-2 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 overflow-y-auto max-h-[420px] custom-scrollbar text-left">
+              <div className="space-y-1.5 text-left">
+                <span className="text-[9px] font-black uppercase text-accent tracking-widest block">Scope & Operation</span>
+                <p className="text-xs text-main font-medium leading-relaxed bg-surface-base p-3.5 border border-border-subtle/40 rounded-xl">
+                  {selectedModuleInfo.description}. Includes core routines designed for construction program oversight, workflow management, and operational sync.
+                </p>
+              </div>
+
+              {/* Sub-tools list */}
+              {selectedModuleInfo.subTools && selectedModuleInfo.subTools.length > 0 && (
+                <div className="space-y-2 text-left">
+                  <span className="text-[9px] font-black uppercase text-amber-500 tracking-widest block">Key Functional Modules Covered</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {selectedModuleInfo.subTools.map((tool: string) => (
+                      <div key={tool} className="bg-surface-2/60 border border-border-subtle p-2.5 rounded-xl flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-main leading-tight">{tool}</span>
+                        <span className="text-[8px] font-mono text-primary uppercase mt-1">Operational</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Security permissions audit */}
+              <div className="space-y-2 text-left">
+                <span className="text-[9px] font-black uppercase text-primary tracking-widest block">Security Policy & Permissions Registry</span>
+                <div className="bg-surface-base border border-border-subtle/50 rounded-xl p-3 text-xs space-y-2">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-dim">Required Privilege token:</span>
+                    <span className="font-mono bg-surface-2 px-1.5 py-0.5 rounded text-accent font-semibold">{selectedModuleInfo.capability || 'public:view'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-dim">Current Level Clearance:</span>
+                    <span className="font-bold text-emerald-500">
+                      {selectedModuleInfo.capability ? (hasCapability(selectedModuleInfo.capability) ? 'Granted ✓' : 'Unavailable ✗') : 'Granted ✓'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mock telemetry and latency */}
+              <div className="p-3 bg-blue-500/[0.02] border border-blue-500/15 rounded-xl flex items-center justify-between text-[10px] font-mono">
+                <div className="flex items-center gap-1.5 text-blue-400">
+                  <Activity className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
+                  <span>Interactive Endpoint Test:</span>
+                </div>
+                <div className="text-right text-dim">
+                  <span>Latency: <span className="text-emerald-500 font-bold">12ms</span></span>
+                  <span className="mx-2">|</span>
+                  <span>Health: <span className="text-emerald-500 font-bold">100%</span></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-surface-base px-6 py-4 border-t border-border-subtle flex items-center justify-between">
+              <span className="text-[10px] text-ghost font-medium">Readiness index verified</span>
+              <button 
+                onClick={() => {
+                  setSelectedModuleInfo(null);
+                  handleModuleClick(selectedModuleInfo.id);
+                }}
+                className="bg-primary hover:bg-primary-hover text-white text-[11px] font-bold px-4 py-2 rounded-xl transition-all shadow-md active:scale-[0.98] flex items-center gap-1.5 cursor-pointer animate-pulse"
+              >
+                <span>Launch {selectedModuleInfo.title}</span>
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
     </div>
   );

@@ -103,9 +103,9 @@ export function ClientPortal({ tenantId, projectId }: ClientPortalProps) {
             </div>
             <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Active</span>
           </div>
-          <div className="text-[10px] font-bold text-dim uppercase tracking-widest mb-1">Contract Value</div>
+          <div className="text-[10px] font-bold text-dim uppercase tracking-widest mb-1">Contract Value (USD)</div>
           <div className="text-xl font-black text-main">${summary.revised_contract_value.toLocaleString()}</div>
-          <div className="mt-2 text-[10px] text-dim">Incl. ${summary.approved_variations_value.toLocaleString()} variations</div>
+          <div className="mt-2 text-[10px] text-dim font-mono">Incl. ${summary.approved_variations_value.toLocaleString()} variations</div>
         </div>
 
         <div className="bg-surface-1 border border-border-subtle p-5 rounded-2xl">
@@ -128,7 +128,7 @@ export function ClientPortal({ tenantId, projectId }: ClientPortalProps) {
               <FileText className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-[10px] font-bold text-dim uppercase tracking-widest mb-1">Certified to Date</div>
+          <div className="text-[10px] font-bold text-dim uppercase tracking-widest mb-1">Certified to Date (USD)</div>
           <div className="text-xl font-black text-main">${summary.amount_certified.toLocaleString()}</div>
           <div className="mt-2 text-[10px] text-dim">{summary.revised_contract_value > 0 ? ((summary.amount_certified / summary.revised_contract_value) * 100).toFixed(1) : 0}% of contract</div>
         </div>
@@ -139,7 +139,7 @@ export function ClientPortal({ tenantId, projectId }: ClientPortalProps) {
               <TrendingUp className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-[10px] font-bold text-dim uppercase tracking-widest mb-1">Paid to Date</div>
+          <div className="text-[10px] font-bold text-dim uppercase tracking-widest mb-1">Paid to Date (USD)</div>
           <div className="text-xl font-black text-main">${summary.amount_paid.toLocaleString()}</div>
           <div className="mt-2 text-[10px] text-dim">${(summary.amount_certified - summary.amount_paid).toLocaleString()} outstanding</div>
         </div>

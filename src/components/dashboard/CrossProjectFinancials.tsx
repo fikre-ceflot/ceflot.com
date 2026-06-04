@@ -14,7 +14,7 @@ import {
 } from 'recharts';
 import { cn } from '../../lib/utils';
 
-export function CrossProjectFinancials() {
+export function CrossProjectFinancials({ isGodMode = false }: { isGodMode?: boolean }) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -214,6 +214,7 @@ export function CrossProjectFinancials() {
       title="Global Financial Performance" 
       subtitle="Cross-Project Budget Tracking"
       icon={DollarSign}
+      isGodMode={isGodMode}
     >
       <div className="flex flex-col gap-6">
         <div className="grid grid-cols-2 gap-4">
@@ -222,7 +223,7 @@ export function CrossProjectFinancials() {
             <div className="text-xl font-mono font-bold text-main">${(totals.budget / 1000000).toFixed(2)}M</div>
             <div className="flex items-center gap-1.5 mt-2">
               <TrendingUp className="w-3 h-3 text-accent" />
-              <span className="text-[10px] text-dim">Incl. ${ (totals.variations / 1000).toFixed(0) }k variations</span>
+              <span className="text-[10px] text-dim">Incl. ${(totals.variations / 1000).toFixed(0)}k variations</span>
             </div>
           </div>
           <div className="bg-surface-2/50 border border-border-subtle rounded-xl p-4">

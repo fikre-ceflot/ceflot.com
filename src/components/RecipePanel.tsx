@@ -350,9 +350,7 @@ export function RecipePanel({ item, onClose, onUpdate, onConfirm, userRole, tena
       ]);
       
       if (resData.error) throw resData.error;
-      const loadedResources = (resData.data || []).filter(r => 
-        r.is_manual || (item.trade_code && (r.source_trade_code === item.trade_code || !r.source_trade_code))
-      );
+      const loadedResources = resData.data || [];
       
       // Auto-sync IF it's empty but HAS a trade code
       if (loadedResources.length === 0 && item.trade_code) {
@@ -367,9 +365,7 @@ export function RecipePanel({ item, onClose, onUpdate, onConfirm, userRole, tena
           .eq('boq_item_id', item.id);
         
         if (!syncError && syncedRes) {
-          const matchedRes = (syncedRes || []).filter(r => 
-            r.is_manual || (item.trade_code && (r.source_trade_code === item.trade_code || !r.source_trade_code))
-          );
+          const matchedRes = syncedRes || [];
           setDbResources(matchedRes);
           setLocalResources(matchedRes);
         }

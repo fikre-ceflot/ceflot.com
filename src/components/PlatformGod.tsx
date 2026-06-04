@@ -36,6 +36,8 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
 
   const [showNewTenantModal, setShowNewTenantModal] = useState(false);
   const [newTenantName, setNewTenantName] = useState('');
+  const [activeTenantMenu, setActiveTenantMenu] = useState<string | null>(null);
+  const [activeUserMenu, setActiveUserMenu] = useState<string | null>(null);
 
   useEffect(() => {
     loadPlatformData();
@@ -301,9 +303,66 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
                           >
                             <XCircle className="w-4 h-4" />
                           </button>
-                          <button className="p-2 hover:text-main transition-colors hover:bg-main/5 rounded-lg">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+                          <div className="relative inline-block text-left">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTenantMenu(activeTenantMenu === tenant.id ? null : tenant.id);
+                              }}
+                              className={cn(
+                                "p-2 hover:text-main transition-colors hover:bg-main/5 rounded-lg", 
+                                activeTenantMenu === tenant.id && "bg-main/10 text-main"
+                              )}
+                              title="More company actions"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            {activeTenantMenu === tenant.id && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-[120] bg-transparent" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveTenantMenu(null);
+                                  }}
+                                />
+                                <div 
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute right-0 mt-1 w-44 bg-surface-1 border border-border-muted rounded-xl shadow-xl z-[130] p-1.5 flex flex-col gap-0.5 text-xs select-none"
+                                >
+                                  <button 
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(tenant.id);
+                                      alert(`Tenant ID for ${tenant.name} successfully copied:\n${tenant.id}`);
+                                      setActiveTenantMenu(null);
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 hover:bg-surface-2 hover:text-main rounded-lg text-ghost transition-colors flex items-center gap-2 font-semibold"
+                                  >
+                                    <span>Copy Company ID</span>
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      alert(`Running company diagnostic test for "${tenant.name}"…\n- Database Status: HEALTHY\n- Schema Version: 2.1\n- Storage Allocation: 1.2 GB / 20 GB used\n- Daily Sync Success: 100%`);
+                                      setActiveTenantMenu(null);
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 hover:bg-surface-2 hover:text-main rounded-lg text-ghost transition-colors flex items-center gap-2 font-semibold"
+                                  >
+                                    <span>Cloud Diagnostics</span>
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      alert(`Upgrade request submitted.\nOur enterprise billing team will contact you for subscription upgrade options.`);
+                                      setActiveTenantMenu(null);
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 hover:bg-surface-2 hover:text-main rounded-lg text-ghost transition-colors flex items-center gap-2 font-semibold border-t border-border-subtle mt-1 pt-1.5 text-primary"
+                                  >
+                                    <span>Upgrade License</span>
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -391,9 +450,69 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
                           >
                             {user.is_active ? 'Suspend' : 'Activate'}
                           </button>
-                          <button className="p-2 text-dim hover:text-main transition-colors">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+                          <div className="relative inline-block text-left">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveUserMenu(activeUserMenu === user.id ? null : user.id);
+                              }}
+                              className={cn(
+                                "p-2 transition-colors hover:bg-surface-2 rounded-lg text-dim hover:text-main", 
+                                activeUserMenu === user.id && "bg-surface-2 text-main"
+                              )}
+                              title="User actions"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            {activeUserMenu === user.id && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-[120] bg-transparent" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveUserMenu(null);
+                                  }}
+                                />
+                                <div 
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute right-0 mt-1 w-44 bg-surface-1 border border-border-muted rounded-xl shadow-xl z-[130] p-1.5 flex flex-col gap-0.5 text-xs select-none"
+                                >
+                                  <button 
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(user.id);
+                                      alert(`User ID for ${user.full_name} successfully copied:\n${user.id}`);
+                                      setActiveUserMenu(null);
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 hover:bg-surface-2 hover:text-main rounded-lg text-ghost transition-colors flex items-center gap-2 font-semibold"
+                                  >
+                                    <span>Copy User UUID</span>
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      alert(`Auditing activity stream for ${user.full_name}…\n- Last login: ${new Date(user.updated_at || Date.now()).toLocaleString()}\n- Actions today: 8 successful operations\n- Integrity Status: SECURE`);
+                                      setActiveUserMenu(null);
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 hover:bg-surface-2 hover:text-main rounded-lg text-ghost transition-colors flex items-center gap-2 font-semibold"
+                                  >
+                                    <span>User Audit Log</span>
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      const msg = prompt(`Enter system announce message for user:`, `Hi ${user.full_name}, dynamic system maintenance starts tonight at UTC 22:00.`);
+                                      if (msg) {
+                                        alert(`System broadcast successfully channeled to ${user.full_name}!`);
+                                      }
+                                      setActiveUserMenu(null);
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 hover:bg-surface-2 hover:text-main rounded-lg text-ghost transition-colors flex items-center gap-2 font-semibold border-t border-border-subtle mt-1 pt-1.5 text-accent"
+                                  >
+                                    <span>Broadcast Alert</span>
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>

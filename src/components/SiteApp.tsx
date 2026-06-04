@@ -724,10 +724,28 @@ export function SiteApp({ project, tenantId, isEmbedded = false, onClose, forced
         .eq('is_active', true);
       
       if (data) {
+        // Unique resource helper by resource_name and resource_code to prevent duplicate suggestions
+        const getUniqueResources = (items: any[]) => {
+          const seen = new Set<string>();
+          return items.filter(item => {
+            const name = item.resource_name || '';
+            const code = item.resource_code || '';
+            const key = `${name.toLowerCase().trim()}_${code.toLowerCase().trim()}`;
+            if (!name && !code) return false;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        };
+
+        const rawMaterials = data.filter(r => r.resource_type === 'material' || !r.resource_type);
+        const rawLabour = data.filter(r => r.resource_type === 'labour' || r.resource_type === 'labor');
+        const rawEquipment = data.filter(r => r.resource_type === 'equipment' || r.resource_type === 'machinery' || r.resource_type === 'plant');
+
         setSuggestedResources({
-          materials: data.filter(r => r.resource_type === 'material' || !r.resource_type),
-          labour: data.filter(r => r.resource_type === 'labour' || r.resource_type === 'labor'),
-          equipment: data.filter(r => r.resource_type === 'equipment' || r.resource_type === 'machinery' || r.resource_type === 'plant')
+          materials: getUniqueResources(rawMaterials),
+          labour: getUniqueResources(rawLabour),
+          equipment: getUniqueResources(rawEquipment)
         });
       }
     } catch (err) {
@@ -766,7 +784,7 @@ export function SiteApp({ project, tenantId, isEmbedded = false, onClose, forced
     if (!target) return;
 
     // Normalize resource ID and name from either suggestions (resource_id/name) or picker
-    const resId = resource.resource_id || resource.id;
+    const resId = resource.resource_id || resource.id || resource.resource_code || resource.name || resource.resource_name;
     const resName = resource.name || resource.resource_name || resource.material_name || resource.title || resource.item_name;
 
     if (target === 'material') {
@@ -1354,7 +1372,7 @@ export function SiteApp({ project, tenantId, isEmbedded = false, onClose, forced
                       {suggestedResources.materials.map((sug, i) => (
                         <button
                           key={i}
-                          onClick={() => handleResourceSelect({ ...sug, id: sug.resource_id, name: sug.resource_name, type: 'material' })}
+                          onClick={() => handleResourceSelect({ ...sug, id: sug.resource_code || sug.id || sug.resource_name, name: sug.resource_name, type: 'material' })}
                           className="px-3 py-2 bg-surface-base border border-accent/30 rounded-xl text-[10px] font-bold text-main hover:bg-accent hover:text-white transition-all flex items-center gap-2 shrink-0 shadow-sm"
                         >
                           <Plus className="w-3 h-3" />
@@ -1437,7 +1455,7 @@ export function SiteApp({ project, tenantId, isEmbedded = false, onClose, forced
                       {suggestedResources.labour.map((sug, i) => (
                         <button
                           key={i}
-                          onClick={() => handleResourceSelect({ ...sug, id: sug.resource_id, name: sug.resource_name, type: 'labour' })}
+                          onClick={() => handleResourceSelect({ ...sug, id: sug.resource_code || sug.id || sug.resource_name, name: sug.resource_name, type: 'labour' })}
                           className="px-3 py-2 bg-surface-base border border-accent/30 rounded-xl text-[10px] font-bold text-main hover:bg-accent hover:text-white transition-all flex items-center gap-2 shrink-0 shadow-sm"
                         >
                           <Plus className="w-3 h-3" />
@@ -1547,7 +1565,7 @@ export function SiteApp({ project, tenantId, isEmbedded = false, onClose, forced
                       {suggestedResources.equipment.map((sug, i) => (
                         <button
                           key={i}
-                          onClick={() => handleResourceSelect({ ...sug, id: sug.resource_id, name: sug.resource_name, type: 'equipment' })}
+                          onClick={() => handleResourceSelect({ ...sug, id: sug.resource_code || sug.id || sug.resource_name, name: sug.resource_name, type: 'equipment' })}
                           className="px-3 py-2 bg-surface-base border border-accent/30 rounded-xl text-[10px] font-bold text-main hover:bg-accent hover:text-white transition-all flex items-center gap-2 shrink-0 shadow-sm"
                         >
                           <Plus className="w-3 h-3" />

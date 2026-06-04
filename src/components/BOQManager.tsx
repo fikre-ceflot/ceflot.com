@@ -774,7 +774,11 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
       const processLib = (data: any[] | null, codeKey: string, rateKey = 'base_rate') => {
         data?.forEach(item => {
           if (item[codeKey]) {
-            libRates[item[codeKey].toLowerCase().trim()] = Number(item[rateKey]) || 0;
+            let rateVal = Number(item[rateKey]) || 0;
+            if (!rateVal) {
+              rateVal = Number(item.daily_rate) || Number(item.rate_value) || Number(item.rental_rate_day) || Number(item.unit_rate) || Number(item.rate) || Number(item.unit_price) || 0;
+            }
+            libRates[item[codeKey].toLowerCase().trim()] = rateVal;
           }
         });
       };
@@ -958,25 +962,28 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
         <header className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
           <div className="flex flex-col gap-0.5 md:mt-auto">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Quantity Survey (BOQ)</span>
+              <span className="text-[9px] font-semibold text-ghost uppercase tracking-[0.2em]">Quantity Survey (BOQ)</span>
             </div>
-            <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">{project.name}</h1>
+            <h1 className="text-lg font-semibold tracking-tight text-main -ml-0.5">{project.name}</h1>
             <div className="flex items-center gap-3 mt-1.5">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-                <span className="text-primary font-black uppercase tracking-widest decoration-primary/30 underline-offset-4">BOQ Dashboard</span>
+              <div className="flex items-center gap-2 text-[10px] font-medium text-ghost">
+                <span className="text-primary font-semibold uppercase tracking-wider">BOQ Dashboard</span>
                 <span className="w-1 h-1 rounded-full bg-border-subtle" />
                 <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">{items.length} Items</span>
               </div>
               <div className="h-1 w-1 rounded-full bg-border-subtle" />
-              <span className="text-[10px] font-bold text-dim uppercase tracking-wider">{project.status || 'Active'}</span>
+              <span className="text-[10px] font-semibold text-dim uppercase tracking-wider">{project.status || 'Active'}</span>
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-4">
-            <div className="flex flex-col items-end min-w-[120px]">
-              <span className="text-[8px] font-bold text-ghost uppercase tracking-[0.2em] mb-1 opacity-60">Reference ID</span>
-              <div className="px-3 py-1.5 rounded-lg bg-surface-2 border border-border-subtle flex items-center justify-center w-full">
-                <span className="text-xs font-black text-primary tracking-widest">{project.project_code}</span>
+          <div className="flex items-center gap-4 ml-auto flex-wrap">
+            {/* Dynamic Helpful Information Card (Aligned Right) */}
+            <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+              <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">BILL OF QUANTITIES LEDGER</div>
+              <div className="flex items-center gap-2 justify-end">
+                <span className="px-1.5 py-0.25 rounded bg-primary/10 border border-primary/20 text-[9px] font-semibold text-primary select-none uppercase tracking-wider font-mono">BASELINED</span>
+                <div className="h-1 w-1 rounded-full bg-border-subtle" />
+                <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">CODE: {project.project_code} | {items.length} Scope Items</span>
               </div>
             </div>
 
@@ -1696,7 +1703,7 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
                                       onChange={e => updateDraft(item.id, { contract_rate: parseFloat(e.target.value) || 0 })}
                                     />
                                   ) : (
-                                    (item.contract_rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                    <div className="flex items-center justify-end gap-x-3 w-full"><span className="select-none font-mono">$</span><span>{(item.contract_rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                                   )
                                 )}
                               </div>
@@ -1710,11 +1717,11 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
                               <div style={{ width: colWidths.contract_amount }} className="truncate">
                                 {!isHeader && (
                                   (drafts[item.id]?.contract_qty != null || drafts[item.id]?.contract_rate != null) ? (
-                                    ((drafts[item.id]?.contract_qty ?? item.contract_qty ?? 0) * (drafts[item.id]?.contract_rate ?? item.contract_rate ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                    <div className="flex items-center justify-end gap-x-3 w-full"><span className="select-none font-mono">$</span><span>{((drafts[item.id]?.contract_qty ?? item.contract_qty ?? 0) * (drafts[item.id]?.contract_rate ?? item.contract_rate ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
                                   ) : (
                                     item.contract_qty === 0 && (item.surveyed_qty || 0) > 0
-                                      ? ((item.surveyed_qty || 0) * (item.contract_rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                                      : (item.contract_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                                      ? <div className="flex items-center justify-end gap-x-3 w-full"><span className="select-none font-mono">$</span><span>{((item.surveyed_qty || 0) * (item.contract_rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
+                                      : <div className="flex items-center justify-end gap-x-3 w-full"><span className="select-none font-mono">$</span><span>{(item.contract_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
                                   )
                                 )}
                               </div>
@@ -1870,12 +1877,22 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
 
                           {visibleColumns.has('budget_rate') && (
                             <td className="px-4 py-1.5 font-mono text-[12px] text-right text-main">
-                              {!isHeader && budgetUnitCost > 0 && budgetUnitCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {!isHeader && budgetUnitCost > 0 && (
+                                <div className="flex items-center justify-end gap-x-3 w-full">
+                                  <span className="select-none font-mono">$</span>
+                                  <span>{budgetUnitCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                              )}
                             </td>
                           )}
                           {visibleColumns.has('budget_total') && (
                             <td className="px-4 py-1.5 font-mono text-[12px] text-right text-main">
-                              {!isHeader && budgetTotal > 0 && budgetTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                              {!isHeader && budgetTotal > 0 && (
+                                <div className="flex items-center justify-end gap-x-3 w-full">
+                                  <span className="select-none font-mono">$</span>
+                                  <span>{budgetTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                </div>
+                              )}
                             </td>
                           )}
                           {visibleColumns.has('variance') && (
@@ -1883,7 +1900,12 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
                               "px-4 py-1.5 font-mono text-[12px] text-right font-bold",
                               variance >= 0 ? "text-primary" : "text-danger"
                             )}>
-                              {!isHeader && variance !== 0 && variance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                              {!isHeader && variance !== 0 && (
+                                <div className="flex items-center justify-end gap-x-3 w-full">
+                                  <span className="select-none font-mono">$</span>
+                                  <span>{variance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                </div>
+                              )}
                             </td>
                           )}
 
@@ -1963,13 +1985,13 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
         <div className="mt-3 bg-surface-2 border border-border-subtle rounded-lg p-3 flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-8">
             <div className="flex flex-col">
-              <span className="text-[9px] font-mono uppercase tracking-widest text-dim">Total Contract</span>
-              <span className="text-sm font-bold text-main">€{totalAmount.toLocaleString()}</span>
+              <span className="text-[9px] font-mono uppercase tracking-widest text-dim">Total Contract (USD)</span>
+              <span className="text-sm font-bold text-main">${totalAmount.toLocaleString()}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-[9px] font-mono uppercase tracking-widest text-dim">Total Budget</span>
+              <span className="text-[9px] font-mono uppercase tracking-widest text-dim">Total Budget (USD)</span>
               <span className="text-sm font-bold text-accent">
-                €{items.reduce((sum, item) => {
+                ${items.reduce((sum, item) => {
                   const itemResources = resources.filter(r => r.boq_item_id === item.id);
                   const budgetUnitCost = itemResources.reduce((sum, res) => {
                     const q = res.consumption_rate * (1 + (res.waste_factor_pct || 0) / 100);
@@ -1986,7 +2008,7 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="text-[9px] font-mono uppercase tracking-widest text-dim">Est. Potential Profit</span>
+              <span className="text-[9px] font-mono uppercase tracking-widest text-dim">Est. Potential Profit (USD)</span>
               <span className={cn(
                 "text-sm font-bold",
                 (totalAmount - items.reduce((sum, item) => {
@@ -2004,7 +2026,7 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
                   return sum + (budgetUnitCost * (item.surveyed_qty || item.contract_qty || 0));
                 }, 0)) >= 0 ? "text-primary" : "text-danger"
               )}>
-                €{(totalAmount - items.reduce((sum, item) => {
+                ${(totalAmount - items.reduce((sum, item) => {
                   const itemResources = resources.filter(r => r.boq_item_id === item.id);
                   const budgetUnitCost = itemResources.reduce((sum, res) => {
                     const q = res.consumption_rate * (1 + (res.waste_factor_pct || 0) / 100);

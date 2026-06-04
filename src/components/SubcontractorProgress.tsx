@@ -165,7 +165,6 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       {groupedData.map((sub) => {
         const isExpanded = expandedSubs.has(sub.id);
-        const completionPct = sub.totalAgreed > 0 ? Math.round((sub.totalEarned / sub.totalAgreed) * 100) : 0;
 
         // Construct tree hierarchical list of activities
         const subItemsByNo = new Map<string, any>();
@@ -195,38 +194,121 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
 
         // Transform to rows we can render, matching collapsibility and rolled-up properties
         const allRows: any[] = [];
+        const memoNodeVals = new Map<string, {
+          agreed_qty: number;
+          cumulative_progress_qty: number;
+          agreed_amount: number;
+          earned_value: number;
+          progress_pct: number;
+          isParent: boolean;
+        }>();
+
+        const calculateNodeValues = (itemNo: string): {
+          agreed_qty: number;
+          cumulative_progress_qty: number;
+          agreed_amount: number;
+          earned_value: number;
+          progress_pct: number;
+          isParent: boolean;
+        } => {
+          if (memoNodeVals.has(itemNo)) {
+            return memoNodeVals.get(itemNo)!;
+          }
+
+          const children = relevantBoqItems.filter(c => {
+            const cNo = c.item_no || '';
+            if (cNo === itemNo) return false;
+            if (!cNo.startsWith(itemNo + '.')) return false;
+            const intermediate = relevantBoqItems.some(inter => {
+              const interNo = inter.item_no || '';
+              return interNo !== itemNo && interNo !== cNo &&
+                     cNo.startsWith(interNo + '.') && interNo.startsWith(itemNo + '.');
+            });
+            return !intermediate;
+          });
+
+          if (children.length > 0) {
+            let totalAgreedQty = 0;
+            let totalCumulativeQty = 0;
+            let totalAgreedAmount = 0;
+            let totalEarnedValue = 0;
+
+            children.forEach(child => {
+              const childVals = calculateNodeValues(child.item_no || '');
+              totalAgreedQty += childVals.agreed_qty;
+              totalCumulativeQty += childVals.cumulative_progress_qty;
+              totalAgreedAmount += childVals.agreed_amount;
+              totalEarnedValue += childVals.earned_value;
+            });
+
+            let progressPct = 0;
+            if (totalAgreedAmount > 0) {
+              progressPct = (totalEarnedValue / totalAgreedAmount) * 100;
+            } else if (totalAgreedQty > 0) {
+              progressPct = (totalCumulativeQty / totalAgreedQty) * 100;
+            } else {
+              const childrenVals = children.map(c => calculateNodeValues(c.item_no || '')).filter(k => k.progress_pct > 0 || k.agreed_qty > 0);
+              if (childrenVals.length > 0) {
+                progressPct = childrenVals.reduce((sum, k) => sum + k.progress_pct, 0) / childrenVals.length;
+              }
+            }
+
+            const res = {
+              agreed_qty: totalAgreedQty,
+              cumulative_progress_qty: totalCumulativeQty,
+              agreed_amount: totalAgreedAmount,
+              earned_value: totalEarnedValue,
+              progress_pct: progressPct,
+              isParent: true
+            };
+            memoNodeVals.set(itemNo, res);
+            return res;
+          } else {
+            const boq = relevantBoqItems.find(b => b.item_no === itemNo);
+            const matchedItem = subItemsByNo.get(itemNo) || (boq ? sub.items.find((item: any) => item.boq_item_id === boq.id) : null);
+
+            const agreedQty = matchedItem ? Number(matchedItem.agreed_qty || 0) : 0;
+            const cumulativeQty = matchedItem ? Number(matchedItem.cumulative_progress_qty || 0) : 0;
+            const agreedAmount = matchedItem ? Number(matchedItem.agreed_amount || 0) : 0;
+            const earnedValue = matchedItem ? Number(matchedItem.earned_value || 0) : 0;
+            const progressPct = matchedItem ? Number(matchedItem.progress_pct || 0) : 0;
+
+            const res = {
+              agreed_qty: agreedQty,
+              cumulative_progress_qty: cumulativeQty,
+              agreed_amount: agreedAmount,
+              earned_value: earnedValue,
+              progress_pct: progressPct,
+              isParent: false
+            };
+            memoNodeVals.set(itemNo, res);
+            return res;
+          }
+        };
+
+        // Precalculate for all items to establish complete tree totals
+        relevantBoqItems.forEach(boq => {
+          calculateNodeValues(boq.item_no || '');
+        });
+
         relevantBoqItems.forEach(boq => {
           const itemNo = boq.item_no || '';
           const depth = itemNo.split('.').filter(Boolean).length - 1;
-          
-          const isParent = relevantBoqItems.some(other => 
-            other.item_no !== itemNo && 
-            (other.item_no || '').startsWith(itemNo + '.')
-          );
-
-          // Find descendants belonging to this sub
-          const activeDescendants = sub.items.filter((item: any) => 
-            item.item_no === itemNo || 
-            (item.item_no || '').startsWith(itemNo + '.')
-          );
-
-          const rolledEarned = activeDescendants.reduce((acc: number, d: any) => acc + (d.earned_value || 0), 0);
-          const rolledAgreedAmount = activeDescendants.reduce((acc: number, d: any) => acc + (d.agreed_amount || 0), 0);
-          const progressPct = rolledAgreedAmount > 0 ? (rolledEarned / rolledAgreedAmount) * 100 : 0;
-
+          const nodeVals = calculateNodeValues(itemNo);
           const matchedItem = subItemsByNo.get(itemNo) || sub.items.find((item: any) => item.boq_item_id === boq.id);
 
           allRows.push({
             id: boq.id,
             item_no: itemNo,
             description: boq.description,
-            unit: matchedItem ? matchedItem.unit : boq.unit,
-            agreed_qty: matchedItem ? matchedItem.agreed_qty : null,
-            cumulative_progress_qty: matchedItem ? matchedItem.cumulative_progress_qty : null,
-            isParent,
+            unit: boq.unit || '—',
+            agreed_qty: nodeVals.agreed_qty,
+            cumulative_progress_qty: nodeVals.cumulative_progress_qty,
+            isParent: nodeVals.isParent,
             depth,
-            progress_pct: isParent ? progressPct : (matchedItem ? matchedItem.progress_pct : 0),
-            earned_value: isParent ? rolledEarned : (matchedItem ? matchedItem.earned_value : 0),
+            progress_pct: nodeVals.progress_pct,
+            earned_value: nodeVals.earned_value,
+            agreed_amount: nodeVals.agreed_amount,
             matchedItem
           });
         });
@@ -249,6 +331,44 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
             });
           }
         });
+
+        // Fix overall subcontractors totals using the roots of the sub tree (prevent mismatching flat additions)
+        let subEarnedTotal = 0;
+        let subAgreedTotal = 0;
+        relevantBoqItems.forEach(boq => {
+          const itemNo = boq.item_no || '';
+          const parentParts = itemNo.split('.').filter(Boolean);
+          // Roots for this subcontractor assignment list (the highest-level items)
+          const hasUnassignedParent = !relevantBoqItems.some(other => 
+            other.item_no !== itemNo && itemNo.startsWith(other.item_no + '.')
+          );
+          if (hasUnassignedParent) {
+            const vals = calculateNodeValues(itemNo);
+            subEarnedTotal += vals.earned_value;
+            subAgreedTotal += vals.agreed_amount;
+          }
+        });
+
+        const activeSubEarned = subEarnedTotal > 0 ? subEarnedTotal : sub.totalEarned;
+        const activeSubAgreed = subAgreedTotal > 0 ? subAgreedTotal : sub.totalAgreed;
+        let completionPct = 0;
+        if (activeSubAgreed > 0) {
+          completionPct = Math.round((activeSubEarned / activeSubAgreed) * 100);
+        } else {
+          // If no agreed contract value, fall back to weighted progress averages of highest-level root items
+          const rootItems = relevantBoqItems.filter(boq => {
+            const itemNo = boq.item_no || '';
+            const hasParent = relevantBoqItems.some(other => other.item_no !== itemNo && itemNo.startsWith(other.item_no + '.'));
+            return !hasParent;
+          });
+          if (rootItems.length > 0) {
+            const sumPcts = rootItems.reduce((acc, root) => {
+              const vals = calculateNodeValues(root.item_no || '');
+              return acc + vals.progress_pct;
+            }, 0);
+            completionPct = Math.round(sumPcts / rootItems.length);
+          }
+        }
 
         const visibleRows = allRows.filter(row => !isHiddenByCollapse(sub.id, row.item_no));
         
@@ -292,8 +412,8 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
 
               <div className="flex items-center justify-between md:justify-end gap-8 border-t md:border-t-0 border-border-subtle/50 pt-4 md:pt-0">
                 <div className="text-right">
-                  <div className="text-[10px] text-ghost uppercase font-black tracking-widest mb-1">Earned Value</div>
-                  <div className="text-lg font-mono font-black text-primary">${Math.round(sub.totalEarned).toLocaleString()}</div>
+                  <div className="text-[10px] text-ghost uppercase font-black tracking-widest mb-1">Earned Value (USD)</div>
+                  <div className="text-lg font-mono font-black text-primary">${Math.round(activeSubEarned).toLocaleString()}</div>
                 </div>
                 <div className="w-px h-10 bg-border-subtle" />
                 <div className="text-right min-w-[70px]">
@@ -370,25 +490,17 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
                                 </div>
                               </td>
                               <td className="px-5 py-3 text-[11px] text-center font-mono border-l border-r border-border-subtle/10">
-                                {row.isParent ? (
-                                  <span className="text-ghost/30">—</span>
-                                ) : (
-                                  cleanRichText(row.unit || '—')
-                                )}
+                                {cleanRichText(row.unit || '—')}
                               </td>
-                              <td className="px-5 py-3 text-[11px] text-dim text-right font-mono border-r border-border-subtle/10">
-                                {row.isParent ? (
-                                  <span className="text-ghost/30">—</span>
-                                ) : (
-                                  Number(row.agreed_qty || 0).toLocaleString()
-                                )}
+                              <td className="px-5 py-3 text-[11px] text-right font-mono border-r border-border-subtle/10">
+                                <span className={cn(row.isParent ? "text-amber-500 font-bold" : "text-dim")}>
+                                  {Number(row.agreed_qty || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                                </span>
                               </td>
-                              <td className="px-5 py-3 text-[11px] text-primary text-right font-mono font-bold border-r border-border-subtle/10">
-                                {row.isParent ? (
-                                  <span className="text-ghost/30">—</span>
-                                ) : (
-                                  Number(row.cumulative_progress_qty || 0).toLocaleString()
-                                )}
+                              <td className="px-5 py-3 text-[11px] text-right font-mono font-bold border-r border-border-subtle/10">
+                                <span className={cn(row.isParent ? "text-amber-600 font-extrabold" : "text-primary")}>
+                                  {Number(row.cumulative_progress_qty || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                                </span>
                               </td>
                               <td className="px-5 py-3 min-w-[150px] border-r border-border-subtle/10">
                                 <div className="flex flex-col gap-1.5">
@@ -396,7 +508,7 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
                                     <div 
                                       className={cn(
                                         "h-full transition-all duration-500",
-                                        row.isParent ? "bg-accent" : "bg-primary"
+                                        row.isParent ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.3)]" : "bg-primary"
                                       )}
                                       style={{ width: `${Math.min(100, row.progress_pct || 0)}%` }}
                                     />
@@ -407,7 +519,10 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
                                 </div>
                               </td>
                               <td className="px-5 py-3 text-[12px] text-main text-right font-mono font-bold">
-                                ${Math.round(row.earned_value || 0).toLocaleString()}
+                                <div className="flex items-center justify-end gap-x-3 w-full">
+                                  <span className="select-none font-mono">$</span>
+                                  <span>{Math.round(row.earned_value || 0).toLocaleString()}</span>
+                                </div>
                               </td>
                             </tr>
                           );

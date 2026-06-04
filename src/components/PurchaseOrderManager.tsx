@@ -307,19 +307,25 @@ export default function PurchaseOrderManager({ project, tenantId }: PurchaseOrde
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <input 
-                          type="number"
-                          className="w-full bg-transparent border-none text-sm outline-none text-primary font-mono"
-                          value={item.unit_rate}
-                          onChange={e => {
-                            const newItems = [...formData.items];
-                            newItems[idx].unit_rate = parseFloat(e.target.value);
-                            setFormData({...formData, items: newItems});
-                          }}
-                        />
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-primary text-sm font-semibold select-none">$</span>
+                          <input 
+                            type="number"
+                            className="w-full bg-transparent border-none text-sm outline-none text-primary font-mono"
+                            value={item.unit_rate}
+                            onChange={e => {
+                              const newItems = [...formData.items];
+                              newItems[idx].unit_rate = parseFloat(e.target.value);
+                              setFormData({...formData, items: newItems});
+                            }}
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-main">
-                        ${(item.quantity * item.unit_rate).toLocaleString()}
+                        <div className="flex items-center justify-end gap-x-3 w-full">
+                          <span className="select-none font-mono">$</span>
+                          <span>{(item.quantity * item.unit_rate).toLocaleString()}</span>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <button 
@@ -339,7 +345,10 @@ export default function PurchaseOrderManager({ project, tenantId }: PurchaseOrde
                   <tr className="bg-surface-base">
                     <td colSpan={4} className="px-4 py-3 text-right text-xs font-bold text-ghost uppercase tracking-widest">Total Amount</td>
                     <td className="px-4 py-3 text-right font-mono text-lg font-bold text-primary">
-                      ${formData.items.reduce((sum, item) => sum + (item.quantity * item.unit_rate), 0).toLocaleString()}
+                      <div className="flex items-center justify-end gap-x-3 w-full">
+                        <span className="select-none font-mono">$</span>
+                        <span>{formData.items.reduce((sum, item) => sum + (item.quantity * item.unit_rate), 0).toLocaleString()}</span>
+                      </div>
                     </td>
                     <td></td>
                   </tr>
@@ -395,7 +404,12 @@ export default function PurchaseOrderManager({ project, tenantId }: PurchaseOrde
                       <td className="px-6 py-3 text-[10px] font-black text-accent font-mono border-r border-border-subtle/20 truncate">{po.po_number}</td>
                       <td className="px-6 py-3 text-[11px] text-main font-black uppercase border-r border-border-subtle/20 truncate">{cleanRichText(po.supplier?.company_name)}</td>
                       <td className="px-6 py-3 text-[10px] text-ghost font-black border-r border-border-subtle/20">{new Date(po.created_at).toLocaleDateString()}</td>
-                      <td className="px-6 py-3 text-[11px] text-primary font-mono text-right font-black border-r border-border-subtle/20">${po.total_amount.toLocaleString()}</td>
+                      <td className="px-6 py-3 text-[11px] text-primary font-mono text-right font-black border-r border-border-subtle/20">
+                        <div className="flex items-center justify-end gap-x-3 w-full">
+                          <span className="select-none font-mono">$</span>
+                          <span>{po.total_amount.toLocaleString()}</span>
+                        </div>
+                      </td>
                       <td className="px-6 py-3 border-r border-border-subtle/20">
                         <div className={cn(
                           "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest",

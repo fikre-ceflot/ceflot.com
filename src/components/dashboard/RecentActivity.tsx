@@ -6,9 +6,10 @@ import { supabase } from '../../lib/supabase';
 
 interface RecentActivityProps {
   tenantId?: string;
+  isGodMode?: boolean;
 }
 
-export function RecentActivity({ tenantId }: RecentActivityProps) {
+export function RecentActivity({ tenantId, isGodMode = false }: RecentActivityProps) {
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -116,6 +117,7 @@ export function RecentActivity({ tenantId }: RecentActivityProps) {
       title="Recent Activity" 
       subtitle="System-wide Event Log"
       icon={History}
+      isGodMode={isGodMode}
     >
       <div className="flex flex-col">
         {/* Header - Recipe 1 style */}

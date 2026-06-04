@@ -145,12 +145,12 @@ export function SubcontractorManagement({ userRole, tenantId, project, onSelectP
       <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-4 px-1">
         <div className="flex flex-col gap-0.5 md:mt-auto">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[9px] font-black text-ghost uppercase tracking-[0.3em]">Resource Coordination</span>
+            <span className="text-[9px] font-semibold text-ghost uppercase tracking-[0.2em]">Resource Coordination</span>
           </div>
-          <h1 className="text-[19px] font-black tracking-tight text-main -ml-0.5">Subcontractor Oversight</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-main -ml-0.5">Subcontractor Oversight</h1>
           <div className="flex items-center gap-3 mt-1.5">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-ghost">
-              <span className="text-accent font-black uppercase tracking-widest decoration-accent/30 underline-offset-4">Lifecycle Management</span>
+            <div className="flex items-center gap-2 text-[10px] font-medium text-ghost">
+              <span className="text-accent font-semibold uppercase tracking-wider">Lifecycle Management</span>
               <span className="w-1 h-1 rounded-full bg-border-subtle" />
               <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">
                 {project ? `Project: ${project.name}` : 'Company-Wide Directory'} 
@@ -159,8 +159,19 @@ export function SubcontractorManagement({ userRole, tenantId, project, onSelectP
           </div>
         </div>
 
-        {/* Tab switchers */}
-        <div className="flex bg-surface-2 p-1 rounded-xl border border-border-subtle shadow-inner">
+        <div className="flex items-center gap-4 ml-auto flex-wrap">
+          {/* Dynamic Helpful Information Card (Aligned Right) */}
+          <div className="flex flex-col gap-1 text-right border-r border-border-subtle pr-4 h-10 justify-center">
+            <div className="text-[10px] font-semibold text-ghost uppercase tracking-wider font-mono">SUBCONTRACTOR REGISTRY</div>
+            <div className="flex items-center gap-2 justify-end">
+              <span className="px-1.5 py-0.25 rounded bg-purple-500/10 border border-purple-500/20 text-[9px] font-semibold text-purple-400 select-none uppercase tracking-wider font-mono">COORDINATED</span>
+              <div className="h-1 w-1 rounded-full bg-border-subtle" />
+              <span className="text-[9px] font-medium text-dim uppercase tracking-wider font-mono">{filteredSubcons.length} Firms Registered</span>
+            </div>
+          </div>
+
+          {/* Tab switchers */}
+          <div className="flex bg-surface-2 p-1 rounded-xl border border-border-subtle shadow-inner">
           <button 
             onClick={() => setActiveTab('directory')}
             className={cn(
@@ -192,7 +203,8 @@ export function SubcontractorManagement({ userRole, tenantId, project, onSelectP
             Site Progress
           </button>
         </div>
-      </header>
+      </div>
+    </header>
 
       {/* RENDER VIEW ACCORDING TO TABS */}
 
