@@ -192,7 +192,9 @@ export default function App() {
     };
 
     supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
+      .then((res) => {
+        const session = res?.data?.session || null;
+        const error = res?.error || null;
         if (error) {
           console.warn('Session verification caught error, resetting:', error.message);
           handleAuthReset();
@@ -210,7 +212,7 @@ export default function App() {
         handleAuthReset();
       });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const authListener = supabase.auth.onAuthStateChange(async (event, session) => {
       // Handle session refresh failures
       if (event === 'TOKEN_REFRESHED' && !session) {
         console.warn('Token refresh failed inside onAuthStateChange, resetting...');
@@ -227,7 +229,13 @@ export default function App() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    const subscription = authListener?.data?.subscription;
+
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const autoCreateProfile = async (userId: string, emailStr: string, fullName: string, tenantId: string) => {

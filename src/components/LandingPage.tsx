@@ -116,7 +116,7 @@ function AnimatedCounter({ target, suffix = '', prefix = '', duration = 1600 }: 
 
 export function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authTab, setAuthTab] = useState<'signin' | 'signup'>('signin');
+  const [authTab, setAuthTab] = useState<'signin' | 'company_onboarding'>('signin');
   
   // Form values
   const [email, setEmail] = useState('');
@@ -131,6 +131,15 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Company Onboarding Extended Fields
+  const [companyIndustry, setCompanyIndustry] = useState('Civil Siting & Foundations');
+  const [companyProjects, setCompanyProjects] = useState(3);
+  const [companyUsers, setCompanyUsers] = useState(8);
+  const [companyPhone, setCompanyPhone] = useState('');
+  const [companyCountry, setCompanyCountry] = useState('United Kingdom');
+  const [showDossier, setShowDossier] = useState(false);
+  const [dossierCopied, setDossierCopied] = useState(false);
 
   // Scroll percent state to follow and animate the side logos from left and right
   const [scrollTop, setScrollTop] = useState(0);
@@ -215,8 +224,48 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
           onLoginSuccess(data.session);
           setShowAuthModal(false);
         }
+      } else if (authTab === 'company_onboarding') {
+        // Corporate Onboarding Flow
+        if (!email.trim() || !password.trim()) {
+          throw new Error('Please enter a valid email and password');
+        }
+        if (password.length < 6) {
+          throw new Error('Password must be at least 6 characters');
+        }
+        if (!customCompanyName.trim()) {
+          throw new Error('Please enter a corporate company name');
+        }
+
+        const requestData = {
+          name: customCompanyName.trim(),
+          fullName: fullName.trim(),
+          email: email.trim(),
+          password: password,
+          phone: companyPhone.trim(),
+          country: companyCountry.trim(),
+          industry: companyIndustry,
+          projects: companyProjects,
+          users: companyUsers,
+          date: new Date().toISOString()
+        };
+
+        const serializedName = `PENDING_REQ:${JSON.stringify(requestData)}`;
+
+        // Create the pending tenant row
+        const { error: insertError } = await supabase
+          .from('tenants')
+          .insert([{ name: serializedName }]);
+
+        if (insertError) throw insertError;
+
+        // Trigger presentation of onboarding email portfolio dossier
+        setSuccessMsg('Your onboarding request has been logged successfully in our system logs! Opening configuration dossier...');
+        setTimeout(() => {
+          setShowDossier(true);
+        }, 1200);
+
       } else {
-        // Sign up logic
+        // Sign up logic (Join Team)
         if (!email.trim() || !password.trim()) {
           throw new Error('Please enter a valid email and password');
         }
@@ -294,7 +343,7 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
     }
   };
 
-  const openAuthWithTab = (tab: 'signin' | 'signup') => {
+  const openAuthWithTab = (tab: 'signin' | 'company_onboarding') => {
     setAuthTab(tab);
     setErrorMsg('');
     setSuccessMsg('');
@@ -303,7 +352,7 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans overflow-x-hidden relative selection:bg-primary/30 selection:text-primary">
-      <CeflotBackgroundFlare intensity={0.12} className="absolute bottom-[-160px] right-[-160px] w-[500px] h-[500px]" />
+      <CeflotBackgroundFlare intensity={0.12} className="absolute bottom-[450px] right-[100px] w-[1000px] h-[1000px]" />
       
       {/* Giant Twisted Double-Infinity Scroll Path Tracer */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden h-[300vh]">
@@ -381,7 +430,7 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
             Sign In
           </button>
           <button 
-            onClick={() => openAuthWithTab('signup')}
+            onClick={() => openAuthWithTab('company_onboarding')}
             className="px-4.5 py-2.5 text-xs font-bold uppercase tracking-wider bg-primary hover:bg-primary-hover hover:scale-[1.02] text-slate-950 rounded-xl shadow-lg shadow-primary/20 cursor-pointer active:scale-95 transition-all w-[110px]"
           >
             Get Access
@@ -598,7 +647,7 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
         {/* Hero Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full max-w-md z-10 w-full mb-4">
           <button 
-            onClick={() => openAuthWithTab('signup')}
+            onClick={() => openAuthWithTab('company_onboarding')}
             className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary-hover text-slate-950 font-extrabold rounded-xl shadow-xl shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer transition-all text-sm uppercase tracking-wider active:scale-95"
           >
             <span>Request Access</span>
@@ -869,7 +918,7 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
               {/* Simulated pilot action call button */}
               <button
                 type="button"
-                onClick={() => openAuthWithTab('signup')}
+                onClick={() => openAuthWithTab('company_onboarding')}
                 className="w-full py-3 bg-primary hover:bg-primary-hover text-slate-950 font-black rounded-xl text-center text-xs uppercase tracking-widest transition-colors shadow-lg shadow-primary/10 cursor-pointer active:scale-95"
               >
                 Start Your Pilot
@@ -1741,7 +1790,7 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full max-w-md">
             <button 
-              onClick={() => openAuthWithTab('signup')}
+              onClick={() => openAuthWithTab('company_onboarding')}
               className="w-full sm:w-auto px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-xl shadow-emerald-500/15 cursor-pointer flex items-center justify-center gap-2 transition-colors text-sm uppercase tracking-wider"
             >
               <span>Onboard Your Workspace</span>
@@ -1790,7 +1839,7 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="w-full max-w-[420px] bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative z-10 flex flex-col"
+              className={`w-full ${authTab === 'company_onboarding' ? 'max-w-[490px]' : 'max-w-[420px]'} bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative z-10 flex flex-col transition-all duration-300`}
             >
               {/* Top Bar / Header */}
               <div className="p-5 border-b border-slate-800/80 bg-slate-950 flex items-center justify-between">
@@ -1799,166 +1848,362 @@ export function LandingPage({ onLoginSuccess }: LandingPageProps) {
                     <CeflotLogo className="w-8 h-5 animate-pulse" />
                   </div>
                   <span className="font-bold text-xs uppercase tracking-wider text-slate-300">
-                    {authTab === 'signin' ? 'Sign In to Portal' : 'Register New Tenant'}
+                    {showDossier ? 'Company Onboarding Dossier' : authTab === 'signin' ? 'Sign In to Portal' : authTab === 'company_onboarding' ? 'Onboard Company Workspace' : 'Register New Tenant'}
                   </span>
                 </div>
                 <button 
-                  onClick={() => setShowAuthModal(false)}
+                  onClick={() => { setShowAuthModal(false); setShowDossier(false); }}
                   className="p-1 text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg cursor-pointer transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Tabs selector */}
-              <div className="grid grid-cols-2 text-center text-xs font-bold border-b border-slate-850">
-                <button
-                  type="button"
-                  onClick={() => { setAuthTab('signin'); setErrorMsg(''); setSuccessMsg(''); }}
-                  className={`py-3 ${authTab === 'signin' ? 'text-primary border-b-2 border-primary bg-slate-900/50' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setAuthTab('signup'); setErrorMsg(''); setSuccessMsg(''); }}
-                  className={`py-3 ${authTab === 'signup' ? 'text-primary border-b-2 border-primary bg-slate-900/50' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                  Create Account
-                </button>
-              </div>
+              {/* Show Dossier Screen if active */}
+              {showDossier ? (
+                (() => {
+                  const dossierSubject = `[Ceflot Onboarding Proposal] Registration Request for ${customCompanyName || 'New Company'}`;
+                  const dossierBody = `DEAR CEFLOT PLATFORM ADMINISTRATOR,
 
-              {/* Scrollable form holder */}
-              <form onSubmit={handleAuthSubmit} className="p-6 flex flex-col gap-4 max-h-[500px] overflow-y-auto custom-scrollbar">
-                
-                {authTab === 'signup' && (
-                  <>
-                    {/* Full Name field */}
+A NEW CORPORATE TENANT ONBOARDING REQUEST HAS BEEN SUBMITTED.
+THE AUTOMATIC FREE-TIER SANDBOX HAS BEEN TEMPORARILY ALLOCATED.
+
+=======================================================
+               ONBOARDING DOSSIER DETAILS
+=======================================================
+
+COMPANY INFORMATION:
+-------------------
+Company Name         : ${customCompanyName.trim()}
+Industry/Sector      : ${companyIndustry}
+Headquarters / Location: ${companyCountry}
+Contact Phone        : ${companyPhone || 'Not specified'}
+
+ADMINISTRATOR PROFILE:
+---------------------
+Full Name            : ${fullName.trim()}
+Work Email           : ${email}
+Temporary Tenant ID  : [AUTOMATICALLY GENERATED]
+
+OPERATIONS CAPACITY SCALE OPTIMIZATION:
+---------------------------------------
+Proposed Active Projects: ${companyProjects} (Baseline: 3)
+Proposed Team Users     : ${companyUsers} (Baseline: 8)
+Plan Determination     : ${companyProjects <= 3 && companyUsers <= 8 ? 'FREE TIER (Automated Free Deployment)' : 'PAID EXPANSION REQUIRED (Custom Quotation Required)'}
+
+ADDITIONAL INTEGRATION REQUEST:
+------------------------------
+- Automated Operations Logs
+- Procurement & Materials Terminal
+- Supervisor Multi-site Tracker
+
+Please review this request in the Ceflot Platform God terminal database, select this tenant, and update their capacity configuration model as requested.
+
+SINCERELY,
+${fullName.trim()}
+On behalf of ${customCompanyName.trim()} (Contact: ${companyPhone})`;
+
+                  const mailtoUrl = `mailto:admin@ceflot.com?subject=${encodeURIComponent(dossierSubject)}&body=${encodeURIComponent(dossierBody)}`;
+
+                  const handleCopy = () => {
+                    navigator.clipboard.writeText(dossierBody);
+                    setDossierCopied(true);
+                    setTimeout(() => setDossierCopied(false), 2000);
+                  };
+
+
+
+                  return (
+                    <div className="p-6 flex flex-col gap-4 animate-fade-in text-slate-100">
+                      <div className="text-center py-2 flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-1 border border-primary/20">
+                          <Check className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-200">Onboarding Request Logged!</h3>
+                        <p className="text-[11px] text-slate-400 max-w-sm leading-normal">
+                          Your request has been filed under review queue. Please dispatch this dossier via email to let our system administrators verify and authorize your workspace.
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 flex flex-col gap-2 relative">
+                        <div className="flex items-center justify-between border-b border-slate-900 pb-1.5 mb-1.5 text-[9px] font-mono uppercase tracking-wider text-slate-500">
+                          <span>TO: admin@ceflot.com</span>
+                          <span className="text-primary text-[8px] bg-primary/10 px-2 py-0.5 rounded-full uppercase">Onboarding Portfolio</span>
+                        </div>
+                        <p className="text-[9px] font-mono text-slate-350 font-bold mb-1 leading-snug">
+                          SUBJECT: {dossierSubject}
+                        </p>
+                        <textarea
+                          readOnly
+                          value={dossierBody}
+                          className="w-full h-36 bg-slate-900 text-[9px] font-mono text-slate-300 p-3 rounded-lg border border-slate-800 outline-none leading-relaxed custom-scrollbar resize-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 mt-1">
+                        <a
+                          href={mailtoUrl}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-primary-hover active:scale-95 text-slate-950 text-[10px] font-black rounded-xl tracking-wider uppercase transition-all shadow-md cursor-pointer decoration-none"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Send Email
+                        </a>
+                        <button
+                          type="button"
+                          onClick={handleCopy}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 text-[10px] font-bold rounded-xl tracking-wider uppercase transition-all cursor-pointer"
+                        >
+                          {dossierCopied ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                              <span className="text-emerald-400 font-bold">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <ClipboardList className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Copy Dossier</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <p className="text-center text-[8px] text-slate-500 leading-normal max-w-xs mx-auto mt-1 font-mono uppercase">
+                        This request is visible to Ceflot administrators inside the God panel dashboard review queue.
+                      </p>
+
+                      <button
+                        onClick={() => {
+                          setShowAuthModal(false);
+                          setShowDossier(false);
+                        }}
+                        className="w-full mt-2 py-4 bg-slate-900 hover:bg-slate-850 active:scale-95 font-bold text-xs text-slate-300 rounded-xl tracking-widest uppercase transition-all border border-slate-800 cursor-pointer shadow-lg"
+                      >
+                        Return to Portal
+                      </button>
+                    </div>
+                  );
+                })()
+              ) : (
+                <>
+                  {/* Tabs selector */}
+                  <div className="grid grid-cols-2 text-center text-[10px] font-bold border-b border-slate-850">
+                    <button
+                      type="button"
+                      onClick={() => { setAuthTab('signin'); setErrorMsg(''); setSuccessMsg(''); }}
+                      className={`py-3 px-1 transition-all ${authTab === 'signin' ? 'text-primary border-b-2 border-primary bg-slate-950/40 font-black' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setAuthTab('company_onboarding'); setErrorMsg(''); setSuccessMsg(''); }}
+                      className={`py-3 px-1 transition-all ${authTab === 'company_onboarding' ? 'text-primary border-b-2 border-primary bg-slate-950/40 font-black' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      Onboard Company
+                    </button>
+                  </div>
+
+                  {/* Scrollable form holder */}
+                  <form onSubmit={handleAuthSubmit} className="p-6 flex flex-col gap-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+                    
+                    {authTab === 'company_onboarding' && (
+                      <>
+                        {/* Company Name */}
+                        <div className="flex flex-col gap-1.5 animate-fade-in">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Company Name</label>
+                          <div className="relative">
+                            <Building className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
+                            <input
+                              type="text"
+                              value={customCompanyName}
+                              onChange={(e) => setCustomCompanyName(e.target.value)}
+                              placeholder="e.g. Ceflot Civil Engineering LTD"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 pl-10 text-white outline-none focus:border-primary transition-colors"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        {/* Full Name & Phone Row */}
+                        <div className="grid grid-cols-2 gap-3 animate-fade-in">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Admin Name</label>
+                            <input
+                              type="text"
+                              value={fullName}
+                              onChange={(e) => setFullName(e.target.value)}
+                              placeholder="Director Name"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 text-white outline-none focus:border-primary transition-colors"
+                              required
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Phone Number</label>
+                            <input
+                              type="tel"
+                              value={companyPhone}
+                              onChange={(e) => setCompanyPhone(e.target.value)}
+                              placeholder="+44 7123 45678"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 text-white outline-none focus:border-primary transition-colors"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        {/* Country & Industry Row */}
+                        <div className="grid grid-cols-2 gap-3 animate-fade-in">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Headquarters / HQ</label>
+                            <input
+                              type="text"
+                              value={companyCountry}
+                              onChange={(e) => setCompanyCountry(e.target.value)}
+                              placeholder="United Kingdom"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 text-white outline-none focus:border-primary transition-colors"
+                              required
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Primary Industry</label>
+                            <select
+                              value={companyIndustry}
+                              onChange={(e) => setCompanyIndustry(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 text-white outline-none focus:border-primary transition-colors"
+                            >
+                              <option value="Civil Siting & Foundations">Civil Siting & Foundations</option>
+                              <option value="Commercial Infrastructure">Commercial Infrastructure</option>
+                              <option value="Transport & Infrastructure">Transport & Infrastructure</option>
+                              <option value="Energy & Utility Refineries">Energy & Utility Refineries</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Optimization Scale Controls */}
+                        <div className="p-3.5 bg-slate-950 border border-slate-850 rounded-2xl flex flex-col gap-3 animate-fade-in">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-[#0ea5e9]">Workspace Scale Optimizer</span>
+                          
+                          {/* Projects Slider */}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between items-center text-[10px] font-bold">
+                              <span className="text-slate-400">Expected Active Projects: <b className="text-slate-100">{companyProjects}</b></span>
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] uppercase tracking-normal ${companyProjects <= 3 ? 'bg-emerald-500/10 text-emerald-400 font-extrabold' : 'bg-primary/10 text-primary'}`}>
+                                {companyProjects <= 3 ? 'Free Trial Range' : `Requires Paid Approval`}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="1"
+                              max="30"
+                              value={companyProjects}
+                              onChange={(e) => setCompanyProjects(parseInt(e.target.value))}
+                              className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                            />
+                          </div>
+
+                          {/* Users Slider */}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between items-center text-[10px] font-bold">
+                              <span className="text-slate-400">Expected Seat Licenses: <b className="text-slate-100">{companyUsers}</b></span>
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] uppercase tracking-normal ${companyUsers <= 8 ? 'bg-emerald-500/10 text-emerald-400 font-extrabold' : 'bg-primary/10 text-primary'}`}>
+                                {companyUsers <= 8 ? 'Free Trial Range' : `Requires Paid Approval`}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="1"
+                              max="100"
+                              value={companyUsers}
+                              onChange={(e) => setCompanyUsers(parseInt(e.target.value))}
+                              className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                            />
+                          </div>
+
+                          {/* Quote Indicator banner */}
+                          <div className="flex items-start gap-2 pt-1 border-t border-slate-900 text-[9px] text-slate-400 leading-normal">
+                            <Compass className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-[1px]" />
+                            <p>
+                              {companyProjects <= 3 && companyUsers <= 8 ? (
+                                <span>Baseline parameters matched. <b className="text-emerald-400">Deploying free trial immediately.</b></span>
+                              ) : (
+                                <span>Plan size matches Paid Growth. Baseline allocated: <b>3 sites, 8 licenses active</b> while request is reviewed.</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Email field (Shared for Signin, Join, Onboard) */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Full Name</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        {authTab === 'company_onboarding' ? 'Corporate Admin Work Email' : 'Email Address'}
+                      </label>
                       <div className="relative">
-                        <Users className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
+                        <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
                         <input
-                          type="text"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="Project Director Name"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@company.com"
                           className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 pl-10 text-white outline-none focus:border-primary transition-colors"
                           required
                         />
                       </div>
                     </div>
 
-                    {/* Company Setting Toggle */}
-                    <div className="flex flex-col gap-1.5 mt-1">
-                      <div className="flex justify-between items-center">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Company / Tenant</label>
+                    {/* Password field */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Password</label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 pl-10 pr-10 text-white outline-none focus:border-primary transition-colors"
+                          required
+                        />
                         <button
                           type="button"
-                          onClick={() => setIsNewCompany(!isNewCompany)}
-                          className="text-[9px] text-primary hover:underline font-bold"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-3 text-slate-400 hover:text-white pointer-events-auto"
                         >
-                          {isNewCompany ? 'Choose Existing' : 'Create New Company'}
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
-
-                      {isNewCompany ? (
-                        <div className="relative animate-fade-in">
-                          <Building className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
-                          <input
-                            type="text"
-                            value={customCompanyName}
-                            onChange={(e) => setCustomCompanyName(e.target.value)}
-                            placeholder="Enter New Company Name"
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 pl-10 text-white outline-none focus:border-primary transition-colors"
-                            required
-                          />
-                        </div>
-                      ) : (
-                        <div className="relative animate-fade-in">
-                          <Building className="w-4 h-4 text-slate-500 absolute left-3 top-3.5 pointer-events-none" />
-                          <select
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 pl-10 text-white appearance-none outline-none focus:border-primary transition-colors"
-                            required
-                          >
-                            <option value="47b5d23d-f030-4edd-9310-4760163cb184">Primary Civil Siting Sector</option>
-                            <option value="c1784ed8-7f42-47f3-85d1-f1de64734573">Commercial Infrastructure Division</option>
-                          </select>
-                        </div>
-                      )}
                     </div>
-                  </>
-                )}
 
-                {/* Email field */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Email Address</label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@company.com"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 pl-10 text-white outline-none focus:border-primary transition-colors"
-                      required
-                    />
-                  </div>
-                </div>
+                    {/* Error Box display */}
+                    {errorMsg && (
+                      <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-200 rounded-xl text-xs leading-relaxed">
+                        {errorMsg}
+                      </div>
+                    )}
 
-                {/* Password field */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Password</label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl text-xs p-3.5 pl-10 pr-10 text-white outline-none focus:border-primary transition-colors"
-                      required
-                    />
+                    {/* Success Box display */}
+                    {successMsg && (
+                      <div className="p-3 bg-primary/10 border border-primary/20 text-slate-200 rounded-xl text-xs leading-relaxed">
+                        {successMsg}
+                      </div>
+                    )}
+
                     <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 text-slate-400 hover:text-white"
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-4 mt-2 bg-primary border border-primary/20 hover:bg-primary-hover text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-primary/10 active:scale-95 disabled:opacity-40 transition-all cursor-pointer flex items-center justify-center gap-2"
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                      <span>{authTab === 'signin' ? 'Sign In To Account' : authTab === 'company_onboarding' ? 'Onboard & Generate Dossier' : 'Join Brand Workspace'}</span>
                     </button>
-                  </div>
-                </div>
 
-                {/* Error Box display */}
-                {errorMsg && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-200 rounded-xl text-xs leading-relaxed">
-                    {errorMsg}
-                  </div>
-                )}
+                    <div className="text-center text-[10px] text-slate-500 mt-2 font-mono uppercase">
+                      100% SECURE & ENCRYPTED DATABASE TRANSIT
+                    </div>
 
-                {/* Success Box display */}
-                {successMsg && (
-                  <div className="p-3 bg-primary/10 border border-primary/20 text-slate-200 rounded-xl text-xs leading-relaxed">
-                    {successMsg}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-4 mt-2 bg-primary border border-primary/20 hover:bg-primary-hover text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-primary/10 active:scale-95 disabled:opacity-40 transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{authTab === 'signin' ? 'Sign In To Account' : 'Onboard & Register'}</span>
-                </button>
-
-                <div className="text-center text-[10px] text-slate-500 mt-2 font-mono">
-                  100% SECURE & ENCRYPTED CONNECTION
-                </div>
-
-              </form>
+                  </form>
+                </>
+              )}
 
             </motion.div>
 

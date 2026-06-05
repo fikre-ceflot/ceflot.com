@@ -1183,7 +1183,7 @@ export function Home({
         <div className="flex-1 p-2 lg:p-6 flex flex-col overflow-hidden bg-surface-base relative">
           {/* Logo Watermark Background Overlay */}
           <div className="absolute inset-0 logo-pattern-bg pointer-events-none opacity-50 z-0" />
-          <CeflotBackgroundFlare intensity={0.08} className="absolute bottom-[-160px] right-[-160px] w-[500px] h-[500px]" />
+          <CeflotBackgroundFlare intensity={0.08} className="absolute bottom-[450px] right-[100px] w-[1000px] h-[1000px]" />
 
           {/* Mobile Tasks Trigger - Only on Portrait/Small screens */}
           <div className="lg:hidden flex items-center justify-between mb-4 relative z-10 px-2">

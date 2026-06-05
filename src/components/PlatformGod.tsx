@@ -14,17 +14,36 @@ import {
   AlertCircle,
   TrendingUp,
   Globe,
-  Lock
+  Lock,
+  Mail,
+  Phone,
+  User,
+  Calendar
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+
+export interface OnboardingRequest {
+  id: string;
+  name: string;
+  fullName: string;
+  email: string;
+  password?: string;
+  phone: string;
+  country: string;
+  industry: string;
+  projects: number;
+  users: number;
+  date: string;
+}
 
 interface PlatformGodProps {
   userProfile: UserProfile;
 }
 
 export function PlatformGod({ userProfile }: PlatformGodProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'tenants' | 'users' | 'system'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tenants' | 'requests' | 'users' | 'system'>('overview');
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [onboardingRequests, setOnboardingRequests] = useState<OnboardingRequest[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -52,15 +71,50 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
         supabase.from('projects').select('id', { count: 'exact', head: true })
       ]);
 
-      if (tenantsRes.data) setTenants(tenantsRes.data);
+      if (tenantsRes.data) {
+        const activeTenants: Tenant[] = [];
+        const pendingReqs: OnboardingRequest[] = [];
+
+        tenantsRes.data.forEach((t: any) => {
+          if (t.name && t.name.startsWith('PENDING_REQ:')) {
+            try {
+              const parsed = JSON.parse(t.name.substring(12));
+              pendingReqs.push({
+                id: t.id,
+                ...parsed
+              });
+            } catch (err) {
+              console.warn('Error parsing pending request:', err);
+              pendingReqs.push({
+                id: t.id,
+                name: t.name,
+                fullName: 'Unknown Admin',
+                email: 'unknown@ceflot.com',
+                phone: 'N/A',
+                country: 'Unknown',
+                industry: 'General Siting',
+                projects: 3,
+                users: 8,
+                date: t.created_at || new Date().toISOString()
+              });
+            }
+          } else {
+            activeTenants.push(t);
+          }
+        });
+
+        setTenants(activeTenants);
+        setOnboardingRequests(pendingReqs);
+
+        setStats({
+          totalTenants: activeTenants.length,
+          totalProjects: projectsRes.count || 0,
+          totalUsers: usersRes.data?.length || 0,
+          activeSessions: Math.floor(Math.random() * 50) + 10 // Mocked for now
+        });
+      }
+
       if (usersRes.data) setAllUsers(usersRes.data);
-      
-      setStats({
-        totalTenants: tenantsRes.data?.length || 0,
-        totalProjects: projectsRes.count || 0,
-        totalUsers: usersRes.data?.length || 0,
-        activeSessions: Math.floor(Math.random() * 50) + 10 // Mocked for now
-      });
     } catch (e) {
       console.error('Error loading platform data:', e);
     } finally {
@@ -117,6 +171,52 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
     }
   }
 
+  async function handleApproveRequest(req: OnboardingRequest) {
+    if (!window.confirm(`Review Confirmation:\nDo you want to confirm manual review and provision the Workspace for "${req.name}"? This activates their tenant profile.`)) return;
+    try {
+      // 1. Rename the tenant record to the clean corporate name
+      const { error: renameError } = await supabase
+        .from('tenants')
+        .update({ name: req.name })
+        .eq('id', req.id);
+
+      if (renameError) throw renameError;
+
+      // 2. Insert system alert logging this onboarding activation inside alerts table
+      const { error: alertErr } = await supabase.from('alerts').insert({
+        title: 'Corporate Workspace Activated',
+        message: `Corporate workspace "${req.name}" set active. Primary Administrator: ${req.fullName} (${req.email}). Baseline: ${req.projects} projects, ${req.users} team seats.`,
+        type: 'success',
+        is_read: false
+      });
+
+      if (alertErr) {
+        console.warn('Non-blocking alert log error:', alertErr);
+      }
+
+      alert(`Workspace "${req.name}" has been successfully approved & provisioned!\n\nAn activation notice has been recorded. Baseline layout: ${req.projects} projects and ${req.users} team users are authorized.`);
+      loadPlatformData();
+    } catch (err: any) {
+      alert('Error approving request: ' + err.message);
+    }
+  }
+
+  async function handleDeclineRequest(req: OnboardingRequest) {
+    if (!window.confirm(`Discard Request:\nAre you sure you want to decline and delete the onboarding request for "${req.name}"?`)) return;
+    try {
+      const { error } = await supabase
+        .from('tenants')
+        .delete()
+        .eq('id', req.id);
+
+      if (error) throw error;
+      alert(`The corporate onboarding request for "${req.name}" has been discarded.`);
+      loadPlatformData();
+    } catch (err: any) {
+      alert('Error discarding request: ' + err.message);
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-surface-base">
       {/* Header */}
@@ -144,6 +244,7 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
           {[
             { id: 'overview', label: 'Overview', icon: Activity },
             { id: 'tenants', label: 'Companies', icon: Building2 },
+            { id: 'requests', label: 'Onboarding Requests', icon: ShieldCheck },
             { id: 'users', label: 'User Directory', icon: Users },
             { id: 'system', label: 'System Health', icon: Globe }
           ].map((tab) => (
@@ -151,14 +252,19 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border",
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border relative",
                 activeTab === tab.id 
-                  ? "bg-error text-black border-error" 
+                  ? "bg-error text-black border-error font-bold" 
                   : "text-dim hover:text-main hover:bg-surface-2 border-transparent"
               )}
             >
               <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <span>{tab.label}</span>
+              {tab.id === 'requests' && onboardingRequests.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-error text-[8px] font-black text-black animate-pulse border border-surface-base">
+                  {onboardingRequests.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -520,6 +626,107 @@ export function PlatformGod({ userProfile }: PlatformGodProps) {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'requests' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-border-subtle pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-main">Onboarding Reviews Queue</h2>
+                <p className="text-xs text-dim">Review, confirm, or discard pending workspace deployment requests manually</p>
+              </div>
+              <div className="px-3 py-1 bg-surface-1 border border-border-subtle rounded-xl text-xs text-dim">
+                <span className="font-bold text-error">{onboardingRequests.length}</span> Requests Pending
+              </div>
+            </div>
+
+            {onboardingRequests.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 bg-surface-1 border border-border-subtle rounded-2xl text-center">
+                <div className="w-16 h-16 rounded-2xl bg-success/10 border border-success/20 flex items-center justify-center text-success mb-4">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <h3 className="text-sm font-bold text-main">Queue is Clean!</h3>
+                <p className="text-xs text-dim max-w-xs mt-1">
+                  All corporate onboarding registration requests have been processed or discarded.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+                {onboardingRequests.map((req) => (
+                  <div key={req.id} className="bg-surface-1 border border-border-subtle rounded-2xl p-6 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                      {/* Badge / Status row */}
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="px-2 py-0.5 rounded-full bg-error/10 text-error border border-error/20 text-[9px] font-black uppercase tracking-widest">
+                          Pending Decision
+                        </span>
+                        <span className="text-[10px] font-mono text-dim flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-dim/60" />
+                          {req.date ? new Date(req.date).toLocaleDateString() : 'Recent'}
+                        </span>
+                      </div>
+
+                      {/* Header info */}
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center text-primary mt-0.5">
+                          <Building2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-main leading-tight">{req.name}</h4>
+                          <span className="text-[10px] font-bold text-dim uppercase tracking-wider">{req.industry || 'Civil Siting Sector'}</span>
+                        </div>
+                      </div>
+
+                      {/* Metadata variables Grid */}
+                      <div className="bg-surface-2/40 border border-border-subtle/50 rounded-xl p-3.5 space-y-2 mb-6 text-xs text-main">
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-dim" />
+                          <span className="text-dim">Director:</span>
+                          <span className="font-bold">{req.fullName}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-3.5 h-3.5 text-dim" />
+                          <span className="text-dim">Email:</span>
+                          <a href={`mailto:${req.email}`} className="text-info hover:underline font-semibold font-mono">{req.email}</a>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5 text-dim" />
+                          <span className="text-dim">Phone:</span>
+                          <span className="font-semibold font-mono">{req.phone || 'Not Provided'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-3.5 h-3.5 text-dim" />
+                          <span className="text-dim">HQ:</span>
+                          <span className="font-semibold">{req.country || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1 border-t border-border-subtle/40 mt-1 text-[10px] uppercase font-bold text-dim tracking-wider">
+                          <span>Sandbox Scale:</span>
+                          <span className="text-main font-black">{req.projects} Projects • {req.users} User Seats</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border-subtle/30">
+                      <button
+                        onClick={() => handleApproveRequest(req)}
+                        className="flex items-center justify-center gap-1.5 py-2.5 bg-error text-black border border-error font-bold text-xs rounded-xl hover:brightness-110 active:scale-95 transition-all w-full cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Approve & Provision
+                      </button>
+                      <button
+                        onClick={() => handleDeclineRequest(req)}
+                        className="flex items-center justify-center gap-1.5 py-2.5 bg-surface-2 hover:bg-surface-3 hover:text-error border border-border-subtle text-dim font-bold text-xs rounded-xl active:scale-95 transition-all w-full cursor-pointer"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

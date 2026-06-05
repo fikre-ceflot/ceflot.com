@@ -1,0 +1,194 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+html, body {
+  font-family: var(--font-sans);
+  background-color: var(--surface-base);
+  color: var(--text-main);
+}
+
+:root {
+  /* Default Dark Values (Historical context) */
+  --color-primary: #1aacaa;
+  --color-primary-hover: #1ed1cf;
+  --color-accent: #1aacaa;
+  --color-accent-hover: #1ed1cf;
+  --color-danger: #f04a5a;
+  --color-danger-hover: #ff5a6a;
+  --color-warning: #f5a623;
+
+  /* Surfaces - Dark Default */
+  --surface-base: #0f1117;
+  --surface-1: #161a23;
+  --surface-2: #1d2230;
+  --surface-3: #252b3b;
+
+  /* Borders - Dark Default */
+  --border-subtle: #252b3b;
+  --border-muted: #2e3749;
+
+  /* Text - Dark Default */
+  --text-main: #e8eaf0;
+  --text-dim: #a3abb8;
+  --text-ghost: #717d91;
+}
+
+.light {
+  /* Surfaces - Light Mode */
+  --surface-base: #f8fafc;
+  --surface-1: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #e2e8f0;
+
+  /* Borders - Light Mode */
+  --border-subtle: #e2e8f0;
+  --border-muted: #cbd5e1;
+
+  /* Text - Light Mode */
+  --text-main: #0f172a;
+  --text-dim: #475569;
+  --text-ghost: #64748b;
+  
+  /* Primary - Slightly deeper for light background contrast */
+  --color-primary: #158a88;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Map standard variables to theme tokens */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-danger: var(--color-danger);
+  --color-danger-hover: var(--color-danger-hover);
+  --color-warning: var(--color-warning);
+  
+  /* Surfaces */
+  --color-surface-base: var(--surface-base);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  
+  /* Borders */
+  --color-border-subtle: var(--border-subtle);
+  --color-border-muted: var(--border-muted);
+  
+  /* Text Styles */
+  --color-text-main: var(--text-main);
+  --color-text-dim: var(--text-dim);
+  --color-text-ghost: var(--text-ghost);
+
+  /* Font Sizes */
+  --font-size-nano: 10px;
+  --font-size-micro: 11px;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+
+  /* Color Mappings - Simplified for text-main, bg-primary, etc. */
+  --color-primary: var(--color-primary);
+  --color-accent: var(--color-accent);
+  --color-danger: var(--color-danger);
+  --color-warning: var(--color-warning);
+  
+  --color-surface-base: var(--surface-base);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  
+  --color-border-subtle: var(--border-subtle);
+  --color-border-muted: var(--border-muted);
+  
+  --color-main: var(--text-main);
+  --color-dim: var(--text-dim);
+  --color-ghost: var(--text-ghost);
+
+  /* Spacing */
+  --spacing-stack-sm: 0.75rem;
+  --spacing-stack-md: 1rem;
+  --spacing-stack-lg: 1.5rem;
+}
+
+@layer components {
+  /* Smooth, high-performance transition for theme switching - active only during toggling */
+  .theme-transition,
+  .theme-transition * {
+    transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), 
+                color 200ms cubic-bezier(0.4, 0, 0.2, 1), 
+                border-color 200ms cubic-bezier(0.4, 0, 0.2, 1), 
+                text-decoration-color 200ms cubic-bezier(0.4, 0, 0.2, 1), 
+                box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[13px] font-bold transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  /* The "Main Character" Button */
+  .btn-primary {
+    @apply bg-primary text-white font-black uppercase tracking-widest hover:brightness-110 shadow-lg shadow-primary/20 hover:shadow-primary/30 border-none transition-all active:scale-95;
+  }
+  
+  /* The "Secondary Action" Button - clearly distinct */
+  .btn-accent {
+    @apply bg-surface-2 text-accent border border-accent/30 hover:border-accent hover:bg-accent/5 font-bold transition-all;
+  }
+  
+  .btn-secondary {
+    @apply bg-surface-base text-main border border-border-subtle hover:bg-surface-2 hover:border-ghost transition-all;
+  }
+  
+  .btn-outline {
+    @apply bg-transparent text-ghost border border-border-subtle hover:border-main hover:text-main transition-all;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-ghost hover:bg-surface-2 hover:text-main border-none transition-all;
+  }
+  
+  .btn-danger {
+    @apply bg-danger/10 text-danger border border-danger/20 hover:bg-danger hover:text-white transition-all;
+  }
+  
+  .btn-sm {
+    @apply px-4 py-2 text-[11px] leading-none rounded-lg uppercase tracking-wider;
+  }
+
+  .ai-btn {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer border border-border-subtle bg-surface-2/30 text-ghost hover:text-primary hover:border-primary/50 hover:bg-primary/5 active:scale-95;
+  }
+
+  .card-compact { @apply p-3 bg-surface-1 border border-border-subtle rounded-xl; }
+  .card-default { @apply p-4 bg-surface-1 border border-border-subtle rounded-xl; }
+  .card-spacious { @apply p-6 bg-surface-1 border border-border-subtle rounded-2xl; }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-surface-3 rounded-full hover:bg-border-muted;
+  }
+
+  .logo-pattern-bg {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='60' viewBox='0 0 182.65 116.39'%3E%3Cpath d='M30.45 116.39H0V85.94h30.45v30.45zM30.45 61.34H0V30.89h30.45v30.45zM152.2 61.34h-30.45V30.89h30.45v30.45zM152.2 116.39h-30.45V85.94h30.45v30.45zM114.15 88.86l45.69-45.69 22.81 22.81-45.69 45.69-22.81-22.81zM30.45 53.5l45.69-45.69L98.95 30.62 53.26 76.31 30.45 53.5z' fill='%231aacaa' fill-opacity='0.03'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
