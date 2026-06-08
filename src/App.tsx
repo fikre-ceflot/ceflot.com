@@ -37,6 +37,7 @@ import { cn } from './lib/utils';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CeflotLogo } from './components/Logo';
+import { GlobalAIAssistant } from './components/GlobalAIAssistant';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -965,6 +966,19 @@ export default function App() {
 
       {activePanel === 'god' && profile.is_platform_god && (
         <PlatformGod userProfile={profile} />
+      )}
+
+      {profile && (
+        <GlobalAIAssistant
+          activePanel={activePanel}
+          setActivePanel={handleModuleSelect}
+          activeProject={activeProject}
+          setActiveProject={handleProjectSelect}
+          projects={projects}
+          profile={profile}
+          theme={theme}
+          setTheme={setTheme}
+        />
       )}
     </Layout>
   </ErrorBoundary>

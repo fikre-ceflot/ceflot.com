@@ -310,6 +310,9 @@ export default function ProcurementDashboard({ project, tenantId }: ProcurementD
   // Delete Custom Material Row from Active Package
   const handleDeleteMaterial = (itemId: string) => {
     if (!selectedPackage) return;
+    const itemToDelete = selectedPackage.items.find(it => it.id === itemId);
+    const itemName = itemToDelete ? itemToDelete.name : 'this item';
+    if (!confirm(`Are you sure you want to delete the material "${itemName}" from this purchase collection? This action will clear any supplier bids linked to it.`)) return;
     const updatedItems = selectedPackage.items.filter(it => it.id !== itemId);
     
     // Clean bids for deleted item

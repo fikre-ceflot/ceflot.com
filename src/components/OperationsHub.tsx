@@ -439,6 +439,7 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
   };
 
   const handleDeleteLog = async (id: string) => {
+    if (!window.confirm('Are you sure you want to permanently delete this daily progress activity log? This will adjust the actual quantities on the BOQ list and cannot be undone.')) return;
     try {
       const { data: act } = await supabase.from('daily_activities').select('boq_item_id, progress_qty').eq('id', id).single();
       const { error } = await supabase.from('daily_activities').delete().eq('id', id);
@@ -1449,6 +1450,24 @@ export function OperationsHub({ project, tenantId }: OperationsHubProps) {
                     )}
                   >
                     Store View
+                  </button>
+                  <button 
+                    onClick={() => setSiteAppRole('procurement')}
+                    className={cn(
+                      "px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all",
+                      siteAppRole === 'procurement' ? "bg-primary text-white" : "text-ghost"
+                    )}
+                  >
+                    Procurement View
+                  </button>
+                  <button 
+                    onClick={() => setSiteAppRole('tenant_admin')}
+                    className={cn(
+                      "px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all",
+                      siteAppRole === 'tenant_admin' ? "bg-primary text-white" : "text-ghost"
+                    )}
+                  >
+                    Admin View
                   </button>
                 </div>
                 <div className="flex items-center gap-2">

@@ -136,7 +136,7 @@ export default function WarehouseManager({ tenantId, userRole, project }: Wareho
       .from('materials')
       .select('*')
       .eq('is_active', true)
-      .order('name');
+      .order('material_name');
     if (data) setMaterials(data);
   }
 
@@ -188,8 +188,8 @@ export default function WarehouseManager({ tenantId, userRole, project }: Wareho
         .select(`
           *,
           materials (
-            name,
-            code,
+            material_name,
+            material_code,
             category,
             unit
           )
@@ -208,8 +208,8 @@ export default function WarehouseManager({ tenantId, userRole, project }: Wareho
       const formattedStock = (stockData || []).map(s => ({
         id: s.id,
         material_id: s.material_id,
-        material_name: s.materials?.name || 'Unknown',
-        material_code: s.materials?.code || 'N/A',
+        material_name: s.materials?.material_name || 'Unknown',
+        material_code: s.materials?.material_code || 'N/A',
         category: s.materials?.category || 'Uncategorized',
         unit: s.materials?.unit || 'unit',
         current_balance: s.current_balance,
@@ -223,7 +223,7 @@ export default function WarehouseManager({ tenantId, userRole, project }: Wareho
         .from('stock_transactions')
         .select(`
           *,
-          materials (name),
+          materials (material_name),
           user_profiles:created_by (full_name)
         `)
         .eq('tenant_id', tenantId);
@@ -243,7 +243,7 @@ export default function WarehouseManager({ tenantId, userRole, project }: Wareho
       const formattedTrans = (transData || []).map(t => ({
         id: t.id,
         material_id: t.material_id,
-        material_name: t.materials?.name || 'Unknown',
+        material_name: t.materials?.material_name || 'Unknown',
         transaction_type: t.transaction_type,
         quantity: t.quantity,
         reference_type: t.reference_type,
@@ -326,8 +326,8 @@ export default function WarehouseManager({ tenantId, userRole, project }: Wareho
         const newTransfer: PendingTransfer = {
           id: `TRF-${Math.floor(1000 + Math.random() * 9000)}`,
           material_id: formData.material_id,
-          material_name: selectedMaterial?.name || 'Unknown Item',
-          material_code: selectedMaterial?.code || 'N/A',
+          material_name: selectedMaterial?.material_name || 'Unknown Item',
+          material_code: selectedMaterial?.material_code || 'N/A',
           unit: selectedMaterial?.unit || 'unit',
           quantity: formData.quantity,
           from: 'central',

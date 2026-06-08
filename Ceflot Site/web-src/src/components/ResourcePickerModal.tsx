@@ -9,14 +9,22 @@ interface ResourcePickerModalProps {
   onClose: () => void;
   onSelect: (resource: any) => void;
   tenantId: string;
+  isEmbedded?: boolean;
+  pickerType?: 'material' | 'labour' | 'equipment' | null;
 }
 
-export function ResourcePickerModal({ onClose, onSelect, tenantId }: ResourcePickerModalProps) {
+export function ResourcePickerModal({ onClose, onSelect, tenantId, isEmbedded = false, pickerType }: ResourcePickerModalProps) {
   const [resources, setResources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<ResourceTab>('all');
+  const [activeTab, setActiveTab] = useState<ResourceTab>(pickerType || 'all');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (pickerType) {
+      setActiveTab(pickerType);
+    }
+  }, [pickerType]);
 
   useEffect(() => {
     loadResources();
@@ -153,47 +161,53 @@ export function ResourcePickerModal({ onClose, onSelect, tenantId }: ResourcePic
   };
 
   return (
-    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 rounded-[3rem] overflow-hidden">
-      <div className="bg-surface-1 border border-border-subtle rounded-2xl w-full max-w-3xl max-h-[70vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-border-subtle flex items-center justify-between bg-surface-2/50 rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-              <Package className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-main">Library Resource Picker</h2>
-              <p className="text-xs text-ghost font-mono uppercase tracking-widest mt-0.5">Select a resource from your library</p>
-            </div>
+    <div className={cn(
+      "bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 overflow-hidden",
+      isEmbedded ? "absolute inset-0 rounded-[3rem]" : "fixed inset-0"
+    )}>
+      <div className="bg-surface-1 border border-border-subtle rounded-2xl w-full max-w-3xl max-h-[90vh] sm:max-h-[70vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="p-3.5 px-5 border-b border-border-subtle flex items-center justify-between bg-surface-2/50 rounded-t-2xl shrink-0">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-primary" />
+            <h2 className="text-xs font-black text-main uppercase tracking-wider">
+              {pickerType ? `Select Standard ${pickerType}` : 'Library Resource Picker'}
+            </h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-surface-2 rounded-lg transition-colors text-ghost hover:text-main">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-1 hover:bg-surface-2 rounded-lg transition-colors text-ghost hover:text-main">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-4 bg-surface-base border-b border-border-subtle flex flex-col gap-4">
-          <div className="flex items-center gap-2 p-1 bg-surface-2 rounded-xl w-fit border border-border-subtle">
-            {(['all', 'material', 'labour', 'equipment', 'vehicle'] as ResourceTab[]).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider",
-                  activeTab === tab 
-                    ? "bg-primary text-surface-base shadow-lg" 
-                    : "text-ghost hover:text-main"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+        <div className="p-3 bg-surface-base border-b border-border-subtle flex flex-col gap-2.5 shrink-0">
+          <p className="text-[10px] text-ghost leading-none font-medium">
+            Choose a standard {pickerType ? pickerType : 'library'} item to add to your daily logger.
+          </p>
+
+          {!pickerType && (
+            <div className="flex items-center gap-2 p-1 bg-surface-2 rounded-xl w-fit border border-border-subtle">
+              {(['all', 'material', 'labour', 'equipment', 'vehicle'] as ResourceTab[]).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider",
+                    activeTab === tab 
+                      ? "bg-primary text-surface-base shadow-lg" 
+                      : "text-ghost hover:text-main"
+                  )}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ghost" />
             <input 
               type="text"
               placeholder="Search by name, code or category..."
-              className="w-full bg-surface-2 border border-border-subtle rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none focus:border-primary transition-all text-main shadow-inner"
+              className="w-full bg-surface-2 border border-border-subtle rounded-xl py-2 pl-9 pr-4 text-xs font-medium outline-none focus:border-primary transition-all text-main shadow-inner"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               autoFocus
