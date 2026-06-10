@@ -55,31 +55,47 @@ export async function recalculateBOQTreeProgress(projectId: string, supabase: an
 
     const clonedItems: BOQItem[] = JSON.parse(JSON.stringify(boqItems));
 
-    // Helper to find direct children of P in the cloned array
-    const getDirectChildren = (parent: BOQItem, allItems: BOQItem[]) => {
-      const parentNo = parent.item_no || '';
-      if (!parentNo) return [];
-      return allItems.filter(child => {
-        const childNo = child.item_no || '';
-        if (childNo === parentNo) return false;
-        if (!childNo.startsWith(parentNo + '.')) return false;
-        
-        // Ensure no intermediate node exists'
-        const intermediateExists = allItems.some(inter => {
-          const interNo = inter.item_no || '';
-          return interNo !== parentNo && interNo !== childNo &&
-                 childNo.startsWith(interNo + '.') && interNo.startsWith(parentNo + '.');
-        });
-        return !intermediateExists;
-      });
+    // Pre-build parent to children map for fast O(N) access
+    const parentMap = new Map<string, BOQItem[]>();
+    const itemNoSet = new Set(clonedItems.map(i => i.item_no).filter(Boolean));
+
+    clonedItems.forEach(item => {
+      const itemNo = item.item_no || '';
+      if (!itemNo) return;
+      
+      // Find the closest parent that exists in the list
+      let current = itemNo;
+      let foundParentNo = '';
+      while (true) {
+        const lastDot = current.lastIndexOf('.');
+        if (lastDot === -1) {
+          break;
+        }
+        const candidate = current.substring(0, lastDot);
+        if (itemNoSet.has(candidate)) {
+          foundParentNo = candidate;
+          break;
+        }
+        current = candidate;
+      }
+      
+      if (!parentMap.has(foundParentNo)) {
+        parentMap.set(foundParentNo, []);
+      }
+      parentMap.get(foundParentNo)!.push(item);
+    });
+
+    // Helper to find direct children of P in the cloned array in O(1)
+    const getDirectChildren = (parent: BOQItem) => {
+      return parentMap.get(parent.item_no || '') || [];
     };
 
     const computedNodeIds = new Set<string>();
     const memoAmount = new Map<string, number>();
 
-    const getNodeContractAmount = (n: BOQItem, allNodes: BOQItem[]): number => {
+    const getNodeContractAmount = (n: BOQItem): number => {
       if (memoAmount.has(n.id)) return memoAmount.get(n.id)!;
-      const children = getDirectChildren(n, allNodes);
+      const children = getDirectChildren(n);
       if (children.length === 0) {
         const amt = n.contract_amount || ((n.contract_qty || 0) * (n.contract_rate || 0)) || 0;
         memoAmount.set(n.id, amt);
@@ -87,19 +103,19 @@ export async function recalculateBOQTreeProgress(projectId: string, supabase: an
       }
       let total = 0;
       children.forEach(c => {
-        total += getNodeContractAmount(c, allNodes);
+        total += getNodeContractAmount(c);
       });
       memoAmount.set(n.id, total);
       return total;
     };
 
     // Recursive calculation function
-    const computeNodeProgress = (node: BOQItem, allNodes: BOQItem[]): { pct: number; status: string } => {
+    const computeNodeProgress = (node: BOQItem): { pct: number; status: string } => {
       if (computedNodeIds.has(node.id)) {
         return { pct: node.progress_pct || 0, status: node.status || 'draft' };
       }
 
-      const children = getDirectChildren(node, allNodes);
+      const children = getDirectChildren(node);
       if (children.length === 0) {
         // Leaf node: set actual_qty from sum of daily activities if logs exist, otherwise preserve existing actual_qty
         const hasLogs = qtyMap.has(node.id);
@@ -127,7 +143,7 @@ export async function recalculateBOQTreeProgress(projectId: string, supabase: an
 
       // Compute status & progress of direct children recursively first
       children.forEach(c => {
-        computeNodeProgress(c, allNodes);
+        computeNodeProgress(c);
       });
 
       // Parent node: calculate progress weighted by children's contract weight
@@ -136,7 +152,7 @@ export async function recalculateBOQTreeProgress(projectId: string, supabase: an
 
       const childrenData = children.map(child => {
         // Child is already calculated
-        const amount = getNodeContractAmount(child, allNodes);
+        const amount = getNodeContractAmount(child);
         totalContractAmount += amount;
         return { child, amount, pct: child.progress_pct || 0 };
       });
@@ -179,7 +195,7 @@ export async function recalculateBOQTreeProgress(projectId: string, supabase: an
 
     // Calculate progress for all nodes (starts with root but safer to compute on all to make sure we hit every node)
     clonedItems.forEach(node => {
-      computeNodeProgress(node, clonedItems);
+      computeNodeProgress(node);
     });
 
     // 3. Find items with changed progress_pct, actual_qty, or status
@@ -196,22 +212,40 @@ export async function recalculateBOQTreeProgress(projectId: string, supabase: an
     console.log(`[DEBUG] Recalculation complete. Updating ${updates.length} items in DB...`);
 
     if (updates.length > 0) {
-      await Promise.all(
-        updates.map(async item => {
-          const { error: updateErr } = await supabase
-            .from('boq_items')
-            .update({
-              progress_pct: item.progress_pct,
-              actual_qty: item.actual_qty,
-              status: item.status,
-            })
-            .eq('id', item.id);
-          
-          if (updateErr) {
-            console.error(`[ERROR] Failed to update BOQ item ${item.item_no}:`, updateErr);
-          }
-        })
-      );
+      console.log(`[DEBUG] Executing bulk update of ${updates.length} items via bulk_update_boq_items RPC...`);
+      const formattedUpdates = updates.map(item => ({
+        id: item.id,
+        progress_pct: item.progress_pct,
+        actual_qty: item.actual_qty,
+        status: item.status
+      }));
+
+      const { error: rpcErr } = await supabase.rpc('bulk_update_boq_items', {
+        p_updates: formattedUpdates
+      });
+
+      if (rpcErr) {
+        console.error('[ERROR] Failed to execute bulk_update_boq_items RPC. Attempting traditional parallel fallback writes...', rpcErr);
+        // Fallback to traditional parallel writes
+        await Promise.all(
+          updates.map(async item => {
+            const { error: updateErr } = await supabase
+              .from('boq_items')
+              .update({
+                progress_pct: item.progress_pct,
+                actual_qty: item.actual_qty,
+                status: item.status,
+              })
+              .eq('id', item.id);
+            
+            if (updateErr) {
+              console.error(`[ERROR] Fallback failed to update BOQ item ${item.item_no}:`, updateErr);
+            }
+          })
+        );
+      } else {
+        console.log('[DEBUG] Bulk update RPC completed successfully!');
+      }
     }
   } catch (err) {
     console.error('[ERROR] Unexpected in recalculateBOQTreeProgress:', err);

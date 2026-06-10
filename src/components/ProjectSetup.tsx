@@ -51,7 +51,7 @@ interface ProjectSetupProps {
   onDelete?: () => void;
 }
 
-type SetupTab = 'checklist' | 'parameters' | 'staff' | 'approvals';
+type SetupTab = 'checklist' | 'parameters';
 
 const DEFAULT_ASSETS_SOT = [
   {
@@ -506,8 +506,6 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
   useEffect(() => {
     loadTasks();
     if (activeTab === 'parameters') setEditData({ ...project });
-    if (activeTab === 'staff') loadStaff();
-    if (activeTab === 'approvals') loadApprovals();
   }, [project.id, activeTab]);
 
   const loadTasks = async () => {
@@ -2013,32 +2011,10 @@ export function ProjectSetup({ project, onCreateProject, onUpdate, onDelete }: P
           <Settings className="w-4 h-4" />
           Parameters
         </button>
-        <button 
-          onClick={() => setActiveTab('staff')}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
-            activeTab === 'staff' ? "bg-surface-2 text-warning shadow-sm" : "text-ghost hover:text-main"
-          )}
-        >
-          <Users className="w-4 h-4" />
-          Staff Assignments
-        </button>
-        <button 
-          onClick={() => setActiveTab('approvals')}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
-            activeTab === 'approvals' ? "bg-surface-2 text-primary shadow-sm" : "text-ghost hover:text-main"
-          )}
-        >
-          <GitBranch className="w-4 h-4" />
-          Approval Chains
-        </button>
       </div>
 
       {activeTab === 'checklist' && renderChecklist()}
       {activeTab === 'parameters' && renderParameters()}
-      {activeTab === 'staff' && renderStaff()}
-      {activeTab === 'approvals' && renderApprovals()}
 
       <AnimatePresence>
         {showDeleteModal && (

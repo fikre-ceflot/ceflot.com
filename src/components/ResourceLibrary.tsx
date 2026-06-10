@@ -588,7 +588,7 @@ export function ResourceLibrary({ userRole, tenantId, isGodMode }: ResourceLibra
 
     if (activeTab === 'material') {
       await exportMaterialList('Project Resources', resources);
-      setNotification({ type: 'success', message: 'Exported material list with SUNSHINE format.' });
+      setNotification({ type: 'success', message: 'Exported material list with corporate layout.' });
       return;
     }
 

@@ -337,10 +337,15 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
         isPlatformGod
       };
 
+      // Fetch user's Supabase JWT securely and place it in authorization header
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           message: userMsg,

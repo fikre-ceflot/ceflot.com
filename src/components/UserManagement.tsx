@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { 
   UserPlus, 
+  UserCheck,
   Mail, 
   Shield, 
   Trash2, 
@@ -159,8 +160,22 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
 
   useEffect(() => {
     loadUsers();
-    const activeStrategy = (localStorage.getItem(`permission_strategy_${tenantId}`) || 'role') as 'role' | 'user';
-    setStrategy(activeStrategy);
+    
+    // Fetch permission strategy securely from tenants table
+    const fetchStrat = async () => {
+      try {
+        const { data } = await supabase.from('tenants')
+          .select('permission_strategy')
+          .eq('id', tenantId)
+          .single();
+        const activeStrategy = (data?.permission_strategy || 'role') as 'role' | 'user';
+        setStrategy(activeStrategy);
+      } catch (err) {
+        console.warn('Could not read permission_strategy from tenants, using role defaults.');
+        setStrategy('role');
+      }
+    };
+    fetchStrat();
 
     // Load projects for user assignment
     supabase.from('projects')
@@ -178,7 +193,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
     if (editingUser) {
       loadUserCaps(editingUser.id);
       
-      const savedStrategy = (localStorage.getItem(`permission_strategy_${editingUser.id}`) || 'role') as 'role' | 'user';
+      const savedStrategy = ((editingUser as any).permission_strategy || 'role') as 'role' | 'user';
       setEditingStrategy(savedStrategy);
 
       // Load project assignment boundary
@@ -240,13 +255,24 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('user_profiles')
-        .select('id, email, full_name, role, tenant_id, is_platform_god, is_active, created_at, updated_at')
+        .select('id, email, full_name, role, tenant_id, is_platform_god, is_active, permission_strategy')
         .eq('tenant_id', tenantId)
         .order('full_name');
 
-      if (error) throw error;
+      if (error && (error.message?.includes('permission_strategy') || error.message?.includes('does not exist'))) {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('user_profiles')
+          .select('id, email, full_name, role, tenant_id, is_platform_god, is_active, created_at, updated_at')
+          .eq('tenant_id', tenantId)
+          .order('full_name');
+        if (fallbackError) throw fallbackError;
+        data = fallbackData as any;
+      } else if (error) {
+        throw error;
+      }
+
       setUsers(data || []);
     } catch (e: any) {
       console.error('Error loading users:', e.message);
@@ -264,20 +290,17 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
 
       if (error) {
         if (error.message?.includes('schema cache') || error.message?.includes('does not exist')) {
-          console.warn('User capabilities table not found in Supabase schema. Loading from localStorage fallback.');
-          const fallbackStr = localStorage.getItem(`user_caps_fallback_${userId}`);
-          setUserCaps(fallbackStr ? JSON.parse(fallbackStr) : []);
+          console.warn('User capabilities table not found in Supabase schema.');
+          setUserCaps([]);
           return;
         }
         throw error;
       }
       const caps = data?.map(c => c.capability as string) || [];
       setUserCaps(caps);
-      localStorage.setItem(`user_caps_fallback_${userId}`, JSON.stringify(caps));
     } catch (e: any) {
-      console.warn('Handling load user capabilities fallback due to error:', e.message);
-      const fallbackStr = localStorage.getItem(`user_caps_fallback_${userId}`);
-      setUserCaps(fallbackStr ? JSON.parse(fallbackStr) : []);
+      console.warn('Handling load user capabilities error:', e.message);
+      setUserCaps([]);
     }
   };
 
@@ -288,20 +311,35 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      // Try to save full profile with permission_strategy
+      let { error } = await supabase
         .from('user_profiles')
         .update({
           full_name: editingUser.full_name,
           role: editingUser.role,
-          is_active: editingUser.is_active
+          is_active: editingUser.is_active,
+          permission_strategy: editingStrategy
         })
         .eq('id', editingUser.id);
 
-      if (error) throw error;
+      if (error && (error.message?.includes('permission_strategy') || error.message?.includes('does not exist'))) {
+        // Fallback: save without the permission_strategy column
+        const { error: fallbackErr } = await supabase
+          .from('user_profiles')
+          .update({
+            full_name: editingUser.full_name,
+            role: editingUser.role,
+            is_active: editingUser.is_active
+          })
+          .eq('id', editingUser.id);
+        if (fallbackErr) throw fallbackErr;
+      } else if (error) {
+        throw error;
+      }
       
       // Save project assignments
       localStorage.setItem(`user_project_assignments_${editingUser.id}`, JSON.stringify(userProjects));
-      localStorage.setItem(`permission_strategy_${editingUser.id}`, editingStrategy);
+      // permission_strategy is persisted in database and is the sole authority
       window.dispatchEvent(new Event('project-assignments-updated'));
       
       // If permission strategy is 'user', we might want to save capabilities too
@@ -390,8 +428,6 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
       ? userCaps.filter(id => id !== capId) 
       : [...userCaps, capId];
 
-    // Always update localStorage first for instantaneous response and resilience
-    localStorage.setItem(`user_caps_fallback_${editingUser.id}`, JSON.stringify(updatedCaps));
     setUserCaps(updatedCaps);
 
     try {
@@ -957,7 +993,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
           userObj = users.find(u => u.id === uid) || null;
           if (userObj) {
             r = userObj.role as Role;
-            strat = localStorage.getItem(`permission_strategy_${userObj.id}`) || 'role';
+            strat = (userObj as any).permission_strategy || 'role';
           }
         } else {
           r = selectedPreviewUserOrRole.substring(5) as Role;
@@ -965,17 +1001,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
 
         let caps = new Set<string>();
         if (userObj && strat === 'user') {
-          const saved = localStorage.getItem(`user_caps_fallback_${userObj.id}`);
-          if (saved) {
-            try {
-              const parsed = JSON.parse(saved);
-              caps = new Set<string>(parsed);
-            } catch {
-              caps = new Set<string>(DEFAULT_ROLE_CAPABILITIES[r] || []);
-            }
-          } else {
-            caps = new Set<string>(DEFAULT_ROLE_CAPABILITIES[r] || []);
-          }
+          caps = new Set<string>(DEFAULT_ROLE_CAPABILITIES[r] || []);
         } else {
           caps = new Set<string>(DEFAULT_ROLE_CAPABILITIES[r] || []);
         }
@@ -1011,10 +1037,13 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
           { section: 'INSIGHTS', id: 'client-portal', label: 'Client view', icon: Globe, capability: 'client:view' },
 
           { section: 'PLANNING', id: 'project-setup', label: 'Project setup', icon: CheckCircle, capability: 'proj:view_all' },
+          { section: 'PLANNING', id: 'staff-assignment', label: 'Staff Assignment', icon: UserCheck, capability: null },
+          { section: 'PLANNING', id: 'approval-chains', label: 'Approval Chains', icon: GitBranch, capability: null },
           { section: 'PLANNING', id: 'governance',    label: 'Governance & SoT', icon: ShieldCheck, capability: 'boq:manage_baseline' },
           { section: 'PLANNING', id: 'planning',   label: 'BoQ',  icon: Calendar, capability: 'boq:view_recipes' },
           { section: 'PLANNING', id: 'schedule',   label: 'Schedule',  icon: Clock, capability: 'plan:view' },
           { section: 'PLANNING', id: 'variations',     label: 'Contract claims',     icon: GitBranch, capability: 'fin:var_view' },
+          { section: 'PLANNING', id: 'takeoff',        label: 'Takeoff Sheets',      icon: Calculator, capability: 'plan:view' },
           { section: 'PLANNING', id: 'budget',    label: 'Cost & budget', icon: Calculator, capability: 'fin:view_budget' },
 
           { section: 'EXECUTION', id: 'operations-hub', label: 'Operations', icon: Activity, capability: 'daily:view_project' },
@@ -1065,13 +1094,13 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
           }
           
           // Project Setup Card
-          if (activeId === 'project-setup' || activeId === 'governance') {
-            return [...base, 'project-setup', 'governance'];
+          if (activeId === 'project-setup' || activeId === 'staff-assignment' || activeId === 'approval-chains' || activeId === 'governance') {
+            return [...base, 'project-setup', 'staff-assignment', 'approval-chains', 'governance'];
           }
           
           // Project Planning Card
-          if (activeId === 'planning' || activeId === 'schedule' || activeId === 'budget') {
-            return [...base, 'planning', 'schedule', 'budget'];
+          if (activeId === 'planning' || activeId === 'schedule' || activeId === 'budget' || activeId === 'takeoff') {
+            return [...base, 'planning', 'schedule', 'budget', 'takeoff'];
           }
           
           // Operations Control Card
@@ -1189,7 +1218,7 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                   {users.length > 0 && (
                     <optgroup label="Live Corporate Profiles (Dynamic Overrides)" className="bg-surface-1 font-bold text-ghost text-[10px]">
                       {users.map(u => {
-                        const strat = localStorage.getItem(`permission_strategy_${u.id}`) || 'role';
+                        const strat = (u as any).permission_strategy || 'role';
                         return (
                           <option key={u.id} value={`user:${u.id}`} className="font-sans text-xs text-main">
                             Profile: {u.full_name} ({u.role.replace(/_/g, ' ')}) {strat === 'user' ? ' [Bespoke]' : ''}
@@ -1458,6 +1487,72 @@ export function UserManagement({ tenantId, currentUserRole }: UserManagementProp
                                   </span>
                                 </div>
                               ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {activePreviewModule === 'staff-assignment' && (
+                        <div className="space-y-4 text-left font-sans">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-dim">
+                              Map company team members into operational project positions:
+                            </p>
+                            <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
+                              ✓ ACCESS GRANTED
+                            </span>
+                          </div>
+
+                          <div className="bg-surface-1 border border-border-subtle rounded-xl p-4 space-y-3">
+                            <div className="text-main text-xs font-bold uppercase tracking-wider pb-1 border-b border-border-subtle flex justify-between">
+                              <span>Active Team roster</span>
+                              <span className="text-[9px] text-ghost font-mono">Company Personnel</span>
+                            </div>
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between items-center bg-surface-2 p-2 rounded border border-border-subtle/40">
+                                <span className="font-bold text-main">Wanjiku Kamau</span>
+                                <span className="text-[10px] bg-accent/10 text-accent font-bold px-2 py-0.5 rounded">Project Manager</span>
+                              </div>
+                              <div className="flex justify-between items-center bg-surface-2 p-2 rounded border border-border-subtle/40">
+                                <span className="font-bold text-main">Moses Ochieng</span>
+                                <span className="text-[10px] bg-accent/10 text-accent font-bold px-2 py-0.5 rounded">Quantity Surveyor (QS)</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {activePreviewModule === 'approval-chains' && (
+                        <div className="space-y-4 text-left font-sans">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-dim">
+                              Configure multi-tier hierarchical sign-off pathways for procurement and operations:
+                            </p>
+                            <span className="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider border border-primary/20">
+                              ✓ ACCESS GRANTED
+                            </span>
+                          </div>
+
+                          <div className="bg-surface-1 border border-border-subtle rounded-xl p-4 space-y-3">
+                            <div className="text-main text-xs font-bold uppercase tracking-wider pb-1 border-b border-border-subtle flex justify-between">
+                              <span>Configured Validation Rules</span>
+                              <span className="text-[9px] text-ghost font-mono">Sign-off Pipelines</span>
+                            </div>
+                            <div className="space-y-2 text-xs">
+                              <div className="bg-surface-2 p-2.5 rounded border border-border-subtle/40 flex justify-between items-center">
+                                <div>
+                                  <span className="font-bold text-main block">Nairobi Standard PO Chain</span>
+                                  <span className="text-[9px] text-dim">Purchase Order Verification</span>
+                                </div>
+                                <span className="text-[9px] font-mono bg-primary/5 text-primary border border-primary/20 px-2 py-0.5 rounded">3 Stages</span>
+                              </div>
+                              <div className="bg-surface-2 p-2.5 rounded border border-border-subtle/40 flex justify-between items-center">
+                                <div>
+                                  <span className="font-bold text-main block">Payment Certificate Two-Tier</span>
+                                  <span className="text-[9px] text-dim">Contracts & Interim Valuations</span>
+                                </div>
+                                <span className="text-[9px] font-mono bg-primary/5 text-primary border border-primary/20 px-2 py-0.5 rounded">2 Stages</span>
+                              </div>
                             </div>
                           </div>
                         </div>

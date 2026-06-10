@@ -83,29 +83,19 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
   const loadApprovalChains = async () => {
     if (!project?.id) return;
     try {
-      // 1. Initial load from local memory/localStorage
-      const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
-      let localChains = localChainsStr ? JSON.parse(localChainsStr) : [];
-
-      // 2. Load from Supabase (using corrected 'approval_chains' table name)
+      // 1. Load from Supabase (using corrected 'approval_chains' table name)
       const { data, error } = await supabase
         .from('approval_chains')
         .select('*')
         .eq('project_id', project.id)
         .order('created_at', { ascending: true });
       
-      if (!error && data && data.length > 0) {
-        // Merge DB data into localChains cleanly
-        const merged = [...localChains];
-        data.forEach((dbItem: any) => {
-          if (!merged.some(m => m.id === dbItem.id)) {
-            merged.push(dbItem);
-          }
-        });
-        localChains = merged;
-        localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(localChains));
+      if (error) throw error;
+
+      if (data) {
+        setApprovalChains(data);
+        localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(data));
       }
-      setApprovalChains(localChains);
     } catch (e: any) {
       console.warn('Supabase query error for approval_chains, using local storage fallback:', e);
       const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
@@ -160,15 +150,9 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
       created_at: new Date().toISOString()
     };
 
-    // Save locally
-    const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
-    const localChains = localChainsStr ? JSON.parse(localChainsStr) : [];
-    localChains.push(clonedChain);
-    localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(localChains));
-
-    // Try Supabase best effort
     try {
-      await supabase
+      // DB operation first
+      const { error } = await supabase
         .from('approval_chains')
         .insert({
           id: chainId,
@@ -178,24 +162,59 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
           project_id: project.id,
           tenant_id: project.tenant_id || tenantId
         });
-    } catch (e) {
-      console.warn("Supabase clone error", e);
-    }
+      
+      if (error) {
+        throw new Error(`Database error: ${error.message}`);
+      }
 
-    loadApprovalChains();
-    alert(`Successfully cloned standard blueprint: "${tpl.chain_name}" into your project's active approval chains!`);
+      // Save locally only after DB success
+      const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
+      const localChains = localChainsStr ? JSON.parse(localChainsStr) : [];
+      localChains.push(clonedChain);
+      localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(localChains));
+
+      await loadApprovalChains();
+      alert(`Successfully cloned standard blueprint: "${tpl.chain_name}" into your project's active approval chains!`);
+    } catch (e: any) {
+      console.error(e);
+      alert('Error cloning blueprint template. Database Write is the sole authority. Action blocked: ' + e.message);
+    }
   };
 
   const handleSaveApprovalChain = async (chainData: any) => {
     if (!project?.id) return;
     try {
+      const newId = editingChain ? editingChain.id : (chainData.id || 'chain_' + Math.random().toString(36).substr(2, 9));
+
+      // Perform database operation FIRST
+      if (editingChain) {
+        const { error } = await supabase
+          .from('approval_chains')
+          .update(chainData)
+          .eq('id', editingChain.id);
+        if (error) {
+          throw new Error(`Database error: ${error.message}`);
+        }
+      } else {
+        const { error } = await supabase
+          .from('approval_chains')
+          .insert({
+            id: newId,
+            ...chainData,
+            project_id: project.id,
+            tenant_id: project.tenant_id || tenantId
+          });
+        if (error) {
+          throw new Error(`Database error: ${error.message}`);
+        }
+      }
+
+      // Synchronize cache only after DB success
       const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
       let localChains = localChainsStr ? JSON.parse(localChainsStr) : [];
-
       if (editingChain) {
         localChains = localChains.map((c: any) => c.id === editingChain.id ? { ...c, ...chainData } : c);
       } else {
-        const newId = chainData.id || 'chain_' + Math.random().toString(36).substr(2, 9);
         localChains.push({
           id: newId,
           project_id: project.id,
@@ -206,31 +225,12 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
       }
       localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(localChains));
 
-      // Sync to Supabase
-      try {
-        if (editingChain) {
-          await supabase
-            .from('approval_chains')
-            .update(chainData)
-            .eq('id', editingChain.id);
-        } else {
-          await supabase
-            .from('approval_chains')
-            .insert({
-              ...chainData,
-              project_id: project.id,
-              tenant_id: project.tenant_id || tenantId
-            });
-        }
-      } catch (dbErr) {
-        console.warn("Supabase save chain failed:", dbErr);
-      }
-
       setShowApprovalModal(false);
       setEditingChain(null);
-      loadApprovalChains();
+      await loadApprovalChains();
     } catch (e: any) {
-      alert('Error saving workflow pathway: ' + e.message);
+      console.error(e);
+      alert('Error saving workflow pathway. Database Write is the sole authority. Action blocked: ' + e.message);
     }
   };
 
@@ -238,6 +238,16 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
     if (!window.confirm('Are you sure you want to delete this approval chain?')) return;
     if (!project?.id) return;
     try {
+      // DB action first
+      const { error } = await supabase
+        .from('approval_chains')
+        .delete()
+        .eq('id', id);
+      if (error) {
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      // Synchronize cache only after DB success
       const localChainsStr = localStorage.getItem(`local_approval_chains_${project.id}`);
       if (localChainsStr) {
         const localChains = JSON.parse(localChainsStr);
@@ -245,18 +255,10 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
         localStorage.setItem(`local_approval_chains_${project.id}`, JSON.stringify(filtered));
       }
 
-      try {
-        await supabase
-          .from('approval_chains')
-          .delete()
-          .eq('id', id);
-      } catch (dbErr) {
-        console.warn("Supabase delete chain failed:", dbErr);
-      }
-
-      loadApprovalChains();
+      await loadApprovalChains();
     } catch (e: any) {
-      alert('Error deleting approval chain: ' + e.message);
+      console.error(e);
+      alert('Error deleting approval chain. Database Write is the sole authority. Action blocked: ' + e.message);
     }
   };
 
@@ -388,26 +390,10 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
         alert('Validation request has been officially rejected. Modality draft remains open for edits.');
       }
 
-      // Update local storage
-      const localReqsStr = localStorage.getItem(`local_approvals_${project?.id || 'global'}`);
-      const localRequests = localReqsStr ? JSON.parse(localReqsStr) : [];
-      const updatedLocal = localRequests.map((r: any) => {
-        if (r.id === req.id) {
-          return {
-            ...r,
-            status: finalStatus,
-            current_step_index: nextStepIdx,
-            signatures: updatedSignatures,
-            decided_at: finalStatus !== 'pending' ? new Date().toISOString() : null
-          };
-        }
-        return r;
-      });
-      localStorage.setItem(`local_approvals_${project?.id || 'global'}`, JSON.stringify(updatedLocal));
-
-      // Try update in Supabase best effort
+      // Perform database update FIRST
+      let dbSucceeded = false;
       try {
-        await supabase
+        const { error: dbErr } = await supabase
           .from('approvals')
           .update({ 
             status: finalStatus,
@@ -417,14 +403,49 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
           })
           .eq('id', req.id);
 
-        if (req.type === 'budget' && finalStatus !== 'pending') {
-          await supabase
+        if (dbErr) {
+          if (dbErr.message?.includes('approvals') || dbErr.message?.includes('does not exist')) {
+            console.warn('Approvals table does not exist in Supabase yet. Proceeding with client-only fallback.');
+            dbSucceeded = true;
+          } else {
+            throw new Error(`Database transaction failed: ${dbErr.message}`);
+          }
+        } else {
+          dbSucceeded = true;
+        }
+
+        if (dbSucceeded && req.type === 'budget' && finalStatus !== 'pending') {
+          const { error: projErr } = await supabase
             .from('projects')
             .update({ budget_status: finalStatus })
             .eq('id', req.project_id);
+          if (projErr && !projErr.message?.includes('projects') && !projErr.message?.includes('does not exist')) {
+            console.warn('Project budget status update failed:', projErr.message);
+          }
         }
-      } catch (dbErr) {
-        console.warn("Supabase update error", dbErr);
+      } catch (dbErr: any) {
+        console.error("Database connection failure on approval write:", dbErr);
+        alert(`Enterprise Warning: Approval could not be synced. Database Write Path is the supreme authority. Local progression was blocked.\nDetails: ${dbErr.message}`);
+        return; // BLOCK LOCAL PROGRESSION!
+      }
+
+      // Update local storage ONLY after supreme database confirmation or graceful fallback confirmation
+      if (dbSucceeded) {
+        const localReqsStr = localStorage.getItem(`local_approvals_${project?.id || 'global'}`);
+        const localRequests = localReqsStr ? JSON.parse(localReqsStr) : [];
+        const updatedLocal = localRequests.map((r: any) => {
+          if (r.id === req.id) {
+            return {
+              ...r,
+              status: finalStatus,
+              current_step_index: nextStepIdx,
+              signatures: updatedSignatures,
+              decided_at: finalStatus !== 'pending' ? new Date().toISOString() : null
+            };
+          }
+          return r;
+        });
+        localStorage.setItem(`local_approvals_${project?.id || 'global'}`, JSON.stringify(updatedLocal));
       }
 
       loadRequests();
@@ -433,7 +454,7 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
     }
   };
 
-  const handleCreateRequest = () => {
+  const handleCreateRequest = async () => {
     if (!newTitle.trim()) {
       alert('A descriptive request title is required.');
       return;
@@ -458,19 +479,14 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
       decided_at: null
     };
 
-    // Save locally
-    const localReqsStr = localStorage.getItem(`local_approvals_${project?.id || 'global'}`);
-    const localRequests = localReqsStr ? JSON.parse(localReqsStr) : [];
-    localRequests.push(newReq);
-    localStorage.setItem(`local_approvals_${project?.id || 'global'}`, JSON.stringify(localRequests));
-
-    // Try Supabase best effort
+    // Perform database insertion FIRST
+    let dbSucceeded = false;
     try {
-      supabase
+      const { error: dbErr } = await supabase
         .from('approvals')
         .insert({
           id: reqId,
-          project_id: project?.id,
+          project_id: project?.id || null,
           tenant_id: tenantId,
           title: newTitle,
           type: newType,
@@ -480,11 +496,30 @@ export function Approvals({ tenantId, userRole, project }: ApprovalsProps) {
           current_step_index: 0,
           chain_id: selectedChainId || null,
           signatures: []
-        }).then(({ error }) => {
-          if (error) console.warn("Supabase insert approval warning", error);
         });
-    } catch (e) {
-      console.warn("Supabase insert approval error", e);
+
+      if (dbErr) {
+        if (dbErr.message?.includes('approvals') || dbErr.message?.includes('does not exist')) {
+          console.warn('Approvals table does not exist in Supabase yet. Proceeding with client-only fallback.');
+          dbSucceeded = true;
+        } else {
+          throw new Error(`Database transaction failed: ${dbErr.message}`);
+        }
+      } else {
+        dbSucceeded = true;
+      }
+    } catch (e: any) {
+      console.error("Database connection failure on request creation path:", e);
+      alert(`Enterprise Warning: Verification request could not be synced. Database Write Path is the supreme authority. Local progression was blocked.\nDetails: ${e.message}`);
+      return; // BLOCK PROGRESSION!
+    }
+
+    if (dbSucceeded) {
+      // Save locally only after DB confirmation or graceful DB-not-instantiated fallback
+      const localReqsStr = localStorage.getItem(`local_approvals_${project?.id || 'global'}`);
+      const localRequests = localReqsStr ? JSON.parse(localReqsStr) : [];
+      localRequests.push(newReq);
+      localStorage.setItem(`local_approvals_${project?.id || 'global'}`, JSON.stringify(localRequests));
     }
 
     setShowSubmitModal(false);

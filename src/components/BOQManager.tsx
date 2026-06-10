@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { BOQItem, Project } from '../types';
 import { GoogleGenAI, Type } from "@google/genai";
+import { TakeoffSheeter } from './TakeoffSheeter';
 import { 
   Search, 
   Filter, 
@@ -27,7 +28,8 @@ import {
   Minimize2,
   SlidersHorizontal,
   CheckSquare,
-  Square
+  Square,
+  Calculator
 } from 'lucide-react';
 import { cn, isValidUUID, cleanRichText } from '../lib/utils';
 import { RecipePanel } from './RecipePanel';
@@ -56,6 +58,7 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dependencies, setDependencies] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<BOQItem | null>(null);
+  const [activeTakeoffBOQItem, setActiveTakeoffBOQItem] = useState<BOQItem | null>(null);
   const [editingQty, setEditingQty] = useState<{ id: string, value: string } | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
@@ -217,16 +220,34 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
         };
       });
 
-      // Update one by one to handle potential individual errors
+      // Update one by one to handle potential individual errors and verify optimistic concurrency
       for (const update of updates) {
         const { id, ...data } = update;
-        const { error } = await supabase
+        const originalItem = items.find(i => i.id === id);
+        
+        let query = supabase
           .from('boq_items')
           .update(data)
           .eq('id', id)
           .eq('tenant_id', tenantId);
+
+        // Apply optimistic concurrency guard if item contains an updated_at timestamp
+        if (originalItem && originalItem.created_at) {
+          // If the record was modified by another coordinator since load, the update will match 0 rows
+          const lastKnownTime = (originalItem as any).updated_at || originalItem.created_at;
+          if (lastKnownTime) {
+            query = query.or(`updated_at.eq.${lastKnownTime},updated_at.is.null`);
+          }
+        }
+
+        const { data: updatedRows, error } = await query.select('id');
         
         if (error) throw error;
+        
+        // If query succeeded but 0 rows were updated, a concurrency conflict happened
+        if (originalItem && (!updatedRows || updatedRows.length === 0)) {
+          throw new Error(`Optimistic Concurrency Conflict: BOQ Item "${originalItem.item_no || 'Ref'}" has been updated by another operator since you loaded it. Please refresh the page to load their changes before editing.`);
+        }
       }
 
       setDrafts({});
@@ -905,14 +926,21 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
     // Sort items by item_no naturally (1.1, 1.1.1, 1.2, etc)
     const sortedFiltered = [...filteredItems].sort((a, b) => sortItemNo(a.item_no, b.item_no));
 
-    // Pre-calculate children to avoid O(n^2) during render
-    const itemWithChildren = sortedFiltered.map((item, idx) => {
-      const hasChildren = sortedFiltered.some((child, cIdx) => 
-        cIdx > idx && 
-        child.item_no && 
-        item.item_no && 
-        child.item_no.startsWith(item.item_no + ".")
-      );
+    // Precompute parent path segments representation in linear time O(N * depth)
+    const parentPathsSet = new Set<string>();
+    sortedFiltered.forEach(item => {
+      if (item.item_no) {
+        const parts = item.item_no.split('.');
+        // Add ancestors e.g. "1.1.2" ancestors are "1", "1.1"
+        for (let i = 1; i < parts.length; i++) {
+          parentPathsSet.add(parts.slice(0, i).join('.'));
+        }
+      }
+    });
+
+    // Determine hasChildren with an O(1) lookup
+    const itemWithChildren = sortedFiltered.map((item) => {
+      const hasChildren = item.item_no ? parentPathsSet.has(item.item_no) : false;
       return { ...item, hasChildren };
     });
 
@@ -946,7 +974,7 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
       }));
 
       await exportMaterialList(project.name, exportItems);
-      setNotification({ type: 'success', message: 'BOQ exported successfully in SUNSHINE format.' });
+      setNotification({ type: 'success', message: 'BOQ exported successfully with corporate layout.' });
     } catch (err: any) {
       console.error('Export error:', err);
       setNotification({ type: 'error', message: 'Failed to export: ' + err.message });
@@ -967,7 +995,7 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
             <h1 className="text-lg font-semibold tracking-tight text-main -ml-0.5">{project.name}</h1>
             <div className="flex items-center gap-3 mt-1.5">
               <div className="flex items-center gap-2 text-[10px] font-medium text-ghost">
-                <span className="text-primary font-semibold uppercase tracking-wider">BOQ Dashboard</span>
+                <span className="text-primary font-semibold uppercase tracking-wider font-sans">BOQ Dashboard</span>
                 <span className="w-1 h-1 rounded-full bg-border-subtle" />
                 <span className="px-1.5 py-0.25 rounded bg-surface-2 border border-border-subtle opacity-80">{items.length} Items</span>
               </div>
@@ -1038,6 +1066,8 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
           </div>
         </header>
       )}
+
+
 
         <div className={cn(
           "bg-surface-1 border border-border-subtle rounded-xl flex flex-col transition-all",
@@ -1750,14 +1780,26 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
                                       />
                                     </div>
                                   ) : (
-                                    <div 
-                                      className="cursor-pointer hover:underline decoration-dotted"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingQty({ id: item.id, value: (item.surveyed_qty || 0).toString() });
-                                      }}
-                                    >
-                                      {(item.surveyed_qty || 0).toLocaleString()}
+                                    <div className="flex items-center justify-end gap-2 group/qty">
+                                      <div 
+                                        className="cursor-pointer hover:underline decoration-dotted text-right grow truncate"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingQty({ id: item.id, value: (item.surveyed_qty || 0).toString() });
+                                        }}
+                                      >
+                                        {(item.surveyed_qty || 0).toLocaleString()}
+                                      </div>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveTakeoffBOQItem(item);
+                                        }}
+                                        title="Open Quantity Takeoff Sheet"
+                                        className="p-1 hover:bg-warning/20 text-ghost hover:text-warning rounded transition-colors flex items-center justify-center shrink-0"
+                                      >
+                                        <Calculator className="w-3.5 h-3.5" />
+                                      </button>
                                     </div>
                                   )
                                 )}
@@ -2366,6 +2408,17 @@ export function BOQManager({ project, userRole, tenantId }: BOQManagerProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTakeoffBOQItem && (
+        <TakeoffSheeter
+          boqItem={activeTakeoffBOQItem}
+          onClose={() => setActiveTakeoffBOQItem(null)}
+          onSave={(totalQty) => {
+            setItems(items.map(item => item.id === activeTakeoffBOQItem.id ? { ...item, surveyed_qty: totalQty } : item));
+            setActiveTakeoffBOQItem(null);
+          }}
+        />
       )}
 
       {notification && (

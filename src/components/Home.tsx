@@ -131,8 +131,8 @@ const MODULE_GROUPS = [
     title: 'Project',
     description: 'Execution and Planning',
     modules: [
-      { id: 'project-setup', title: 'Project Setup', description: 'Checklists and initialization tasks', icon: CheckCircle, color: 'text-primary', subTools: ['Initialization', 'Team Setup', 'Governance & SoT'], capability: 'proj:set_checklists' as Capability },
-      { id: 'planning', title: 'Project Planning', description: 'BOQ, scheduling and budget build-up', icon: Calendar, color: 'text-warning', subTools: ['BOQ Builder', 'Schedule', 'Budgeting'], capability: 'plan:view' as Capability },
+      { id: 'project-setup', title: 'Project Setup', description: 'Checklists and initialization tasks', icon: CheckCircle, color: 'text-primary', subTools: ['Initialization', 'Staff Assignment', 'Approval Chains', 'Governance & SoT'], capability: 'proj:set_checklists' as Capability },
+      { id: 'planning', title: 'Project Planning', description: 'BOQ, scheduling and budget build-up', icon: Calendar, color: 'text-warning', subTools: ['BOQ Builder', 'Schedule', 'Budgeting', 'Takeoff Sheets'], capability: 'plan:view' as Capability },
       { id: 'operations-hub', title: 'Operations Control', description: 'Progress, EVM, Financials & Site Execution', icon: Activity, color: 'text-accent', subTools: ['Site App', 'Earned Value', 'Financial Health'], capability: 'daily:view_project' as Capability },
     ]
   },
@@ -199,11 +199,14 @@ const SUBTOOL_MAPPING: Record<string, string> = {
   'Corporate Support': 'help',
   'FAQ Guidebook': 'guide',
   'Initialization': 'project-setup',
-  'Team Setup': 'project-setup',
+  'Staff Assignment': 'staff-assignment',
+  'Approval Chains': 'approval-chains',
+  'Team Setup': 'staff-assignment',
   'Governance & SoT': 'governance',
   'BOQ Builder': 'planning',
   'Schedule': 'schedule',
   'Budgeting': 'budget',
+  'Takeoff Sheets': 'takeoff',
   'Site App': 'field-app',
   'Earned Value': 'operations-hub',
   'Financial Health': 'operations-hub',
@@ -1696,11 +1699,12 @@ export function Home({
                                 {module.description}
                               </p>
                               <div className={cn(
-                                "grid grid-cols-3 gap-1 lg:gap-1.5 transition-all duration-500 mt-2 lg:mt-0",
+                                "grid gap-1 lg:gap-1.5 transition-all duration-500 mt-2 lg:mt-0",
+                                module.subTools && module.subTools.length === 4 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3",
                                 "lg:absolute lg:inset-0",
                                 hoveredModule === module.id ? "opacity-100 translate-y-0" : "lg:opacity-0 lg:translate-y-2 lg:pointer-events-none"
                               )}>
-                                {module.subTools?.slice(0, 3).map((tool, i) => (
+                                {module.subTools?.slice(0, 4).map((tool, i) => (
                                   <button 
                                     key={i}
                                     onClick={(e) => {

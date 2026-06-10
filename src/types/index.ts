@@ -119,3 +119,46 @@ export interface TaskDependency {
   link_type: 'FS' | 'SS' | 'FF' | 'SF';
   lag_days: number;
 }
+
+export interface TakeoffEntry {
+  id: string;
+  assignment_id: string; // references SubcontractorAssignment.id
+  no_of: number;
+  no_in_mem: number;
+  l?: number | null;
+  w?: number | null;
+  d?: number | null;
+  qty: number;
+  description: string;
+  created_at?: string;
+}
+
+export interface RebarTakeoffEntry {
+  id: string;
+  assignment_id: string;
+  location: string;
+  shape_a?: number | null;
+  shape_b?: number | null;
+  shape_c?: number | null;
+  shape_type: "hook" | "straight" | "stirrup" | "cranked" | "other";
+  diameter: number; // 6, 8, 10, 12, 14, 16, 20, 24, 32
+  length: number;
+  no_of_bars: number;
+  no_of_members: number;
+  total_no_of_bars: number;
+  qty_kg: number;
+  created_at?: string;
+}
+
+export interface CountableTakeoffEntry {
+  id: string;
+  assignment_id: string;
+  location: string;
+  size_name?: string;
+  length: number; // e.g. section length, window sill length
+  count: number;  // multiplier
+  total_qty: number; // length * count
+  created_at?: string;
+}
+
+

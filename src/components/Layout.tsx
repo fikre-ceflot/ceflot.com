@@ -36,7 +36,8 @@ import {
   Moon,
   AlertTriangle,
   AlertCircle,
-  Info
+  Info,
+  UserCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -71,10 +72,13 @@ const NAV_ITEMS: { section: string; id: string; label: string; icon: any; capabi
   { section: 'INSIGHTS', id: 'client-portal', label: 'Client view', icon: Globe, capability: 'client:view' },
 
   { section: 'PLANNING', id: 'project-setup', label: 'Project setup', icon: CheckCircle, capability: null },
+  { section: 'PLANNING', id: 'staff-assignment', label: 'Staff Assignment', icon: UserCheck, capability: null },
+  { section: 'PLANNING', id: 'approval-chains', label: 'Approval Chains', icon: GitBranch, capability: null },
   { section: 'PLANNING', id: 'governance',    label: 'Governance & SoT', icon: ShieldCheck, capability: 'boq:manage_baseline' },
   { section: 'PLANNING', id: 'planning',   label: 'BoQ',  icon: Calendar, capability: 'boq:view_recipes' },
   { section: 'PLANNING', id: 'schedule',   label: 'Schedule',  icon: Clock, capability: 'plan:view' },
   { section: 'PLANNING', id: 'variations',     label: 'Contract claims',     icon: GitBranch, capability: 'fin:var_view' },
+  { section: 'PLANNING', id: 'takeoff',        label: 'Takeoff Sheets',      icon: Calculator, capability: 'plan:view' },
   { section: 'PLANNING', id: 'budget',    label: 'Cost & budget', icon: Calculator, capability: 'fin:view_budget' },
 
   { section: 'EXECUTION', id: 'operations-hub', label: 'Operations', icon: Activity, capability: 'daily:view_project' },
@@ -194,13 +198,13 @@ export function Layout({
       }
       
       // Project Setup Card
-      if (activeId === 'project-setup' || activeId === 'governance') {
-        return [...base, 'project-setup', 'governance'];
+      if (activeId === 'project-setup' || activeId === 'staff-assignment' || activeId === 'approval-chains' || activeId === 'governance') {
+        return [...base, 'project-setup', 'staff-assignment', 'approval-chains', 'governance'];
       }
       
       // Project Planning Card
-      if (activeId === 'planning' || activeId === 'schedule' || activeId === 'budget') {
-        return [...base, 'planning', 'schedule', 'budget'];
+      if (activeId === 'planning' || activeId === 'schedule' || activeId === 'budget' || activeId === 'takeoff') {
+        return [...base, 'planning', 'schedule', 'budget', 'takeoff'];
       }
       
       // Operations Control Card

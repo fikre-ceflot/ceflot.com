@@ -11,6 +11,7 @@ interface RequisitionData {
   resourceDetail: string;
   refNo: string;
   date: string;
+  companyName?: string;
   items: {
     description: string;
     unit: string;
@@ -39,7 +40,7 @@ export const exportMaterialRequisition = async (data: RequisitionData) => {
   // Title Section
   worksheet.mergeCells('A1', 'H1');
   const titleCell = worksheet.getCell('A1');
-  titleCell.value = 'SUNSHINE TE. CO. LTD';
+  titleCell.value = data.companyName || localStorage.getItem('ceflot-tenant-company-name') || 'CEFLOT ENTERPRISE';
   titleCell.font = { size: 16, bold: true };
   titleCell.alignment = { horizontal: 'center' };
 
@@ -156,7 +157,7 @@ export const exportMaterialRequisition = async (data: RequisitionData) => {
   saveAs(new Blob([buffer]), `Material_Requisition_${data.refNo}.xlsx`);
 };
 
-export const exportMaterialList = async (projectName: string, items: any[]) => {
+export const exportMaterialList = async (projectName: string, items: any[], companyName?: string) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Material List');
 
@@ -175,7 +176,7 @@ export const exportMaterialList = async (projectName: string, items: any[]) => {
 
   worksheet.mergeCells('A1', 'F1');
   const titleCell = worksheet.getCell('A1');
-  titleCell.value = 'SUNSHINE TE. CO. LTD';
+  titleCell.value = companyName || localStorage.getItem('ceflot-tenant-company-name') || 'CEFLOT ENTERPRISE';
   titleCell.font = { size: 16, bold: true };
   titleCell.alignment = { horizontal: 'center' };
 

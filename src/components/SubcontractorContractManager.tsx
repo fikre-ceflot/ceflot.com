@@ -23,6 +23,7 @@ import {
   Minimize2,
   Loader2,
   Check,
+  Calculator,
 } from "lucide-react";
 import { cn, cleanRichText } from "../lib/utils";
 import {
@@ -298,6 +299,7 @@ export function SubcontractorContractManager({
     null,
   );
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [activeTakeoffAssignment, setActiveTakeoffAssignment] = useState<SubcontractorAssignment | null>(null);
   const [editRate, setEditRate] = useState<string>("");
   const [editLumpSum, setEditLumpSum] = useState<string>("");
   const [editGroupName, setEditGroupName] = useState<string>("");

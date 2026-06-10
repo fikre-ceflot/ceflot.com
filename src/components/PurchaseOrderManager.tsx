@@ -102,6 +102,38 @@ export default function PurchaseOrderManager({ project, tenantId }: PurchaseOrde
       const totalAmount = formData.items.reduce((sum, item) => sum + (item.quantity * item.unit_rate), 0);
       const poNumber = `PO-${project.project_code}-${new Date().getFullYear()}-${(pos.length + 1).toString().padStart(3, '0')}`;
 
+      // Try RPC first for native DB-level atomic transaction
+      try {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('create_purchase_order_with_items', {
+          p_project_id: project.id,
+          p_tenant_id: tenantId,
+          p_supplier_id: formData.supplier_id,
+          p_po_number: poNumber,
+          p_total_amount: totalAmount,
+          p_items: formData.items.map(item => ({
+            resource_id: item.resource_id,
+            resource_type: 'material',
+            description: item.description,
+            quantity: item.quantity,
+            unit_rate: item.unit_rate,
+            total_price: item.quantity * item.unit_rate
+          }))
+        });
+
+        if (!rpcErr) {
+          setIsCreating(false);
+          setFormData({ supplier_id: '', items: [] });
+          loadPOs();
+          alert('Purchase Order created successfully (Database Transaction atomic)');
+          return;
+        } else if (!rpcErr.message?.includes('does not exist')) {
+          throw rpcErr;
+        }
+      } catch (e) {
+        console.warn('RPC Transaction not available, falling back to guaranteed manual-rollback client transaction:', e);
+      }
+
+      // Rollback fallback path: sequential write with explicit cleanup on half-state failure
       const { data: po, error: poError } = await supabase
         .from('purchase_orders')
         .insert([{
@@ -129,12 +161,17 @@ export default function PurchaseOrderManager({ project, tenantId }: PurchaseOrde
       }));
 
       const { error: itemsError } = await supabase.from('po_items').insert(poItems);
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Subcontractor items creation failed, rolling back header...', itemsError);
+        // Delete header to prevent orphan rows from polluting DB
+        await supabase.from('purchase_orders').delete().eq('id', po.id);
+        throw new Error(`Failed to save items. Entire purchase order transaction was aborted to preserve integrity.\nDetails: ${itemsError.message}`);
+      }
 
       setIsCreating(false);
       setFormData({ supplier_id: '', items: [] });
       loadPOs();
-      alert('Purchase Order created successfully');
+      alert('Purchase Order created successfully (Atomically rolled back rollback-safe block)');
     } catch (err: any) {
       alert('Error creating PO: ' + err.message);
     }

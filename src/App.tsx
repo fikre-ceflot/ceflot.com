@@ -11,6 +11,7 @@ import { Schedule } from './components/Schedule';
 import { UserManagement } from './components/UserManagement';
 import { Profile } from './components/Profile';
 import { SubcontractorManagement } from './components/SubcontractorManagement';
+import { TakeoffSheetsManager } from './components/TakeoffSheetsManager';
 import { Variations } from './components/Variations';
 import { Approvals } from './components/Approvals';
 import { Alerts } from './components/Alerts';
@@ -28,6 +29,8 @@ import { PlatformGod } from './components/PlatformGod';
 import { Library } from './components/Library';
 import { ProjectModal } from './components/ProjectModal';
 import { ProjectSetup } from './components/ProjectSetup';
+import { StaffAssignment } from './components/StaffAssignment';
+import { ApprovalChains } from './components/ApprovalChains';
 import { Governance } from './components/Governance';
 import { ProjectSelection } from './components/ProjectSelection';
 import { Diagnostics } from './components/Diagnostics';
@@ -180,7 +183,12 @@ export default function App() {
         console.warn('SignOut failed gracefully:', errsignOut);
       }
       Object.keys(localStorage).forEach(key => {
-        if (key.includes('supabase') || key.includes('sb-') || key.includes('auth-token') || key.includes('ceflot-')) {
+        if (
+          key.includes('supabase') || 
+          key.includes('sb-') || 
+          key.includes('auth-token') || 
+          key.startsWith('ceflot_auth_')
+        ) {
           localStorage.removeItem(key);
         }
       });
@@ -263,7 +271,10 @@ export default function App() {
         .eq('id', tenantId)
         .single();
       
-      if (tenantData) setTenant(tenantData);
+      if (tenantData) {
+        setTenant(tenantData);
+        localStorage.setItem('ceflot-tenant-company-name', tenantData.name);
+      }
       await loadProjects(tenantId, false);
     } catch (e: any) {
       console.error('Error auto-creating profile:', e.message);
@@ -307,7 +318,10 @@ export default function App() {
         .eq('id', data.tenant_id)
         .single();
       
-      if (tenantData) setTenant(tenantData);
+      if (tenantData) {
+        setTenant(tenantData);
+        localStorage.setItem('ceflot-tenant-company-name', tenantData.name);
+      }
 
       await loadProjects(data.tenant_id, !!data.is_platform_god);
     } catch (e: any) {
@@ -344,7 +358,10 @@ export default function App() {
         .eq('id', tenantId)
         .single();
       
-      if (tenantData) setTenant(tenantData);
+      if (tenantData) {
+        setTenant(tenantData);
+        localStorage.setItem('ceflot-tenant-company-name', tenantData.name);
+      }
       loadProjects(tenantId, false);
     } catch (e: any) {
       alert('Error setting up profile: ' + e.message);
@@ -413,7 +430,7 @@ export default function App() {
   const handleModuleSelect = (moduleId: string) => {
     // If it's a project-specific module, always go to project selection first
     // The app should not assume the last worked project
-    const projectModules = ['project-setup', 'planning', 'operations-hub', 'budget', 'schedule', 'variations', 'subcontractors', 'field-app', 'procurement'];
+    const projectModules = ['project-setup', 'staff-assignment', 'approval-chains', 'planning', 'operations-hub', 'budget', 'schedule', 'variations', 'subcontractors', 'field-app', 'procurement', 'takeoff'];
     if (projectModules.includes(moduleId)) {
       setActiveProject(null); // Clear active project to force selection
       setPendingPanel(moduleId);
@@ -428,7 +445,7 @@ export default function App() {
 
   const handleBack = () => {
     if (panelHistory.length > 1) {
-      const projectModules = ['project-setup', 'planning', 'budget', 'schedule'];
+      const projectModules = ['project-setup', 'staff-assignment', 'approval-chains', 'planning', 'budget', 'schedule'];
       if (projectModules.includes(activePanel)) {
         if (!window.confirm('You may have unsaved changes. Are you sure you want to go back?')) {
           return;
@@ -689,7 +706,7 @@ export default function App() {
   }
 
   const renderProjectPanel = (component: React.ReactNode) => {
-    const isProjectSpecific = ['project-setup', 'planning', 'budget', 'schedule'].includes(activePanel);
+    const isProjectSpecific = ['project-setup', 'staff-assignment', 'approval-chains', 'planning', 'budget', 'schedule'].includes(activePanel);
 
     return (
       <div className="flex flex-col h-full pt-1">
@@ -871,6 +888,14 @@ export default function App() {
         )
       )}
 
+      {activePanel === 'staff-assignment' && (
+        renderProjectPanel(<StaffAssignment project={currentProject!} userRole={profile.role} tenantId={profile.tenant_id} />)
+      )}
+
+      {activePanel === 'approval-chains' && (
+        renderProjectPanel(<ApprovalChains project={currentProject!} userRole={profile.role} tenantId={profile.tenant_id} />)
+      )}
+
       {activePanel === 'governance' && (
         renderProjectPanel(<Governance project={currentProject!} />)
       )}
@@ -917,6 +942,19 @@ export default function App() {
 
       {activePanel === 'variations' && (
         renderProjectPanel(<Variations project={currentProject!} tenantId={profile.tenant_id} />)
+      )}
+
+      {activePanel === 'takeoff' && (
+        renderProjectPanel(
+          <TakeoffSheetsManager 
+            project={currentProject || null} 
+            tenantId={profile.tenant_id}
+            onSelectProject={() => {
+              setPendingPanel('takeoff');
+              setActivePanel('project-selection');
+            }}
+          />
+        )
       )}
 
       {activePanel === 'subcontractors' && (

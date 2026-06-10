@@ -3,6 +3,10 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
+import { createClient } from "@supabase/supabase-js";
 
 // Load environment variables
 dotenv.config();
@@ -10,7 +14,70 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Enable CORS with support for credentials and restricted origin
+const allowedOrigin = process.env.APP_URL || true;
+app.use(cors({
+  origin: allowedOrigin,
+  credentials: true
+}));
+
+// Apply Helmet with customized configurations so it does not block the AI Studio builder frame/iframe previews
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false,
+  frameguard: false
+}));
+
 app.use(express.json());
+
+// Initialize Server-Side Supabase Client
+const supabaseUrl = (process.env.VITE_SUPABASE_URL || "").trim();
+const supabaseKey = (process.env.VITE_SUPABASE_ANON_KEY || "").trim();
+const serverSupabase = createClient(supabaseUrl || "https://placeholder.supabase.co", supabaseKey || "placeholder");
+
+// Rate limiter for Chatbot to prevent Gemini quota exhaust / runaway billing costs
+const chatRateLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute window
+  max: 30, // Limit each IP address to 30 requests per minute
+  message: { error: "Security check: Too many chat requests from this network. Please take a small pause." },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Authentication Middleware to verify user session token securely on server-side
+async function requireAuth(req: any, res: any, next: any) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Access Denied: Missing or malformed Authorization header. Expected Bearer JWT." });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+    const { data: { user }, error: authError } = await serverSupabase.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({ error: "Unauthorized session: Invalid, expired or signature-failed JWT." });
+    }
+
+    // Safely load profile parameters from actual DB to extract real user role & details
+    const { data: profile, error: dbError } = await serverSupabase
+      .from("user_profiles")
+      .select("role, tenant_id, full_name, is_platform_god")
+      .eq("id", user.id)
+      .single();
+
+    if (dbError || !profile) {
+      return res.status(403).json({ error: "Forbidden: No linked user profile found matching this token identity." });
+    }
+
+    req.user = user;
+    req.profile = profile;
+    next();
+  } catch (err: any) {
+    console.error("JWT verification failure caught:", err);
+    return res.status(401).json({ error: "Authentication failed." });
+  }
+}
 
 // Initialize Gemini client (Lazy initialization)
 let aiClient: GoogleGenAI | null = null;
@@ -127,10 +194,16 @@ Make sure output matches this JSON format strictly. Never output codeblocks, mar
 `;
 
 // API routes
-app.post("/api/chat", async (req, res) => {
+// Secure the chat endpoint with rate limits and active session check
+app.post("/api/chat", requireAuth, chatRateLimiter, async (req: any, res: any) => {
   const { message, chatHistory = [], context = {} } = req.body;
-  const userRole = context.role || "site_encoder";
-  const userName = context.userName || "Field Operator";
+  
+  // Use verified account profile parameters instead of untrusted client body parameters
+  const userRole = req.profile.role;
+  const userName = req.profile.full_name;
+  const tenantId = req.profile.tenant_id;
+  const isPlatformGod = Boolean(req.profile.is_platform_god);
+
   const projectName = context.projectName || "Central Project";
   const activeWeather = context.weather || "sunny";
   const activeRemarks = context.remarks || "";
@@ -234,7 +307,7 @@ app.post("/api/chat", async (req, res) => {
             responseText = `Access Denied: Role '${userRole}' does not hold clearance level to post project flags or safety alerts.`;
           }
         } else if (lowerMsg.includes("role") || lowerMsg.includes("switch to")) {
-          if (context.isPlatformGod || userRole === "tenant_admin") {
+          if (isPlatformGod || userRole === "tenant_admin") {
             let targetRole = "site_encoder";
             if (lowerMsg.includes("store")) targetRole = "storeman";
             else if (lowerMsg.includes("procurement")) targetRole = "procurement";
@@ -306,6 +379,7 @@ Context details:
 - Report Step: ${currentStep}
 - Current Active Tab UI: "${activeTab}"
 - Current Web Dashboard Panel: "${activePanel}"
+- Platform Super Admin (isPlatformGod): ${isPlatformGod}
 
 Conversation history:
 ${chatHistory.map((h: any) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n')}

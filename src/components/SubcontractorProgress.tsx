@@ -101,13 +101,19 @@ export function SubcontractorProgress({ projectId }: SubcontractorProgressProps)
       totalAgreed: number;
     }> = {};
 
+    // Build linear complexity lookup map O(Assignments)
+    const assignmentMap = new Map<string, any>();
+    assignments.forEach(a => {
+      const matchName = a.subcontractor?.company_name;
+      if (a.boq_item_id && matchName) {
+        assignmentMap.set(`${a.boq_item_id}_${matchName}`, a);
+      }
+    });
+
     progressData.forEach((item: any) => {
       const subName = item.subcontractor_name;
-      // Find matching assignment in this project
-      const assign = assignments.find(a => 
-        a.boq_item_id === item.boq_item_id && 
-        a.subcontractor?.company_name === subName
-      );
+      // Find matching assignment in this project via constant-time O(1) map lookup
+      const assign = assignmentMap.get(`${item.boq_item_id}_${subName}`);
 
       const type = assign?.assignment_type || 'unit_rate';
       const isLS = type === 'lumpsum';

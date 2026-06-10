@@ -239,10 +239,22 @@ export function RoleManagement({ userRole, isPlatformGod }: RoleManagementProps)
     }
   }, [selectedRole]);
 
-  const handleStrategyChange = (newStrategy: 'role' | 'user') => {
+  const handleStrategyChange = async (newStrategy: 'role' | 'user') => {
     if (!tenantId) return;
-    localStorage.setItem(`permission_strategy_${tenantId}`, newStrategy);
     setStrategy(newStrategy);
+    
+    try {
+      const { error } = await supabase
+        .from('tenants')
+        .update({ permission_strategy: newStrategy })
+        .eq('id', tenantId);
+      if (error) {
+        console.warn('Could not persist permission_strategy column in tenants table:', error);
+      }
+    } catch (e) {
+      console.warn('Skipping tenant strategy db-save:', e);
+    }
+
     alert(`System updated! Permissions are now evaluated using ${newStrategy === 'role' ? 'Role-Based Access (RBAC)' : 'User-Specific Bespoke Override Caps'}.`);
   };
 
@@ -260,7 +272,23 @@ export function RoleManagement({ userRole, isPlatformGod }: RoleManagementProps)
       if (!profile) return;
 
       setTenantId(profile.tenant_id);
-      const activeStrategy = (localStorage.getItem(`permission_strategy_${profile.tenant_id}`) || 'role') as 'role' | 'user';
+
+      // Attempt to load tenant permission strategy from DB
+      let dbTenantStrategy: string | null = null;
+      try {
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('permission_strategy')
+          .eq('id', profile.tenant_id)
+          .single();
+        if (tenantData && 'permission_strategy' in tenantData) {
+          dbTenantStrategy = (tenantData as any).permission_strategy;
+        }
+      } catch (e) {
+        console.warn('Could not read permission_strategy from tenants table.');
+      }
+
+      const activeStrategy = (dbTenantStrategy || 'role') as 'role' | 'user';
       setStrategy(activeStrategy);
 
       const { data, error } = await supabase

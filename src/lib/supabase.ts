@@ -42,7 +42,12 @@ const originalGetUser = supabase.auth.getUser.bind(supabase.auth);
     )) {
       console.warn('Handling invalid refresh token in getUser proxy...');
       Object.keys(localStorage).forEach(key => {
-        if (key.includes('supabase') || key.includes('sb-') || key.includes('auth-token') || key.includes('ceflot-')) {
+        if (
+          key.includes('supabase') || 
+          key.includes('sb-') || 
+          key.includes('auth-token') || 
+          key.startsWith('ceflot_auth_')
+        ) {
           localStorage.removeItem(key);
         }
       });
@@ -71,7 +76,12 @@ const originalGetSession = supabase.auth.getSession.bind(supabase.auth);
     )) {
       console.warn('Handling invalid refresh token in getSession proxy...');
       Object.keys(localStorage).forEach(key => {
-        if (key.includes('supabase') || key.includes('sb-') || key.includes('auth-token') || key.includes('ceflot-')) {
+        if (
+          key.includes('supabase') || 
+          key.includes('sb-') || 
+          key.includes('auth-token') || 
+          key.startsWith('ceflot_auth_')
+        ) {
           localStorage.removeItem(key);
         }
       });

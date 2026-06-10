@@ -184,25 +184,45 @@ export function usePermissions(role: Role | undefined, tenantId: string | undefi
     async function loadCapabilities() {
       try {
         let targetUserId = userProfile?.id;
+        let dbStrategy: string | null = null;
+        let currentProfile = userProfile;
+
+        if (currentProfile && 'permission_strategy' in currentProfile) {
+          dbStrategy = (currentProfile as any).permission_strategy;
+        }
 
         // If userProfile not provided, try to fetch current user's profile
-        if (!userProfile) {
+        if (!currentProfile) {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
-            const { data: profile } = await supabase
+            // Attempt to select WITH permission_strategy first
+            let { data: profile, error: selectErr } = await supabase
               .from('user_profiles')
-              .select('id, email, full_name, role, tenant_id, is_platform_god, is_active, created_at, updated_at')
+              .select('id, email, full_name, role, tenant_id, is_platform_god, is_active, permission_strategy')
               .eq('id', user.id)
               .single();
             
+            if (selectErr && (selectErr.message?.includes('permission_strategy') || selectErr.message?.includes('does not exist'))) {
+              // Fallback: select WITHOUT permission_strategy column
+              const { data: fallbackProfile } = await supabase
+                .from('user_profiles')
+                .select('id, email, full_name, role, tenant_id, is_platform_god, is_active, created_at, updated_at')
+                .eq('id', user.id)
+                .single();
+              profile = fallbackProfile as any;
+            }
+
             if (profile) {
+              currentProfile = profile as any;
               targetUserId = profile.id;
+              dbStrategy = (profile as any).permission_strategy || null;
             }
           }
         }
 
-        // Read user-specific permission strategy, defaulting to role-based (RBAC)
-        const strategy = targetUserId ? (localStorage.getItem(`permission_strategy_${targetUserId}`) || 'role') : 'role';
+        // Read user-specific permission strategy, defaulting strictly to role-based (RBAC)
+        // Disallow untrusted localStorage override to prevent privilege escalation.
+        const strategy = dbStrategy || 'role';
 
         if (strategy === 'role') {
           const { data, error } = await supabase
@@ -242,17 +262,7 @@ export function usePermissions(role: Role | undefined, tenantId: string | undefi
 
           if (error) {
             if (error.code === 'PGRST116' || error.message?.includes('public.user_capabilities') || error.message?.includes('schema cache') || error.message?.includes('does not exist')) {
-              console.warn('User capabilities table not yet created or not in schema cache. Falling back to localStorage.');
-              const fallbackStr = localStorage.getItem(`user_caps_fallback_${targetUserId}`);
-              if (fallbackStr) {
-                try {
-                  const parsed = JSON.parse(fallbackStr);
-                  setCapabilities(new Set(parsed as Capability[]));
-                  return;
-                } catch (pe) {
-                  console.error('Failed to parse localStorage user capabilities:', pe);
-                }
-              }
+              console.warn('User capabilities table not yet created or not in schema cache. Falling back to role defaults.');
               const defaults = role && DEFAULT_ROLE_CAPABILITIES[role] ? DEFAULT_ROLE_CAPABILITIES[role] : [];
               setCapabilities(new Set(defaults));
               return;
@@ -269,18 +279,7 @@ export function usePermissions(role: Role | undefined, tenantId: string | undefi
         }
       } catch (e: any) {
         console.error('Error loading capabilities:', e);
-        // Clean fallback to local storage if user-based strategy failed
-        const targetUserId = userProfile?.id;
-        if (targetUserId) {
-          const fallbackStr = localStorage.getItem(`user_caps_fallback_${targetUserId}`);
-          if (fallbackStr) {
-            try {
-              const parsed = JSON.parse(fallbackStr);
-              setCapabilities(new Set(parsed as Capability[]));
-              return;
-            } catch {}
-          }
-        }
+        // Clean fallback to default templates if strategy failed, disallowing raw localStorage overrides.
         const defaults = role && DEFAULT_ROLE_CAPABILITIES[role] ? DEFAULT_ROLE_CAPABILITIES[role] : [];
         setCapabilities(new Set(defaults.length ? defaults : (['view_dashboard', 'view_projects'] as Capability[])));
       } finally {
